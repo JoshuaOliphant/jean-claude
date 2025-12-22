@@ -6,6 +6,7 @@
 from pathlib import Path
 from typing import Optional
 
+import anyio
 import click
 from rich.console import Console
 from rich.panel import Panel
@@ -15,10 +16,13 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from jean_claude.core.agent import (
     ExecutionResult,
     PromptRequest,
+    RetryCode,
     check_claude_installed,
     execute_prompt,
     generate_workflow_id,
 )
+from jean_claude.core.sdk_executor import execute_prompt_streaming
+from jean_claude.cli.streaming import stream_output
 
 console = Console()
 
@@ -44,11 +48,23 @@ console = Console()
     is_flag=True,
     help="Output raw text without formatting",
 )
+@click.option(
+    "--stream",
+    is_flag=True,
+    help="Stream output in real-time as it arrives",
+)
+@click.option(
+    "--show-thinking",
+    is_flag=True,
+    help="Show tool uses and internal thinking (requires --stream)",
+)
 def prompt(
     text: str,
     model: str,
     output_dir: Optional[Path],
     raw: bool,
+    stream: bool,
+    show_thinking: bool,
 ) -> None:
     """Execute an adhoc prompt with Claude.
 
@@ -93,10 +109,36 @@ def prompt(
         console.print(f"[dim]Model: {model}[/dim]")
         console.print()
 
-    # Execute with progress indicator
+    # Execute with streaming or traditional approach
     result: ExecutionResult
+    output_text: Optional[str] = None
 
-    if raw:
+    if stream:
+        # Use streaming execution
+        async def run_streaming() -> str:
+            message_stream = execute_prompt_streaming(request)
+            return await stream_output(message_stream, console, show_thinking)
+
+        try:
+            # Run async streaming in sync context
+            output_text = anyio.run(run_streaming)
+
+            # Create a minimal result for metadata display
+            result = ExecutionResult(
+                output=output_text,
+                success=True,
+                session_id=None,
+                duration_ms=None,
+                cost_usd=None,
+            )
+        except Exception as e:
+            # Handle streaming errors
+            result = ExecutionResult(
+                output=f"Streaming error: {e}",
+                success=False,
+                retry_code=RetryCode.EXECUTION_ERROR,
+            )
+    elif raw:
         result = execute_prompt(request)
     else:
         with Progress(
@@ -110,7 +152,12 @@ def prompt(
 
     # Display result
     if result.success:
-        if raw:
+        # For streaming mode, output was already shown in real-time
+        if stream:
+            console.print()  # Add blank line after streaming
+            console.print("[green]✓ Complete[/green]")
+            console.print(f"[dim]Output saved to: {output_dir}[/dim]")
+        elif raw:
             console.print(result.output)
         else:
             # Try to render as markdown for better formatting

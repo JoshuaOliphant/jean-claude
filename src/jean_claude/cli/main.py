@@ -31,11 +31,12 @@ def version() -> None:
 
 
 # Import and register commands
-from jean_claude.cli.commands import init, prompt, run
+from jean_claude.cli.commands import init, prompt, run, workflow
 
 cli.add_command(init.init)
 cli.add_command(prompt.prompt)
 cli.add_command(run.run)
+cli.add_command(workflow.workflow)
 
 # Future commands (will be added as implemented):
 # from jean_claude.cli.commands import watch
