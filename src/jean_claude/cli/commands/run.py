@@ -1,7 +1,7 @@
-# ABOUTME: Implementation of the 'jc run' command for executing ADW workflows
+# ABOUTME: Implementation of the 'jc run' command for executing workflows
 # ABOUTME: Orchestrates chore, feature, and bug workflows with slash command templates
 
-"""Execute AI Developer Workflows (chore, feature, bug)."""
+"""Execute Jean Claude workflows (chore, feature, bug)."""
 
 from pathlib import Path
 from typing import Literal, Optional
@@ -81,7 +81,7 @@ def run(
     delay: float,
     skip_verify: bool,
 ) -> None:
-    """Execute an AI Developer Workflow.
+    """Execute a Jean Claude workflow.
 
     Creates a plan using the specified workflow template (chore, feature, or bug)
     and generates a workflow ID for tracking.

@@ -15,7 +15,7 @@ console = Console()
 @click.version_option(version=__version__, prog_name="jc")
 @click.pass_context
 def cli(ctx: click.Context) -> None:
-    """Jean Claude CLI - Universal AI Developer Workflows.
+    """Jean Claude CLI - AI-powered development workflows.
 
     Transform any project into an AI-driven development environment
     where agents can plan, implement, test, and deploy features.
@@ -27,7 +27,7 @@ def cli(ctx: click.Context) -> None:
 def version() -> None:
     """Display version information."""
     console.print(f"[bold blue]Jean Claude CLI[/bold blue] v{__version__}")
-    console.print("[dim]Universal AI Developer Workflows[/dim]")
+    console.print("[dim]AI-powered development workflows[/dim]")
 
 
 # Import and register commands

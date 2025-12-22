@@ -1,7 +1,7 @@
-# ABOUTME: Jean Claude CLI - Universal AI Developer Workflows tool
+# ABOUTME: Jean Claude CLI - AI-powered development workflows tool
 # ABOUTME: Enables programmatic AI agent orchestration for any codebase
 
-"""Jean Claude CLI - Universal AI Developer Workflows."""
+"""Jean Claude CLI - AI-powered development workflows."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "La Boeuf & Claude"

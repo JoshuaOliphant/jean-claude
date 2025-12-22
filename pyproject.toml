@@ -1,7 +1,7 @@
 [project]
 name = "jean-claude"
-version = "0.1.0"
-description = "Universal AI Developer Workflows CLI - Transform any project into an AI-driven development environment"
+version = "0.1.1"
+description = "Jean Claude CLI - AI-powered development workflows for any codebase"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

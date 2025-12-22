@@ -1,7 +1,7 @@
 # ABOUTME: Implementation of the 'jc init' command
-# ABOUTME: Initializes ADW infrastructure in the current project
+# ABOUTME: Initializes Jean Claude infrastructure in the current project
 
-"""Initialize ADW in the current project."""
+"""Initialize Jean Claude in the current project."""
 
 from pathlib import Path
 from typing import Optional
@@ -21,7 +21,7 @@ INIT_DIRECTORIES = ["specs", "agents", "trees", ".jc"]
 # Entries to add to .gitignore
 GITIGNORE_ENTRIES = [
     "",
-    "# Jean Claude CLI - AI Developer Workflows",
+    "# Jean Claude CLI",
     "agents/",
     "trees/",
     ".jc/",
@@ -80,7 +80,7 @@ def detect_test_command(project_root: Path) -> str:
 
 
 def update_gitignore(project_root: Path) -> bool:
-    """Update .gitignore with ADW entries.
+    """Update .gitignore with Jean Claude entries.
 
     Returns:
         True if .gitignore was modified, False if entries already exist
@@ -114,10 +114,10 @@ def update_gitignore(project_root: Path) -> bool:
     help="Create minimal configuration without auto-detection",
 )
 def init(force: bool, minimal: bool) -> None:
-    """Initialize ADW in the current project.
+    """Initialize Jean Claude in the current project.
 
     Creates the necessary directories and configuration files for
-    AI Developer Workflows.
+    AI-powered development workflows.
 
     \b
     Creates:
@@ -146,7 +146,7 @@ def init(force: bool, minimal: bool) -> None:
         raise SystemExit(1)
 
     console.print()
-    console.print("[bold blue]Initializing Jean Claude ADW...[/bold blue]")
+    console.print("[bold blue]Initializing Jean Claude...[/bold blue]")
     console.print()
 
     # Create directories
@@ -212,7 +212,7 @@ def init(force: bool, minimal: bool) -> None:
 
     console.print(
         Panel(
-            "[bold green]ADW initialized successfully![/bold green]\n\n"
+            "[bold green]Jean Claude initialized successfully![/bold green]\n\n"
             "Next steps:\n"
             "  • Edit [cyan].jc-project.yaml[/cyan] to customize settings\n"
             "  • Run [cyan]jc prompt \"your prompt\"[/cyan] to execute prompts\n"
