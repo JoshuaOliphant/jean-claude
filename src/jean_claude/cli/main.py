@@ -31,9 +31,19 @@ def version() -> None:
 
 
 # Import and register commands
-from jean_claude.cli.commands import init, onboard, prompt, run, workflow
+from jean_claude.cli.commands import (
+    implement,
+    init,
+    initialize,
+    onboard,
+    prompt,
+    run,
+    workflow,
+)
 
+cli.add_command(implement.implement)
 cli.add_command(init.init)
+cli.add_command(initialize.initialize)
 cli.add_command(onboard.onboard)
 cli.add_command(prompt.prompt)
 cli.add_command(run.run)

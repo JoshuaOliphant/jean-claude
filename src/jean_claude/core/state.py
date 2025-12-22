@@ -74,6 +74,15 @@ class WorkflowState(BaseModel):
             data = json.load(f)
         return cls.model_validate(data)
 
+    @classmethod
+    def load_from_file(cls, state_path: Path) -> "WorkflowState":
+        """Load workflow state from a specific file path."""
+        if not state_path.exists():
+            raise FileNotFoundError(f"State file not found: {state_path}")
+        with open(state_path) as f:
+            data = json.load(f)
+        return cls.model_validate(data)
+
     def save(self, project_root: Path) -> None:
         """Save workflow state to disk."""
         self.updated_at = datetime.now()
