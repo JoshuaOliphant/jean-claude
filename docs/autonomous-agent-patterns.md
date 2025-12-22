@@ -187,17 +187,21 @@ NEVER rely on memory from previous sessions.
 
 ## Application to Jean Claude
 
-### Phase 2 Priorities
+### Phase 2 Implementation Status
 
-1. **Replace Subprocess with SDK**
-   - Use `claude_code_sdk` instead of subprocess
-   - Enables streaming, hooks, proper error handling
-   - Better telemetry and observability
+1. **✅ SDK Integration Complete**
+   - Using `claude_code_sdk` for all new executions
+   - Streaming support with proper async handling
+   - Full telemetry and observability
 
-2. **Implement Security Hooks**
-   - Pre-tool-use validation
-   - Command allowlists per workflow type
-   - Configurable restrictions
+2. **✅ Security Hooks Implemented**
+   - Pre-tool-use validation for bash commands
+   - Three workflow types with graduated allowlists:
+     - `readonly`: Inspection only (ls, cat, git status)
+     - `development`: Common dev tools (git, uv, pytest, npm)
+     - `testing`: Development + test runners (coverage, tox)
+   - Configurable per-workflow restrictions
+   - Smart command parsing (handles paths, env vars, pipes)
 
 3. **Add Auto-Continue Workflows**
    - Long-running chore/feature/bug workflows

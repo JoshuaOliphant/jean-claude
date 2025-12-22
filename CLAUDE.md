@@ -5,7 +5,8 @@ Scaled ADW infrastructure for programmatic Claude Code orchestration with Beads 
 ## Project Overview
 
 Jean Claude is a fully scaffolded AI Developer Workflows (ADW) system that enables:
-- **Programmatic agent orchestration**: Execute Claude Code prompts via subprocess with retry logic
+- **Programmatic agent orchestration**: Execute Claude Code prompts via SDK with async support
+- **Security-first execution**: Pre-tool-use hooks validate bash commands against configurable allowlists
 - **Beads integration**: Local SQLite-based issue tracking for offline development
 - **Workflow composition**: Multi-phase SDLC workflows (plan → build → test → review → ship)
 - **Git worktree isolation**: Safe parallel development without conflicts
@@ -176,6 +177,84 @@ bd update poc-abc --status in_progress
 # 4. Mark complete
 bd close poc-abc
 ```
+
+## Security Configuration
+
+Jean Claude implements defense-in-depth security for autonomous agent execution:
+
+### Security Layers
+
+1. **Environment Isolation**: Use Docker or sandboxed environments for production
+2. **SDK Tool Permissions**: Only allow necessary tools (`Read`, `Write`, `Edit`, `Bash`, etc.)
+3. **Command Allowlists**: Pre-tool-use hooks validate bash commands before execution
+
+### Workflow Types
+
+Security is configurable per workflow type:
+
+#### Readonly Workflow
+Inspection only - no file modifications:
+```python
+PromptRequest(
+    prompt="Analyze the codebase",
+    workflow_type="readonly",
+    enable_security_hooks=True
+)
+```
+
+**Allowed commands**: `ls`, `cat`, `head`, `tail`, `grep`, `find`, `git status`, `ps`
+
+#### Development Workflow (Default)
+Common development tools:
+```python
+PromptRequest(
+    prompt="Add logging to API",
+    workflow_type="development",  # default
+    enable_security_hooks=True    # default
+)
+```
+
+**Allowed commands**: All readonly + `cp`, `mkdir`, `touch`, `chmod`, `git`, `uv`, `python`, `pytest`, `npm`, `node`
+
+#### Testing Workflow
+Development + test runners:
+```python
+PromptRequest(
+    prompt="Run full test suite",
+    workflow_type="testing",
+    enable_security_hooks=True
+)
+```
+
+**Allowed commands**: All development + `coverage`, `tox`
+
+### Custom Allowlists
+
+For specialized workflows, create custom command allowlists:
+
+```python
+from jean_claude.core.security import create_custom_allowlist, bash_security_hook
+
+# Create custom allowlist
+custom_allowlist = create_custom_allowlist("ls", "cat", "grep", "special-tool")
+
+# Use in hook context
+context = {"command_allowlist": custom_allowlist}
+result = await bash_security_hook({"command": "special-tool --run"}, context=context)
+```
+
+### Disabling Security Hooks
+
+For trusted operations or debugging, hooks can be disabled:
+
+```python
+PromptRequest(
+    prompt="Emergency fix",
+    enable_security_hooks=False  # ⚠️ Use with caution
+)
+```
+
+**⚠️ Warning**: Only disable security hooks in controlled environments where you trust the agent's actions completely.
 
 ## Configuration
 

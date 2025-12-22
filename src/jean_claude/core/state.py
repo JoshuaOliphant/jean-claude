@@ -59,6 +59,11 @@ class WorkflowState(BaseModel):
     total_cost_usd: float = 0.0
     total_duration_ms: int = 0
 
+    # Verification tracking
+    last_verification_at: datetime | None = None
+    last_verification_passed: bool = True
+    verification_count: int = 0
+
     @classmethod
     def load(cls, workflow_id: str, project_root: Path) -> "WorkflowState":
         """Load workflow state from disk."""
@@ -148,6 +153,44 @@ class WorkflowState(BaseModel):
     def is_failed(self) -> bool:
         """Check if any feature has failed."""
         return any(f.status == "failed" for f in self.features)
+
+    def should_verify(self) -> bool:
+        """Check if verification should run before continuing.
+
+        Verification should run if:
+        - There are completed features with test files
+        - It's been more than 5 minutes since last verification (or never verified)
+
+        Returns:
+            True if verification is needed, False otherwise
+        """
+        # No completed features with tests → no need to verify
+        completed_with_tests = [
+            f for f in self.features if f.status == "completed" and f.test_file
+        ]
+
+        if not completed_with_tests:
+            return False
+
+        # If never verified, should verify
+        if self.last_verification_at is None:
+            return True
+
+        # If last verified more than 5 minutes ago, verify again
+        import time
+
+        time_since_last = time.time() - self.last_verification_at.timestamp()
+        return time_since_last > 300  # 5 minutes
+
+    def mark_verification(self, passed: bool) -> None:
+        """Record a verification run.
+
+        Args:
+            passed: Whether verification tests passed
+        """
+        self.last_verification_at = datetime.now()
+        self.last_verification_passed = passed
+        self.verification_count += 1
 
     def get_summary(self) -> dict[str, Any]:
         """Get a summary of workflow progress."""

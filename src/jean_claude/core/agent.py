@@ -58,6 +58,8 @@ class PromptRequest(BaseModel):
     working_dir: Optional[Path] = None
     output_dir: Optional[Path] = None
     dangerously_skip_permissions: bool = False
+    workflow_type: Literal["readonly", "development", "testing"] = "development"
+    enable_security_hooks: bool = True
 
 
 class TemplateRequest(BaseModel):
