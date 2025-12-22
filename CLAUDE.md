@@ -71,7 +71,27 @@ jean_claude/
 
 ## Quick Start
 
-### 1. Adhoc Prompts
+### 1. Two-Agent Workflow (Recommended for Complex Tasks)
+
+For complex features, use the two-agent pattern where Opus plans and Sonnet codes:
+
+```bash
+# Basic usage - Opus plans features, Sonnet implements them
+jc workflow "Build a user authentication system with JWT and OAuth2"
+
+# Custom workflow ID for tracking
+jc workflow "Add logging middleware" --workflow-id auth-logging
+
+# Use Opus for both agents (slower but higher quality)
+jc workflow "Complex architecture" -i opus -c opus
+
+# Auto-confirm without prompt
+jc workflow "Simple task" --auto-confirm
+```
+
+See [Two-Agent Workflow Documentation](docs/two-agent-workflow.md) for details.
+
+### 2. Adhoc Prompts
 
 Execute any prompt directly:
 
@@ -87,7 +107,7 @@ Execute any prompt directly:
 ./adws/adw_prompt.py "List files" --working-dir /path/to/project
 ```
 
-### 2. Slash Commands
+### 3. Slash Commands
 
 Execute templated workflows:
 
@@ -98,7 +118,7 @@ Execute templated workflows:
 ./adws/adw_slash_command.py /bug "Fix authentication bug"
 ```
 
-### 3. Compound Workflows
+### 4. Compound Workflows
 
 Multi-phase execution:
 

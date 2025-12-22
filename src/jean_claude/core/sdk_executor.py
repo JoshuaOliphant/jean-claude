@@ -11,7 +11,7 @@ the existing ExecutionResult model while adding proper async support.
 import json
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, AsyncIterator, Optional
 
 import anyio
 
@@ -25,7 +25,7 @@ from claude_code_sdk import (
     CLINotFoundError,
     ProcessError,
 )
-from claude_code_sdk.types import HookMatcher
+from claude_code_sdk.types import HookMatcher, Message
 
 from jean_claude.core.agent import (
     ExecutionResult,
@@ -325,3 +325,79 @@ def execute_template_sdk(request: TemplateRequest) -> ExecutionResult:
     return anyio.from_thread.run_sync(
         lambda: anyio.run(execute_template_async, request)
     )
+
+
+async def execute_prompt_streaming(
+    request: PromptRequest,
+) -> AsyncIterator[Message]:
+    """Execute a prompt and stream messages as they arrive.
+
+    This function yields messages in real-time instead of collecting them
+    and returning at the end. Perfect for implementing live progress displays.
+
+    Args:
+        request: The prompt request configuration
+
+    Yields:
+        Message objects (AssistantMessage, ToolResultMessage, ResultMessage, etc.)
+
+    Example:
+        async for message in execute_prompt_streaming(request):
+            if isinstance(message, AssistantMessage):
+                for block in message.content:
+                    if isinstance(block, TextBlock):
+                        print(block.text, end="", flush=True)
+    """
+    import os
+
+    # Ensure Claude CLI can be found in PATH
+    # Add common installation locations to PATH
+    claude_paths = [
+        os.path.expanduser("~/.claude/local"),
+        "/usr/local/bin",
+        "/opt/homebrew/bin",
+    ]
+    current_path = os.environ.get("PATH", "")
+    paths_to_add = [p for p in claude_paths if p not in current_path]
+    if paths_to_add:
+        os.environ["PATH"] = ":".join(paths_to_add) + ":" + current_path
+
+    # Map model names to SDK format
+    model_map = {
+        "sonnet": "claude-sonnet-4-20250514",
+        "opus": "claude-opus-4-20250514",
+        "haiku": "claude-haiku-3-5-20241022",
+    }
+    model = model_map.get(request.model, request.model)
+
+    # Configure security hooks if enabled
+    hooks = None
+    if request.enable_security_hooks:
+        # Create a wrapper that injects workflow_type into context
+        async def security_hook_wrapper(
+            tool_input: dict[str, Any],
+            tool_use_id: str | None = None,
+            hook_context: Any = None,
+        ) -> dict[str, Any]:
+            # Inject workflow type into context for the security hook
+            context = {"workflow_type": request.workflow_type}
+            return await bash_security_hook(tool_input, tool_use_id, context)
+
+        hooks = {
+            "PreToolUse": [
+                HookMatcher(matcher="Bash", hooks=[security_hook_wrapper])
+            ]
+        }
+
+    # Build SDK options
+    options = ClaudeCodeOptions(
+        model=model,
+        cwd=str(request.working_dir) if request.working_dir else None,
+        max_turns=100,
+        permission_mode="acceptEdits" if request.dangerously_skip_permissions else None,
+        hooks=hooks,
+    )
+
+    # Stream messages directly to caller
+    async for message in query(prompt=request.prompt, options=options):
+        yield message

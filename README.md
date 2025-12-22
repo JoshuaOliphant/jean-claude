@@ -7,6 +7,7 @@ Jean Claude (`jc`) is a CLI tool that enables programmatic AI agent orchestratio
 ## Features
 
 - **Universal CLI**: Single `jc` command for all operations
+- **Real-Time Streaming**: Watch agent output as it works with `--stream` mode
 - **SDK-Based Execution**: Claude Agent SDK with Bedrock authentication
 - **Workflow Composition**: Multi-phase SDLC workflows (plan -> implement -> test -> review)
 - **Git Worktree Isolation**: Safe parallel development without conflicts
@@ -50,6 +51,7 @@ jc watch
 ```bash
 jc init                              # Initialize ADW in current project
 jc prompt "your prompt here"         # Execute adhoc prompt
+jc prompt "your prompt" --stream     # Stream output in real-time
 jc run chore "task description"      # Run chore workflow
 jc run feature "feature description" # Run feature workflow
 jc watch                             # Real-time monitoring UI
@@ -63,6 +65,28 @@ jc state list                        # List all workflow states
 jc state show <workflow_id>          # Show workflow details
 jc stop <workflow_id>                # Stop running workflow
 ```
+
+### Streaming Output
+
+Real-time streaming displays output as the agent works:
+
+```bash
+# Stream output in real-time
+jc prompt "Analyze the codebase" --stream
+
+# Show tool uses and thinking process
+jc prompt "Refactor authentication" --stream --show-thinking
+
+# Different models with streaming
+jc prompt "Quick question" --stream -m haiku
+jc prompt "Complex analysis" --stream -m opus
+```
+
+**Benefits of streaming:**
+- See progress in real-time as the agent works
+- Better user experience for long-running prompts
+- Optional visibility into tool uses and thinking process
+- Graceful interrupt handling (Ctrl+C)
 
 ### Cleanup
 
