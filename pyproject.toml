@@ -1,12 +1,12 @@
 [project]
 name = "jean-claude"
-version = "0.2.0"
+version = "0.2.1"
 description = "Jean Claude CLI - AI-powered development workflows for any codebase"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-    { name = "La Boeuf & Claude" }
+    { name = "Joshua Oliphant" }
 ]
 keywords = ["ai", "cli", "claude", "developer-tools", "automation", "workflows"]
 classifiers = [
