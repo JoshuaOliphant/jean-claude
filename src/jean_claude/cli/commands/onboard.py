@@ -1,5 +1,5 @@
 # ABOUTME: Implementation of the 'jc onboard' command
-# ABOUTME: Provides onboarding content for AGENTS.md and CLAUDE.md integration
+# ABOUTME: Provides onboarding content for CLAUDE.md integration
 
 """Onboarding command for Jean Claude CLI."""
 
@@ -9,79 +9,83 @@ from rich.panel import Panel
 
 console = Console()
 
-AGENTS_MD_CONTENT = """\
+CLAUDE_MD_CONTENT = """\
 ## AI Developer Workflows
 
 This project uses **Jean Claude CLI (jc)** for AI-powered development workflows.
 
-**Quick reference:**
-- `jc init` - Initialize Jean Claude in a project
-- `jc prompt "your prompt"` - Execute adhoc prompts
-- `jc run chore "task"` - Run a chore workflow
-- `jc run feature "description"` - Run a feature workflow
-- `jc workflow "complex task"` - Two-agent pattern (Opus plans, Sonnet codes)
+### Quick Reference
 
-**Workflow types:**
-- `chore` - Small tasks, refactoring, documentation
-- `feature` - New functionality or enhancements
-- `bug` - Bug fixes and issue resolution
+| Task | Command |
+|------|---------|
+| Run tests | `uv run pytest tests/` |
+| Execute prompt | `jc prompt "your prompt"` |
+| Two-agent workflow | `jc workflow "complex task"` |
+| Work from Beads | `jc work <beads-id>` |
+| Run chore | `jc run chore "task"` |
+
+### Two-Agent Workflow
+
+- `jc workflow "description"` - Full workflow (Opus plans, Sonnet codes)
+- `jc initialize "description"` - Plan only (creates spec)
+- `jc implement <workflow-id>` - Resume implementation
+
+### Beads Integration
+
+- `jc work task-123` - Execute from Beads task
+- `jc work task-123 --dry-run` - Plan only
+- `jc work task-123 --show-plan` - Pause for approval
 
 For more: `jc --help`
 """
 
-CLAUDE_MD_LINK = """\
-# Agents
+MINIMAL_CONTENT = """\
+## Jean Claude CLI
 
-@AGENTS.md
+`jc workflow "task"` - AI-powered development workflows
+
+For more: `jc --help`
 """
 
 
 @click.command()
 @click.option(
-    "--claude-md",
+    "--minimal",
     is_flag=True,
-    help="Also show CLAUDE.md link snippet",
+    help="Show minimal snippet (2 lines)",
 )
-def onboard(claude_md: bool) -> None:
-    """Display onboarding content for AGENTS.md.
+def onboard(minimal: bool) -> None:
+    """Display onboarding content for CLAUDE.md.
 
-    Shows a minimal snippet to add to AGENTS.md (or create it) that
-    documents Jean Claude CLI usage for AI assistants.
+    Shows a snippet to add to your project's CLAUDE.md that documents
+    Jean Claude CLI usage for AI assistants.
 
     \\b
     Examples:
-      jc onboard              # Show AGENTS.md content
-      jc onboard --claude-md  # Also show CLAUDE.md link
+      jc onboard           # Show full CLAUDE.md content
+      jc onboard --minimal # Show minimal snippet
     """
     console.print()
     console.print("[bold blue]jc Onboarding[/bold blue]")
     console.print()
-    console.print("Add this snippet to [cyan]AGENTS.md[/cyan] (or create it):")
+
+    content = MINIMAL_CONTENT if minimal else CLAUDE_MD_CONTENT
+    title = "Minimal CLAUDE.md" if minimal else "CLAUDE.md Content"
+
+    console.print(f"Add this snippet to your project's [cyan]CLAUDE.md[/cyan]:")
     console.print()
 
     console.print(
         Panel(
-            AGENTS_MD_CONTENT,
-            title="[green]AGENTS.md Content[/green]",
+            content,
+            title=f"[green]{title}[/green]",
             border_style="green",
         )
     )
 
-    if claude_md:
-        console.print()
-        console.print("For [cyan]Claude Code[/cyan] users, add this to your [cyan]CLAUDE.md[/cyan]:")
-        console.print()
-        console.print(
-            Panel(
-                CLAUDE_MD_LINK,
-                title="[blue]CLAUDE.md Link[/blue]",
-                border_style="blue",
-            )
-        )
-
     console.print()
     console.print("[dim]How it works:[/dim]")
-    console.print("   [dim]- AGENTS.md provides context for AI assistants[/dim]")
-    console.print("   [dim]- @AGENTS.md in CLAUDE.md imports it for Claude Code[/dim]")
-    console.print("   [dim]- Run `jc init` to set up project infrastructure[/dim]")
+    console.print("   [dim]- CLAUDE.md provides context for Claude Code sessions[/dim]")
+    console.print("   [dim]- Content is injected at the start of each conversation[/dim]")
+    console.print("   [dim]- Run `jc init` to set up full project infrastructure[/dim]")
     console.print()

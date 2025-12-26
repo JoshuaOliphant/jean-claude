@@ -7,12 +7,13 @@ Jean Claude (`jc`) is a CLI tool that enables programmatic AI agent orchestratio
 ## Features
 
 - **Universal CLI**: Single `jc` command for all operations
+- **Two-Agent Workflow**: Opus plans features, Sonnet implements them
+- **Beads Integration**: Execute workflows directly from Beads tasks with `jc work`
 - **Real-Time Streaming**: Watch agent output as it works with `--stream` mode
 - **SDK-Based Execution**: Claude Agent SDK with Bedrock authentication
-- **Workflow Composition**: Multi-phase SDLC workflows (plan -> implement -> test -> review)
+- **Workflow Composition**: Multi-phase SDLC workflows (plan → implement → verify → complete)
 - **Git Worktree Isolation**: Safe parallel development without conflicts
 - **Real-Time Telemetry**: SQLite event store with live monitoring UI
-- **Beads Integration**: Local SQLite-based issue tracking for offline development
 
 ## Installation
 
@@ -37,11 +38,14 @@ jc init
 # Run an adhoc prompt
 jc prompt "Analyze the codebase structure"
 
-# Run a chore workflow
-jc run chore "Add error handling to login"
+# Run a two-agent workflow (Opus plans, Sonnet implements)
+jc workflow "Add user authentication with JWT"
 
-# Monitor workflow events in real-time
-jc watch
+# Or work on a Beads task directly
+jc work jean_claude-2sz.4
+
+# Run a simple chore workflow
+jc run chore "Add error handling to login"
 ```
 
 ## Commands
@@ -54,16 +58,48 @@ jc prompt "your prompt here"         # Execute adhoc prompt
 jc prompt "your prompt" --stream     # Stream output in real-time
 jc run chore "task description"      # Run chore workflow
 jc run feature "feature description" # Run feature workflow
-jc watch                             # Real-time monitoring UI
 ```
 
-### State & Monitoring
+### Two-Agent Workflow
+
+The flagship workflow pattern: Opus plans, Sonnet implements.
 
 ```bash
-jc ps                                # List running workflows
-jc state list                        # List all workflow states
-jc state show <workflow_id>          # Show workflow details
-jc stop <workflow_id>                # Stop running workflow
+# Full workflow (plan + implement)
+jc workflow "Build user authentication"
+
+# Use custom models
+jc workflow "Complex feature" -i opus -c opus
+
+# Run initializer and coder separately (modular approach)
+jc initialize "Task description" -w my-workflow
+jc implement my-workflow
+```
+
+### Beads Integration
+
+Work directly from Beads tasks:
+
+```bash
+# Execute workflow from Beads task
+jc work jean_claude-2sz.4
+
+# Plan only, don't implement
+jc work task-123 --dry-run
+
+# Pause for approval after planning
+jc work task-123 --show-plan
+
+# Use Opus for both agents
+jc work task-123 --model opus
+```
+
+### Project Management
+
+```bash
+jc prime                             # Gather project context
+jc migrate                           # Update project to latest version
+jc onboard                           # Show CLAUDE.md content
 ```
 
 ### Streaming Output
@@ -88,25 +124,9 @@ jc prompt "Complex analysis" --stream -m opus
 - Optional visibility into tool uses and thinking process
 - Graceful interrupt handling (Ctrl+C)
 
-### Cleanup
-
-```bash
-jc clean --older-than 7d             # Remove old worktrees
-jc clean --zombies                   # Mark dead processes
-jc clean --dry-run                   # Preview without deleting
-```
-
-### Configuration
-
-```bash
-jc config show                       # Display current config
-jc config set-api-key <key>          # Save Anthropic API key
-jc config use-bedrock --profile dev  # Configure AWS Bedrock
-```
-
 ## Configuration
 
-ADW uses `.jc-project.yaml` for project-specific configuration:
+Jean Claude uses `.jc-project.yaml` for project-specific configuration:
 
 ```yaml
 directories:
@@ -129,14 +149,16 @@ workflows:
 
 ```
 project/
-├── agents/              # Agent working directories
+├── agents/                     # Agent working directories
 │   └── {workflow_id}/
-│       └── state.json   # Workflow state
-├── trees/               # Git worktrees (isolated execution)
-├── specs/               # Workflow specifications
-├── .jc/                 # Internal state
-│   └── events.db        # SQLite telemetry
-└── .jc-project.yaml     # Project configuration
+│       ├── state.json          # Workflow state with features
+│       └── events.jsonl        # Event log (JSONL format)
+├── trees/                      # Git worktrees (isolated execution)
+├── specs/                      # Workflow specifications
+│   └── beads-{task_id}.md      # Auto-generated from Beads tasks
+├── .jc/                        # Internal state
+│   └── events.db               # SQLite event store
+└── .jc-project.yaml            # Project configuration
 ```
 
 ## Authentication
@@ -145,8 +167,6 @@ project/
 
 ```bash
 export ANTHROPIC_API_KEY="your-api-key"
-# Or save to config
-jc config set-api-key "your-api-key"
 ```
 
 ### AWS Bedrock
@@ -154,8 +174,7 @@ jc config set-api-key "your-api-key"
 ```bash
 export CLAUDE_CODE_USE_BEDROCK=1
 export AWS_PROFILE="your-profile"
-# Or save to config
-jc config use-bedrock --profile your-profile --region us-west-2
+export AWS_REGION="us-west-2"
 ```
 
 ## Development
