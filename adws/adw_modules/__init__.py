@@ -16,7 +16,6 @@ from .agent import (
     AgentPromptRequest,
     RetryCode,
 )
-from .state import ADWState
 from .beads_integration import (
     fetch_beads_issue,
     update_beads_status,
@@ -39,8 +38,6 @@ __all__ = [
     "execute_template",
     "AgentPromptRequest",
     "RetryCode",
-    # State management
-    "ADWState",
     # Beads integration
     "fetch_beads_issue",
     "update_beads_status",
