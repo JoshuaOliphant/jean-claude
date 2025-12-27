@@ -1,5 +1,5 @@
 # ABOUTME: Shared pytest fixtures for tests/core/ test suite
-# ABOUTME: Provides common fixtures for BeadsTask, subprocess mocks, and test data
+# ABOUTME: Provides common fixtures for BeadsTask, Message, subprocess mocks, and test data
 
 """Shared pytest fixtures for core module tests.
 
@@ -8,12 +8,12 @@ Import from the root conftest.py for fixtures that should be shared across
 all test directories.
 
 USAGE:
-    def test_something(mock_beads_task, mock_subprocess_success):
+    def test_something(sample_message, mock_subprocess_success):
         # Fixtures are automatically injected
         pass
 
 GUIDELINES:
-    1. Use these fixtures instead of creating BeadsTask inline
+    1. Use these fixtures instead of creating BeadsTask/Message inline
     2. Use mock_subprocess_* fixtures for subprocess.run mocking
     3. Add new fixtures here when a pattern is used 3+ times
 """
@@ -25,6 +25,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from jean_claude.core.beads import BeadsTask, BeadsTaskStatus, BeadsTaskPriority, BeadsTaskType
+from jean_claude.core.message import Message, MessagePriority
 
 
 # =============================================================================
@@ -164,3 +165,63 @@ def invalid_beads_json() -> str:
 def malformed_json() -> str:
     """Malformed JSON that will fail parsing."""
     return '{not valid json}'
+
+
+# =============================================================================
+# Message Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def sample_message() -> Message:
+    """Provide a standard Message for testing."""
+    return Message(
+        from_agent="agent-1",
+        to_agent="agent-2",
+        type="test",
+        subject="Test Message",
+        body="This is a test message body."
+    )
+
+
+@pytest.fixture
+def urgent_message() -> Message:
+    """Provide an urgent priority Message for testing."""
+    return Message(
+        from_agent="agent-1",
+        to_agent="coordinator",
+        type="help_request",
+        subject="Urgent Help Needed",
+        body="I need immediate assistance.",
+        priority=MessagePriority.URGENT,
+        awaiting_response=True
+    )
+
+
+@pytest.fixture
+def message_factory() -> Callable[..., Message]:
+    """Factory fixture for creating Message with custom values.
+
+    Usage:
+        def test_something(message_factory):
+            msg = message_factory(priority=MessagePriority.URGENT)
+    """
+    def _create_message(
+        from_agent: str = "agent-1",
+        to_agent: str = "agent-2",
+        type: str = "test",
+        subject: str = "Test Subject",
+        body: str = "Test body content",
+        priority: MessagePriority = MessagePriority.NORMAL,
+        awaiting_response: bool = False,
+    ) -> Message:
+        return Message(
+            from_agent=from_agent,
+            to_agent=to_agent,
+            type=type,
+            subject=subject,
+            body=body,
+            priority=priority,
+            awaiting_response=awaiting_response,
+        )
+    return _create_message
