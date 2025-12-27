@@ -46,6 +46,11 @@ class WorkflowState(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.now)
     process_id: int | None = None
 
+    # Beads integration
+    beads_task_id: str | None = None
+    beads_task_title: str | None = None
+    phase: Literal["planning", "implementing", "verifying", "complete"] = "planning"
+
     # Feature tracking
     features: list[Feature] = Field(default_factory=list)
     current_feature_index: int = 0
@@ -63,6 +68,9 @@ class WorkflowState(BaseModel):
     last_verification_at: datetime | None = None
     last_verification_passed: bool = True
     verification_count: int = 0
+
+    # Mailbox communication
+    waiting_for_response: bool = False
 
     @classmethod
     def load(cls, workflow_id: str, project_root: Path) -> "WorkflowState":
@@ -206,6 +214,9 @@ class WorkflowState(BaseModel):
         return {
             "workflow_id": self.workflow_id,
             "workflow_type": self.workflow_type,
+            "beads_task_id": self.beads_task_id,
+            "beads_task_title": self.beads_task_title,
+            "phase": self.phase,
             "total_features": len(self.features),
             "completed_features": sum(1 for f in self.features if f.status == "completed"),
             "failed_features": sum(1 for f in self.features if f.status == "failed"),
