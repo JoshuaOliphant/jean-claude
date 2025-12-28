@@ -109,6 +109,8 @@ jc version                           # Display version information
 jc prime                             # Gather project context
 jc migrate                           # Update project to latest version
 jc onboard                           # Show CLAUDE.md content
+jc upgrade                           # Upgrade jc to latest version
+jc upgrade --check                   # Check for updates only
 ```
 
 ### Cleanup

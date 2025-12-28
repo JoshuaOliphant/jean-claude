@@ -44,6 +44,7 @@ from jean_claude.cli.commands import (
     prompt,
     run,
     status,
+    upgrade,
     workflow,
     work,
 )
@@ -60,6 +61,7 @@ cli.add_command(prime.prime)
 cli.add_command(prompt.prompt)
 cli.add_command(run.run)
 cli.add_command(status.status)
+cli.add_command(upgrade.upgrade)
 cli.add_command(workflow.workflow)
 cli.add_command(work.work)
 
