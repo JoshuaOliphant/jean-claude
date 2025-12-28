@@ -7,4 +7,4 @@
 - Check the README.md for specific startup instructions
 
 ## Run
-uv run python adws/main.py --help
+jc --help

@@ -40,9 +40,9 @@ TEST_COMMAND_TIMEOUT: 5 minutes
 
 1. **Python Syntax Check**
    - Preparation Command: None
-   - Command: `uv run python -m py_compile adws/**/*.py`
+   - Command: `uv run ruff check src/`
    - test_name: "python_syntax_check"
-   - test_purpose: "Validates Python syntax by compiling source files to bytecode, catching syntax errors like missing colons, invalid indentation, or malformed statements"
+   - test_purpose: "Validates Python syntax and code quality, catching syntax errors, unused imports, and style violations"
 
 2. **Python Code Quality Check**
    - Preparation Command: None
@@ -54,7 +54,7 @@ TEST_COMMAND_TIMEOUT: 5 minutes
    - Preparation Command: None
    - Command: `uv run pytest -v --tb=short`
    - test_name: "all_python_tests"
-   - test_purpose: "Validates all Python functionality including ADW modules, agent execution, and workflow orchestration"
+   - test_purpose: "Validates all Python functionality including CLI commands, agent execution, and workflow orchestration"
 
 ## Report
 
@@ -86,15 +86,15 @@ TEST_COMMAND_TIMEOUT: 5 minutes
   {
     "test_name": "python_syntax_check",
     "passed": false,
-    "execution_command": "uv run python -m py_compile adws/**/*.py",
-    "test_purpose": "Validates Python syntax by compiling source files to bytecode, catching syntax errors like missing colons, invalid indentation, or malformed statements",
-    "error": "SyntaxError: invalid syntax (adws/main.py, line 42)"
+    "execution_command": "uv run ruff check src/",
+    "test_purpose": "Validates Python syntax and code quality, catching syntax errors, unused imports, and style violations",
+    "error": "src/jean_claude/core/agent.py:42: F401 'os' imported but unused"
   },
   {
     "test_name": "all_python_tests",
     "passed": true,
     "execution_command": "uv run pytest -v --tb=short",
-    "test_purpose": "Validates all Python functionality including ADW modules, agent execution, and workflow orchestration"
+    "test_purpose": "Validates all Python functionality including CLI commands, agent execution, and workflow orchestration"
   }
 ]
 ```

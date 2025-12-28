@@ -3,6 +3,9 @@ Follow the `Instructions` to implement the `Plan` then `Report` the completed wo
 
 ## Instructions
 - Read the plan, think hard about the plan and implement the plan.
+- If you create temporary verification scripts (check_*.py, demo_*.py, verify_*.py), put them in `.jc/temp/`
+- If you create status/completion reports (*_COMPLETE.md, *_VERIFICATION.md), put them in `.jc/reports/`
+- Do NOT create these files in the project root
 
 ## Plan
 $ARGUMENTS

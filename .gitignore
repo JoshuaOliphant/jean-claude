@@ -9,16 +9,16 @@ wheels/
 # Virtual environments
 .venv
 
-# ADW-specific patterns
+# Jean Claude patterns
 agents/
 trees/
 logs/
 .jc/
-.adw_backups/
 .env
 .mcp.json
 
-# Jean Claude CLI
-agents/
-trees/
-.jc/
+# Coverage and testing
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/

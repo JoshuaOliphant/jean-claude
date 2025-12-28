@@ -29,12 +29,13 @@ issue_json: $3
 
 Focus on the following files:
 - `README.md` - Contains the project overview and instructions.
-- `adws/` - Contains the AI Developer Workflow scripts and modules.
-- `adws/adw_modules/` - Contains the core agent execution modules.
+- `src/jean_claude/` - Main application code
+- `src/jean_claude/cli/` - CLI commands
+- `src/jean_claude/core/` - Core modules (agent, SDK executor, state)
+- `src/jean_claude/orchestration/` - Workflow orchestration
+- `tests/` - Test suite
 - `.claude/commands/` - Contains the Claude command templates.
 - `specs/` - Contains specification and plan documents.
-
-Ignore all other files in the codebase.
 
 ## Plan Format
 
@@ -78,8 +79,13 @@ Execute every command to validate the bug is fixed with zero regressions.
 
 <list commands you'll use to validate with 100% confidence the bug is fixed with zero regressions. every command must execute without errors so be specific about what you want to run to validate the bug is fixed with zero regressions. Include commands to reproduce the bug before and after the fix.>
 
-- `uv run python -m py_compile adws/**/*.py` - Run syntax check to validate no Python errors
+- `uv run ruff check src/` - Run linting to validate no Python errors
 - `uv run pytest` - Run all tests to validate the bug is fixed with zero regressions
+
+**Note:** If you create temporary verification scripts or status reports during implementation:
+- Put verification scripts (check_*.py, demo_*.py) in `.jc/temp/`
+- Put status reports (*_COMPLETE.md, *_VERIFICATION.md) in `.jc/reports/`
+- Do NOT create these files in the project root
 
 ## Notes
 <optionally list any additional notes or context that are relevant to the bug that will be helpful to the developer>

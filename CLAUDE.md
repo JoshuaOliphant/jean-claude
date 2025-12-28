@@ -17,7 +17,7 @@ For beads context: `bd prime`
 
 ## Architecture
 
-**Two-layer design**: Agentic Layer (`adws/`, `.claude/commands/`) operates on Application Layer (`src/jean_claude/`).
+**Two-layer design**: Agentic Layer (`.claude/commands/`) operates on Application Layer (`src/jean_claude/`).
 
 ```
 src/jean_claude/
@@ -222,15 +222,6 @@ def test_awaiting_response_false(self): ...
 - [Security Hooks](docs/security-hooks-implementation.md) - Bash command validation
 - [Auto-Continue](docs/auto-continue-workflow.md) - Autonomous continuation
 - [Streaming](docs/streaming-implementation-summary.md) - Real-time output
-
-## ADW Scripts
-
-Executable workflow scripts in `adws/`:
-- `adw_prompt.py` - Ad-hoc prompts
-- `adw_slash_command.py` - Execute slash commands
-- `adw_chore_implement.py` - Plan + implement
-- `adw_plan_tdd.py` - TDD task breakdown
-- `adw_beads_ready.py` - Interactive task picker
 
 ## Output Locations
 

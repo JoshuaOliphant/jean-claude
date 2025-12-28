@@ -22,8 +22,11 @@ prompt: $2
 ## Codebase Structure
 
 - `README.md` - Project overview and instructions (start here)
-- `adws/` - AI Developer Workflow scripts and modules
-- `adws/adw_modules/` - Core agent execution modules
+- `src/jean_claude/` - Main application code
+- `src/jean_claude/cli/` - CLI commands
+- `src/jean_claude/core/` - Core modules (agent, SDK executor, state)
+- `src/jean_claude/orchestration/` - Workflow orchestration
+- `tests/` - Test suite
 - `.claude/commands/` - Claude command templates
 - `specs/` - Specification and plan documents
 - `pyproject.toml` - Python project configuration
@@ -95,7 +98,12 @@ IMPORTANT: Execute every step in order, top to bottom.
 Execute these commands to validate the feature is complete:
 
 <list specific commands to validate the work. Be precise about what to run>
-- Example: `uv run python -m py_compile adws/*.py` - Test to ensure the code compiles
+- Example: `uv run pytest tests/` - Run tests to validate the implementation
+
+**Note:** If you create temporary verification scripts or status reports during implementation:
+- Put verification scripts (check_*.py, demo_*.py) in `.jc/temp/`
+- Put status reports (*_COMPLETE.md, *_VERIFICATION.md) in `.jc/reports/`
+- Do NOT create these files in the project root
 
 
 ## Notes

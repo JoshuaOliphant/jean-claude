@@ -32,6 +32,7 @@ def version() -> None:
 
 # Import and register commands
 from jean_claude.cli.commands import (
+    cleanup,
     dashboard,
     implement,
     init,
@@ -47,6 +48,7 @@ from jean_claude.cli.commands import (
     work,
 )
 
+cli.add_command(cleanup.cleanup)
 cli.add_command(dashboard.dashboard)
 cli.add_command(implement.implement)
 cli.add_command(init.init)

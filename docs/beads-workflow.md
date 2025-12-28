@@ -73,7 +73,6 @@ The ADW system automatically integrates with Beads:
 ### Fetching Tasks
 
 ```python
-# In adw_modules/beads_integration.py
 from jean_claude.core.beads import fetch_beads_task
 
 task = fetch_beads_task("task.123")
@@ -96,10 +95,7 @@ bd ready
 # 2. Start working (status auto-updates)
 jc work task.123
 
-# 3. Or use ADW scripts directly
-./adws/adw_beads_ready.py  # Interactive picker
-
-# 4. Mark complete
+# 3. Mark complete
 bd close task.123
 ```
 

@@ -20,7 +20,8 @@ spec_file: $2
 ## Codebase Structure
 
 - `README.md` - Project overview and instructions
-- `adws/` - AI Developer Workflow scripts and modules
+- `src/jean_claude/` - Main application code
+- `tests/` - Test suite
 - `specs/` - Specification and plan documents
 - `specs/tdd/` - TDD task breakdown files
 - `pyproject.toml` - Python project configuration

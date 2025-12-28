@@ -31,11 +31,12 @@ issue_screenshots: $ARGUMENT (optional) - comma-separated list of screenshot pat
 
 Focus on the following files:
 - `README.md` - Contains the project overview and instructions.
-- `adws/` - Contains the AI Developer Workflow scripts and modules.
-- `adws/adw_modules/` - Contains the core agent execution modules.
+- `src/jean_claude/` - Main application code
+- `src/jean_claude/cli/` - CLI commands
+- `src/jean_claude/core/` - Core modules (agent, SDK executor, state)
+- `src/jean_claude/orchestration/` - Workflow orchestration
+- `tests/` - Test suite
 - `.claude/commands/` - Contains the Claude command templates.
-
-Ignore all other files in the codebase.
 
 
 ## Plan Format
