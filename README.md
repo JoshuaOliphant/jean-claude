@@ -111,6 +111,23 @@ jc migrate                           # Update project to latest version
 jc onboard                           # Show CLAUDE.md content
 ```
 
+### Cleanup
+
+Keep your project clean by removing temporary files created by agents:
+
+```bash
+jc cleanup                           # Remove files older than 7 days
+jc cleanup --age 14                  # Remove files older than 14 days
+jc cleanup --all                     # Remove all temporary files
+jc cleanup --agents                  # Also clean agent work directories
+jc cleanup --dry-run                 # Preview what will be deleted
+```
+
+Temporary files are organized in `.jc/` subdirectories:
+- `.jc/temp/` - Verification scripts (check_*.py, demo_*.py)
+- `.jc/reports/` - Status reports (*_COMPLETE.md, *_VERIFICATION.md)
+- `.jc/verification/` - Test outputs and logs
+
 ### Streaming Output
 
 Real-time streaming displays output as the agent works:
@@ -165,8 +182,11 @@ project/
 ├── trees/                      # Git worktrees (isolated execution)
 ├── specs/                      # Workflow specifications
 │   └── beads-{task_id}.md      # Auto-generated from Beads tasks
-├── .jc/                        # Internal state
-│   └── events.db               # SQLite event store
+├── .jc/                        # Internal state and temporary files
+│   ├── events.db               # SQLite event store
+│   ├── temp/                   # Temporary verification scripts
+│   ├── reports/                # Status and completion reports
+│   └── verification/           # Test outputs and logs
 └── .jc-project.yaml            # Project configuration
 ```
 
