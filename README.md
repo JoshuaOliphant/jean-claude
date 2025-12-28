@@ -200,7 +200,7 @@ uv run jc --help
 
 ## Testing
 
-Jean Claude has a focused test suite (~450 tests) that tests OUR code, not external dependencies. We mock external tools like Beads rather than testing their implementation.
+Jean Claude has a focused test suite that tests OUR code, not external dependencies. We mock external tools like Beads rather than testing their implementation.
 
 ### Running Tests
 
