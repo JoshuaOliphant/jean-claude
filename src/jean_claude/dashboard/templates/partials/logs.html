@@ -1,0 +1,39 @@
+<div class="space-y-1">
+    {% for event in events %}
+    {% set event_type = event.event_type or 'unknown' %}
+    {% set timestamp = event.timestamp|default('')|truncate(19, True, '') %}
+    {% set time_only = timestamp[11:19] if timestamp|length >= 19 else timestamp %}
+
+    <div class="flex items-start gap-2 px-2 py-1 rounded hover:bg-gray-700/50
+                {% if 'error' in event_type %}text-red-400
+                {% elif 'completed' in event_type %}text-green-400
+                {% elif 'started' in event_type %}text-blue-400
+                {% elif 'tool_use' in event_type %}text-gray-500
+                {% else %}text-gray-400{% endif %}">
+        <span class="text-gray-600 shrink-0">{{ time_only }}</span>
+        <span class="shrink-0 w-16 text-xs uppercase
+                     {% if 'error' in event_type %}text-red-500
+                     {% elif 'workflow' in event_type %}text-blue-500
+                     {% elif 'feature' in event_type %}text-purple-500
+                     {% elif 'agent' in event_type %}text-gray-500
+                     {% else %}text-gray-500{% endif %}">
+            {% if 'workflow' in event_type %}WRK
+            {% elif 'feature' in event_type %}FTR
+            {% elif 'agent' in event_type %}AGT
+            {% else %}LOG{% endif %}
+        </span>
+        <span class="flex-1 truncate">
+            <span class="font-medium">{{ event_type.split('.')[-1] }}</span>
+            {% if event.data %}
+            <span class="text-gray-600">
+                {% for key, value in event.data.items() %}
+                {{ key }}={{ value }}{% if not loop.last %} {% endif %}
+                {% endfor %}
+            </span>
+            {% endif %}
+        </span>
+    </div>
+    {% else %}
+    <div class="text-center text-gray-500 py-4">No log entries</div>
+    {% endfor %}
+</div>

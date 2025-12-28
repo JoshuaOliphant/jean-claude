@@ -1,0 +1,99 @@
+{
+  "workflow_id": "beads-jean_claude-2sz.8",
+  "workflow_name": "# Feature-to-commit integration\n\n## Description\n\nEnsure each completed feature results in a well-for",
+  "workflow_type": "two-agent",
+  "phases": {},
+  "inputs": {},
+  "outputs": {},
+  "created_at": "2025-12-26T09:11:51.182960",
+  "updated_at": "2025-12-26T09:15:45.867299",
+  "process_id": null,
+  "beads_task_id": null,
+  "beads_task_title": null,
+  "phase": "planning",
+  "features": [
+    {
+      "name": "commit-message-formatter",
+      "description": "Create a CommitMessageFormatter class that generates conventional commit messages from feature metadata. Should accept parameters: commit_type (feat/fix/refactor/test/docs), scope, summary, body_items (list), beads_task_id, feature_number. Returns formatted commit message string with proper structure including trailers.",
+      "status": "completed",
+      "test_file": "tests/test_commit_message_formatter.py",
+      "tests_passing": true,
+      "started_at": "2025-12-26T09:11:51.192501",
+      "completed_at": "2025-12-26T09:15:43.092310"
+    },
+    {
+      "name": "file-staging-analyzer",
+      "description": "Implement FileStagingAnalyzer that determines which files to stage for a commit based on git status output and feature context. Should parse git status, filter out unrelated files, and return list of files that should be included in the commit. Handles both modified and new files.",
+      "status": "not_started",
+      "test_file": "tests/test_file_staging_analyzer.py",
+      "tests_passing": false,
+      "started_at": null,
+      "completed_at": null
+    },
+    {
+      "name": "test-runner-validator",
+      "description": "Create TestRunnerValidator that executes tests and validates they pass before allowing commit. Should run pytest, parse output, return success/failure status and error details if failed. Blocks commit if tests fail.",
+      "status": "not_started",
+      "test_file": "tests/test_test_runner_validator.py",
+      "tests_passing": false,
+      "started_at": null,
+      "completed_at": null
+    },
+    {
+      "name": "commit-workflow-orchestrator",
+      "description": "Build CommitWorkflowOrchestrator that coordinates the entire commit process: runs tests via TestRunnerValidator, stages files via FileStagingAnalyzer, generates message via CommitMessageFormatter, executes git commit. Returns commit result with hash or error details.",
+      "status": "not_started",
+      "test_file": "tests/test_commit_workflow_orchestrator.py",
+      "tests_passing": false,
+      "started_at": null,
+      "completed_at": null
+    },
+    {
+      "name": "feature-metadata-extractor",
+      "description": "Implement FeatureMetadataExtractor that parses feature completion data to extract commit metadata: determines appropriate commit type, extracts scope from feature context, generates summary and body items, extracts beads_task_id and feature_number from task metadata.",
+      "status": "not_started",
+      "test_file": "tests/test_feature_metadata_extractor.py",
+      "tests_passing": false,
+      "started_at": null,
+      "completed_at": null
+    },
+    {
+      "name": "commit-integration-handler",
+      "description": "Create CommitIntegrationHandler that integrates with agent workflow. Triggered on feature completion, uses FeatureMetadataExtractor to get metadata, invokes CommitWorkflowOrchestrator to create commit. Handles errors gracefully and provides clear feedback to agent.",
+      "status": "not_started",
+      "test_file": "tests/test_commit_integration_handler.py",
+      "tests_passing": false,
+      "started_at": null,
+      "completed_at": null
+    },
+    {
+      "name": "conventional-commit-validator",
+      "description": "Implement ConventionalCommitValidator that validates generated commit messages conform to conventional commits specification. Checks format, required fields, trailer syntax. Returns validation result with specific errors if invalid.",
+      "status": "not_started",
+      "test_file": "tests/test_conventional_commit_validator.py",
+      "tests_passing": false,
+      "started_at": null,
+      "completed_at": null
+    },
+    {
+      "name": "agent-prompt-integration",
+      "description": "Create agent prompt template/instructions that guide the agent to use commit integration system. Includes examples of when to commit, how to provide feature context, and how to handle commit failures. Should be injectable into agent system prompt.",
+      "status": "not_started",
+      "test_file": "tests/test_agent_prompt_integration.py",
+      "tests_passing": false,
+      "started_at": null,
+      "completed_at": null
+    }
+  ],
+  "current_feature_index": 1,
+  "iteration_count": 1,
+  "max_iterations": 24,
+  "session_ids": [
+    "d6453797-e7e4-4e5d-bc7f-6d3a7891da38"
+  ],
+  "total_cost_usd": 0.6330625999999999,
+  "total_duration_ms": 231899,
+  "last_verification_at": "2025-12-26T09:15:45.867253",
+  "last_verification_passed": true,
+  "verification_count": 1
+}

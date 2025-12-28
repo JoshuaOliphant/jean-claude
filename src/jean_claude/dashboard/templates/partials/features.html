@@ -1,0 +1,53 @@
+{% set wf = workflow if workflow is defined else selected_workflow %}
+{% set features = wf.features or [] if wf else [] %}
+
+<ul class="space-y-2">
+    {% for feature in features %}
+    <li class="flex items-start gap-3 px-3 py-2 rounded-lg
+               {% if feature.status == 'completed' %}
+               bg-green-900/20 border border-green-800/30
+               {% elif feature.status == 'in_progress' %}
+               bg-yellow-900/20 border border-yellow-800/30
+               {% elif feature.status == 'failed' %}
+               bg-red-900/20 border border-red-800/30
+               {% else %}
+               bg-gray-700/30 border border-gray-600/30
+               {% endif %}">
+        <!-- Status Icon -->
+        <span class="mt-0.5 text-lg">
+            {% if feature.status == 'completed' %}
+            <span class="text-green-400">✓</span>
+            {% elif feature.status == 'in_progress' %}
+            <span class="text-yellow-400 animate-pulse">→</span>
+            {% elif feature.status == 'failed' %}
+            <span class="text-red-400">✗</span>
+            {% else %}
+            <span class="text-gray-500">○</span>
+            {% endif %}
+        </span>
+
+        <!-- Feature Info -->
+        <div class="flex-1 min-w-0">
+            <div class="font-medium truncate
+                        {% if feature.status == 'completed' %}text-green-300
+                        {% elif feature.status == 'in_progress' %}text-yellow-300
+                        {% elif feature.status == 'failed' %}text-red-300
+                        {% else %}text-gray-400{% endif %}">
+                {{ feature.name }}
+            </div>
+            {% if feature.description %}
+            <div class="text-xs text-gray-500 truncate">{{ feature.description }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Duration (if available) -->
+        {% if feature.duration_ms %}
+        <span class="text-xs text-gray-500">
+            {{ (feature.duration_ms / 1000)|int }}s
+        </span>
+        {% endif %}
+    </li>
+    {% else %}
+    <li class="text-center text-gray-500 py-4">No features yet</li>
+    {% endfor %}
+</ul>

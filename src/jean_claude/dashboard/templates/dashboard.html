@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jean Claude Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/sse.js"></script>
+    <style>
+        /* Custom scrollbar for logs */
+        .log-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        .log-panel::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        .log-panel::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="flex h-screen">
+        <!-- Sidebar: Workflow Selector -->
+        <aside class="w-64 bg-gray-800 border-r border-gray-700 overflow-y-auto">
+            <div class="p-4 border-b border-gray-700">
+                <h1 class="text-xl font-bold text-blue-400">Jean Claude</h1>
+                <p class="text-sm text-gray-400">Dashboard</p>
+            </div>
+            <nav class="p-2">
+                <h2 class="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">Workflows</h2>
+                <ul class="space-y-1">
+                    {% for wf in workflows %}
+                    <li>
+                        <a href="/?workflow={{ wf.workflow_id }}"
+                           class="block px-3 py-2 rounded-lg text-sm
+                                  {% if selected_workflow and wf.workflow_id == selected_workflow.workflow_id %}
+                                  bg-blue-600 text-white
+                                  {% else %}
+                                  text-gray-300 hover:bg-gray-700
+                                  {% endif %}">
+                            <div class="font-medium truncate">{{ wf.workflow_name or wf.workflow_id }}</div>
+                            <div class="text-xs opacity-75">{{ wf.phase }}</div>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="px-3 py-2 text-sm text-gray-500">No workflows found</li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            {% if selected_workflow %}
+            <!-- Header -->
+            <header class="bg-gray-800 border-b border-gray-700 p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold">{{ selected_workflow.workflow_name or selected_workflow.workflow_id }}</h2>
+                        {% if selected_workflow.beads_task_title %}
+                        <p class="text-gray-400">{{ selected_workflow.beads_task_title }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="px-3 py-1 rounded-full text-sm
+                            {% if selected_workflow.phase == 'completed' %}
+                            bg-green-600 text-white
+                            {% elif selected_workflow.phase == 'failed' %}
+                            bg-red-600 text-white
+                            {% else %}
+                            bg-yellow-600 text-white
+                            {% endif %}">
+                            {{ selected_workflow.phase }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Progress Bar (HTMX polling) -->
+                <div id="progress-container"
+                     hx-get="/partials/progress/{{ selected_workflow.workflow_id }}"
+                     hx-trigger="every 2s"
+                     hx-swap="innerHTML">
+                    {% include "partials/progress.html" %}
+                </div>
+            </header>
+
+            <!-- Content Grid -->
+            <div class="flex-1 grid grid-cols-2 gap-4 p-4 overflow-hidden">
+                <!-- Features Panel -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 flex flex-col overflow-hidden">
+                    <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+                        <h3 class="font-semibold">Features</h3>
+                        <span class="text-sm text-gray-400">
+                            {% set completed = selected_workflow.features|selectattr('status', 'equalto', 'completed')|list|length %}
+                            {{ completed }}/{{ selected_workflow.features|length }}
+                        </span>
+                    </div>
+                    <div id="features-container"
+                         class="flex-1 overflow-y-auto p-2"
+                         hx-get="/partials/features/{{ selected_workflow.workflow_id }}"
+                         hx-trigger="every 3s"
+                         hx-swap="innerHTML">
+                        {% include "partials/features.html" %}
+                    </div>
+                </div>
+
+                <!-- Logs Panel -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 flex flex-col overflow-hidden">
+                    <div class="px-4 py-3 border-b border-gray-700">
+                        <h3 class="font-semibold">Activity Log</h3>
+                    </div>
+                    <div id="logs-container"
+                         class="flex-1 overflow-y-auto p-2 log-panel font-mono text-sm"
+                         hx-get="/partials/logs/{{ selected_workflow.workflow_id }}"
+                         hx-trigger="every 2s"
+                         hx-swap="innerHTML">
+                        {% include "partials/logs.html" %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Metrics -->
+            <footer class="bg-gray-800 border-t border-gray-700 px-4 py-3">
+                <div class="flex items-center justify-between text-sm">
+                    <div class="flex gap-6">
+                        <span class="text-gray-400">
+                            <span class="font-medium text-gray-200">Duration:</span>
+                            {% if selected_workflow.total_duration_ms %}
+                            {{ (selected_workflow.total_duration_ms / 1000 / 60)|int }}m {{ (selected_workflow.total_duration_ms / 1000 % 60)|int }}s
+                            {% else %}
+                            --
+                            {% endif %}
+                        </span>
+                        <span class="text-gray-400">
+                            <span class="font-medium text-gray-200">Cost:</span>
+                            {% if selected_workflow.total_cost_usd %}
+                            ${{ "%.2f"|format(selected_workflow.total_cost_usd) }}
+                            {% else %}
+                            --
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="text-gray-500">
+                        Workflow ID: {{ selected_workflow.workflow_id }}
+                    </div>
+                </div>
+            </footer>
+            {% else %}
+            <!-- No workflow selected -->
+            <div class="flex-1 flex items-center justify-center">
+                <div class="text-center">
+                    <h2 class="text-2xl font-bold text-gray-500">No Workflows</h2>
+                    <p class="text-gray-600 mt-2">Run <code class="bg-gray-800 px-2 py-1 rounded">jc work &lt;task-id&gt;</code> to start a workflow</p>
+                </div>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,4 @@
+{"id": "106dd88c-c79a-4ae4-bc49-c81a08877884", "timestamp": "2025-12-26T09:11:23.813066", "workflow_id": "beads-jean_claude-2sz.8", "event_type": "workflow.started", "data": {"beads_task_id": "jean_claude-2sz.8"}}
+{"id": "1c340ffd-e755-4ca2-b11f-5eddf502f47e", "timestamp": "2025-12-26T09:11:23.999330", "workflow_id": "beads-jean_claude-2sz.8", "event_type": "workflow.completed", "data": {"beads_task_id": "jean_claude-2sz.8", "dry_run": true}}
+{"id": "c424b346-271c-461d-b2a2-9bab37389068", "timestamp": "2025-12-26T09:11:34.361187", "workflow_id": "beads-jean_claude-2sz.8", "event_type": "workflow.started", "data": {"beads_task_id": "jean_claude-2sz.8"}}
+{"id": "72276798-02a5-4aa2-a2b5-8146b167a9b5", "timestamp": "2025-12-26T09:11:34.538305", "workflow_id": "beads-jean_claude-2sz.8", "event_type": "workflow.phase_changed", "data": {"beads_task_id": "jean_claude-2sz.8", "from_phase": "planning", "to_phase": "implementing"}}

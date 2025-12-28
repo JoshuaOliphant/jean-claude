@@ -1,0 +1,18 @@
+directories:
+  agents: agents/
+  source: src/
+  specs: specs/
+  tests: tests/
+  trees: trees/
+name: jean-claude
+plugins: {}
+tooling:
+  format_command: uv run ruff format .
+  linter_command: uv run ruff check .
+  test_command: uv run pytest
+vcs:
+  issue_tracker: beads
+  platform: github
+workflows:
+  auto_commit: true
+  default_model: sonnet

@@ -1,0 +1,3 @@
+{"id": "ca5f7b71-93bc-49bb-9abd-b3248b4dd399", "timestamp": "2025-12-26T09:16:41.890504", "workflow_id": "beads-jean_claude-2sz.8", "event_type": "workflow.started", "data": {"beads_task_id": "jean_claude-2sz.8"}}
+{"id": "3001b59f-cad6-4835-a516-3bb1da017f6e", "timestamp": "2025-12-26T09:16:42.098712", "workflow_id": "beads-jean_claude-2sz.8", "event_type": "workflow.phase_changed", "data": {"beads_task_id": "jean_claude-2sz.8", "from_phase": "planning", "to_phase": "implementing"}}
+{"id": "5fba838a-ecff-44f6-8584-f109285b4ce6", "timestamp": "2025-12-26T09:35:12.471767", "workflow_id": "beads-jean_claude-2sz.8", "event_type": "workflow.phase_changed", "data": {"beads_task_id": "jean_claude-2sz.8", "from_phase": "implementing", "to_phase": "verifying"}}

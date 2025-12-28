@@ -1,0 +1,22 @@
+{% set wf = workflow if workflow is defined else selected_workflow %}
+{% set features = wf.features or [] if wf else [] %}
+{% set total = features|length %}
+{% set completed = features|selectattr('status', 'equalto', 'completed')|list|length %}
+{% set in_progress = features|selectattr('status', 'equalto', 'in_progress')|list|length %}
+{% set percentage = (completed * 100 / total)|int if total > 0 else 0 %}
+
+<div class="mt-4">
+    <div class="flex items-center justify-between text-sm mb-1">
+        <span class="text-gray-400">Progress</span>
+        <span class="text-gray-300">{{ completed }}/{{ total }} features ({{ percentage }}%)</span>
+    </div>
+    <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+        <div class="h-full rounded-full transition-all duration-500 ease-out
+                    {% if percentage == 100 %}bg-green-500{% else %}bg-blue-500{% endif %}"
+             style="width: {{ percentage }}%">
+        </div>
+    </div>
+    {% if in_progress > 0 %}
+    <p class="text-xs text-yellow-400 mt-1">{{ in_progress }} feature(s) in progress</p>
+    {% endif %}
+</div>
