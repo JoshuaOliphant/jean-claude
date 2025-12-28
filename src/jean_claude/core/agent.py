@@ -243,9 +243,9 @@ def truncate_output(
 
 
 def _is_sdk_available() -> bool:
-    """Check if the Claude Code SDK is available."""
+    """Check if the Claude Agent SDK is available."""
     try:
-        from claude_code_sdk import query  # noqa: F401
+        from claude_agent_sdk import query  # noqa: F401
         return True
     except ImportError:
         return False
@@ -281,8 +281,8 @@ async def _execute_prompt_sdk_async(
     Returns:
         ExecutionResult with output and status
     """
-    from claude_code_sdk import (
-        ClaudeCodeOptions,
+    from claude_agent_sdk import (
+        ClaudeAgentOptions,
         query,
         AssistantMessage,
         ResultMessage,
@@ -309,7 +309,7 @@ async def _execute_prompt_sdk_async(
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Pass model name directly - SDK handles short names (sonnet, opus, haiku)
-        options = ClaudeCodeOptions(
+        options = ClaudeAgentOptions(
             model=request.model,
             cwd=str(request.working_dir) if request.working_dir else None,
             max_turns=100,
@@ -417,7 +417,7 @@ def _serialize_sdk_message(message: Any) -> Dict[str, Any]:
     Note: This function uses lazy imports to avoid circular dependencies
     and to only load SDK types when actually needed.
     """
-    from claude_code_sdk import AssistantMessage, ResultMessage, TextBlock
+    from claude_agent_sdk import AssistantMessage, ResultMessage, TextBlock
 
     msg_dict: Dict[str, Any] = {"type": type(message).__name__}
 

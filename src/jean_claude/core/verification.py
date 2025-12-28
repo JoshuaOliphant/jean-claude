@@ -93,9 +93,10 @@ def run_verification(state: WorkflowState, project_root: Path) -> VerificationRe
         )
 
     # Run pytest on the collected test files
+    # Use 'uv run' to ensure tests run in the project's virtual environment
     try:
         result = subprocess.run(
-            ["pytest", "-v", "--tb=short", "--no-header", *existing_test_files],
+            ["uv", "run", "pytest", "-v", "--tb=short", "--no-header", *existing_test_files],
             cwd=project_root,
             capture_output=True,
             text=True,
@@ -133,8 +134,8 @@ def run_verification(state: WorkflowState, project_root: Path) -> VerificationRe
         duration_ms = int((time.time() - start_time) * 1000)
         return VerificationResult(
             passed=False,
-            test_output="pytest not found. Install with: uv add --dev pytest",
-            failed_tests=["pytest_not_found"],
+            test_output="uv or pytest not found. Ensure uv is installed and pytest is in dev dependencies: uv add --dev pytest",
+            failed_tests=["runner_not_found"],
             duration_ms=duration_ms,
         )
 

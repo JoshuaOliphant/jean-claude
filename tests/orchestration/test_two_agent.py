@@ -18,15 +18,16 @@ from jean_claude.orchestration.two_agent import (
 )
 
 
-@pytest.fixture
-def project_root(tmp_path: Path) -> Path:
-    """Create a temporary project root."""
-    return tmp_path
+# project_root fixture is provided by tests/orchestration/conftest.py
 
 
 @pytest.fixture
 def mock_execution_result() -> ExecutionResult:
-    """Create a mock execution result."""
+    """Create a mock execution result with feature JSON output.
+
+    Note: This fixture has test-specific output content (JSON features)
+    which differs from the generic fixture in conftest.py.
+    """
     return ExecutionResult(
         success=True,
         output='{"features": [{"name": "test-feature", "description": "Test feature", "test_file": "tests/test_feature.py"}]}',

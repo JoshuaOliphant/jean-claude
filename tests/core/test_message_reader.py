@@ -21,25 +21,19 @@ from jean_claude.core.mailbox_paths import MailboxPaths
 class TestReadMessagesBasics:
     """Tests for basic read_messages functionality - consolidated from 4 tests to 1."""
 
-    def test_read_messages_from_inbox_outbox_and_multiple(self, tmp_path):
+    def test_read_messages_from_inbox_outbox_and_multiple(self, tmp_path, message_factory):
         """Test reading from inbox, outbox, and multiple messages."""
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
 
         # Write to inbox and verify reading
-        inbox_msg = Message(
-            from_agent="agent-1", to_agent="agent-2", type="test",
-            subject="Inbox message", body="Test body"
-        )
+        inbox_msg = message_factory(subject="Inbox message", body="Test body")
         write_message(inbox_msg, MessageBox.INBOX, paths)
         inbox_messages = read_messages(MessageBox.INBOX, paths)
         assert len(inbox_messages) == 1
         assert inbox_messages[0].subject == "Inbox message"
 
         # Write to outbox and verify reading
-        outbox_msg = Message(
-            from_agent="agent-1", to_agent="agent-2", type="notification",
-            subject="Outbox message", body="Body"
-        )
+        outbox_msg = message_factory(type="notification", subject="Outbox message")
         write_message(outbox_msg, MessageBox.OUTBOX, paths)
         outbox_messages = read_messages(MessageBox.OUTBOX, paths)
         assert len(outbox_messages) == 1
@@ -47,8 +41,8 @@ class TestReadMessagesBasics:
 
         # Write more to inbox and verify multiple messages
         for i in range(3):
-            msg = Message(
-                from_agent=f"agent-{i+10}", to_agent="agent-x", type="test",
+            msg = message_factory(
+                from_agent=f"agent-{i+10}", to_agent="agent-x",
                 subject=f"Message {i}", body=f"Body {i}"
             )
             write_message(msg, MessageBox.INBOX, paths)
@@ -56,17 +50,16 @@ class TestReadMessagesBasics:
         all_inbox = read_messages(MessageBox.INBOX, paths)
         assert len(all_inbox) == 4  # Original + 3 new
 
-    def test_read_messages_preserves_all_fields(self, tmp_path):
+    def test_read_messages_preserves_all_fields(self, tmp_path, message_factory):
         """Test that all message fields including priority and awaiting_response are preserved."""
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
 
         for priority in [MessagePriority.LOW, MessagePriority.NORMAL, MessagePriority.URGENT]:
             for awaiting in [True, False]:
-                msg = Message(
-                    id=f"msg-{priority.value}-{awaiting}",
+                msg = message_factory(
                     from_agent="coordinator", to_agent="worker-1",
                     type="help_request", subject="Test",
-                    body="Test body", priority=priority, awaiting_response=awaiting
+                    priority=priority, awaiting_response=awaiting
                 )
                 write_message(msg, MessageBox.INBOX, paths)
 
@@ -104,16 +97,13 @@ class TestReadMessagesEmptyAndMissing:
 class TestReadMessagesCorruptedData:
     """Tests for corrupted data handling - consolidated from 3 tests to 1."""
 
-    def test_read_messages_handles_corrupted_and_invalid_json(self, tmp_path):
+    def test_read_messages_handles_corrupted_and_invalid_json(self, tmp_path, message_factory):
         """Test that invalid JSON lines and incomplete messages are skipped."""
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
         paths.ensure_mailbox_dir()
 
         # Write a valid message
-        msg1 = Message(
-            from_agent="agent-1", to_agent="agent-2", type="test",
-            subject="Valid message", body="Body"
-        )
+        msg1 = message_factory(subject="Valid message")
         write_message(msg1, MessageBox.INBOX, paths)
 
         # Append invalid JSON and incomplete message
@@ -122,9 +112,8 @@ class TestReadMessagesCorruptedData:
             f.write('{"from_agent": "agent-x"}\n')  # Missing required fields
 
         # Write another valid message
-        msg2 = Message(
-            from_agent="agent-3", to_agent="agent-4", type="test",
-            subject="Second valid", body="Body"
+        msg2 = message_factory(
+            from_agent="agent-3", to_agent="agent-4", subject="Second valid"
         )
         write_message(msg2, MessageBox.INBOX, paths)
 
@@ -185,7 +174,7 @@ Line 3"""
 class TestReadMessagesReturnType:
     """Tests for return type - consolidated from 3 tests to 1."""
 
-    def test_read_messages_returns_list_of_message_objects(self, tmp_path):
+    def test_read_messages_returns_list_of_message_objects(self, tmp_path, message_factory):
         """Test that read_messages returns list of independent Message objects."""
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
 
@@ -194,8 +183,8 @@ class TestReadMessagesReturnType:
 
         # With messages returns Message objects
         for i in range(2):
-            msg = Message(
-                from_agent=f"agent-{i}", to_agent="agent-x", type="test",
+            msg = message_factory(
+                from_agent=f"agent-{i}", to_agent="agent-x",
                 subject=f"Message {i}", body=f"Body {i}"
             )
             write_message(msg, MessageBox.INBOX, paths)
@@ -210,11 +199,11 @@ class TestReadMessagesReturnType:
 class TestReadMessagesEdgeCases:
     """Tests for edge cases - consolidated from 4 tests to 1."""
 
-    def test_read_messages_edge_cases(self, tmp_path):
+    def test_read_messages_edge_cases(self, tmp_path, message_factory):
         """Test edge cases: long body, many messages, empty lines."""
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
 
-        # Very long body
+        # Very long body - edge case, keep inline for clarity
         long_body = "A" * 10000
         msg_long = Message(
             from_agent="agent-1", to_agent="agent-2", type="test",
@@ -227,8 +216,8 @@ class TestReadMessagesEdgeCases:
 
         # Many messages and order preserved
         for i in range(50):
-            msg = Message(
-                from_agent=f"agent-{i}", to_agent="agent-x", type="test",
+            msg = message_factory(
+                from_agent=f"agent-{i}", to_agent="agent-x",
                 subject=f"Message {i}", body=f"Body {i}"
             )
             write_message(msg, MessageBox.INBOX, paths)

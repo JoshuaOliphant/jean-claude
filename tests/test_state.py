@@ -440,3 +440,272 @@ class TestWorkflowPhase:
         state.update_phase("planning", "completed")
         assert state.phases["planning"].status == "completed"
         assert isinstance(state.phases["planning"].completed_at, datetime)
+
+
+class TestPhaseField:
+    """Tests for the phase field in WorkflowState."""
+
+    def test_phase_default_value(self):
+        """Test that phase defaults to 'planning'."""
+        state = WorkflowState(
+            workflow_id="test-123",
+            workflow_name="Test Workflow",
+            workflow_type="feature",
+        )
+
+        assert state.phase == "planning"
+
+    def test_phase_valid_literals(self):
+        """Test that all valid phase literals work."""
+        valid_phases = ["planning", "implementing", "verifying", "complete"]
+
+        for phase_value in valid_phases:
+            state = WorkflowState(
+                workflow_id="test-123",
+                workflow_name="Test Workflow",
+                workflow_type="feature",
+                phase=phase_value,
+            )
+            assert state.phase == phase_value
+
+    def test_phase_invalid_value_raises_error(self):
+        """Test that invalid phase values raise ValidationError."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            WorkflowState(
+                workflow_id="test-123",
+                workflow_name="Test Workflow",
+                workflow_type="feature",
+                phase="invalid_phase",
+            )
+
+    def test_phase_persistence(self):
+        """Test that phase is saved and loaded correctly."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Create state with phase set to 'implementing'
+            state = WorkflowState(
+                workflow_id="test-123",
+                workflow_name="Test Workflow",
+                workflow_type="feature",
+                phase="implementing",
+            )
+
+            # Save
+            state.save(project_root)
+
+            # Load
+            loaded_state = WorkflowState.load("test-123", project_root)
+
+            # Verify phase is preserved
+            assert loaded_state.phase == "implementing"
+
+    def test_phase_backward_compatibility(self):
+        """Test that old state files without phase load correctly with default."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Create old-style state (without phase)
+            old_state_data = {
+                "workflow_id": "old-123",
+                "workflow_name": "Old Workflow",
+                "workflow_type": "chore",
+                "phases": {},
+                "inputs": {},
+                "outputs": {},
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+                "process_id": None,
+                "features": [],
+                "current_feature_index": 0,
+                "iteration_count": 0,
+                "max_iterations": 50,
+                "session_ids": [],
+                "total_cost_usd": 0.0,
+                "total_duration_ms": 0,
+                "last_verification_at": None,
+                "last_verification_passed": True,
+                "verification_count": 0,
+                "beads_task_id": None,
+                "beads_task_title": None,
+            }
+
+            # Write old state
+            state_dir = project_root / "agents" / "old-123"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            state_file = state_dir / "state.json"
+            with open(state_file, "w") as f:
+                json.dump(old_state_data, f)
+
+            # Should load successfully with phase defaulting to 'planning'
+            loaded_state = WorkflowState.load("old-123", project_root)
+
+            assert loaded_state.workflow_id == "old-123"
+            assert loaded_state.phase == "planning"
+
+
+class TestBackwardCompatibilityComprehensive:
+    """Comprehensive tests for backward compatibility with all new Beads fields."""
+
+    def test_load_old_state_without_any_beads_fields(self):
+        """Test loading old state JSON that lacks beads_task_id, beads_task_title, and phase.
+
+        This simulates loading a state file created before the Beads integration
+        was implemented. All three new fields should default correctly.
+        """
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Create old-style state without ANY Beads fields
+            # This represents a state file from before the Beads integration
+            old_state_data = {
+                "workflow_id": "legacy-workflow-123",
+                "workflow_name": "Legacy Workflow",
+                "workflow_type": "feature",
+                "phases": {},
+                "inputs": {},
+                "outputs": {},
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+                "process_id": None,
+                "features": [
+                    {
+                        "name": "legacy-feature-1",
+                        "description": "A feature from before Beads integration",
+                        "status": "completed",
+                        "test_file": "tests/test_legacy.py",
+                        "tests_passing": True,
+                        "started_at": datetime.now().isoformat(),
+                        "completed_at": datetime.now().isoformat(),
+                    }
+                ],
+                "current_feature_index": 1,
+                "iteration_count": 5,
+                "max_iterations": 50,
+                "session_ids": ["session-abc-123"],
+                "total_cost_usd": 2.75,
+                "total_duration_ms": 120000,
+                "last_verification_at": datetime.now().isoformat(),
+                "last_verification_passed": True,
+                "verification_count": 3,
+                # NOTE: Missing beads_task_id, beads_task_title, and phase
+            }
+
+            # Write old state to disk
+            state_dir = project_root / "agents" / "legacy-workflow-123"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            state_file = state_dir / "state.json"
+            with open(state_file, "w") as f:
+                json.dump(old_state_data, f)
+
+            # Load the state - should succeed with default values
+            loaded_state = WorkflowState.load("legacy-workflow-123", project_root)
+
+            # Verify all existing fields are preserved
+            assert loaded_state.workflow_id == "legacy-workflow-123"
+            assert loaded_state.workflow_name == "Legacy Workflow"
+            assert loaded_state.workflow_type == "feature"
+            assert loaded_state.current_feature_index == 1
+            assert loaded_state.iteration_count == 5
+            assert loaded_state.total_cost_usd == 2.75
+            assert len(loaded_state.features) == 1
+            assert loaded_state.features[0].name == "legacy-feature-1"
+            assert loaded_state.features[0].status == "completed"
+
+            # Verify all NEW Beads fields have correct defaults
+            assert loaded_state.beads_task_id is None
+            assert loaded_state.beads_task_title is None
+            assert loaded_state.phase == "planning"
+
+
+class TestGetSummaryIncludesBeadsFields:
+    """Tests that get_summary() includes beads_task_id, beads_task_title, and phase fields."""
+
+    def test_get_summary_includes_all_beads_fields(self):
+        """Test that get_summary() includes all Beads fields together."""
+        state = WorkflowState(
+            workflow_id="test-123",
+            workflow_name="Test Workflow",
+            workflow_type="feature",
+            beads_task_id="jean_claude-2sz.2",
+            beads_task_title="Link WorkflowState to Beads Tasks",
+            phase="verifying",
+        )
+
+        state.add_feature("f1", "First feature")
+        state.add_feature("f2", "Second feature")
+        state.features[0].status = "completed"
+        state.iteration_count = 5
+        state.total_cost_usd = 2.50
+
+        summary = state.get_summary()
+
+        # Verify all Beads fields are present
+        assert "beads_task_id" in summary
+        assert "beads_task_title" in summary
+        assert "phase" in summary
+
+        # Verify their values
+        assert summary["beads_task_id"] == "jean_claude-2sz.2"
+        assert summary["beads_task_title"] == "Link WorkflowState to Beads Tasks"
+        assert summary["phase"] == "verifying"
+
+        # Verify other fields still work
+        assert summary["workflow_id"] == "test-123"
+        assert summary["total_features"] == 2
+        assert summary["completed_features"] == 1
+        assert summary["iteration_count"] == 5
+        assert summary["total_cost_usd"] == 2.50
+
+
+class TestBeadsFieldsSaveLoadRoundtrip:
+    """Tests for save/load roundtrip with Beads fields."""
+
+    def test_save_load_roundtrip_with_all_beads_fields(self):
+        """Test that beads_task_id, beads_task_title, and phase are preserved in save/load roundtrip.
+
+        Create a state with all three Beads fields set to non-default values,
+        save to disk, load from disk, and verify all values are preserved correctly.
+        """
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Create state with all Beads fields set to non-default values
+            original_state = WorkflowState(
+                workflow_id="roundtrip-test-123",
+                workflow_name="Roundtrip Test Workflow",
+                workflow_type="feature",
+                beads_task_id="jean_claude-2sz.2",
+                beads_task_title="Link WorkflowState to Beads Tasks",
+                phase="implementing",
+            )
+
+            # Add some features to make it more realistic
+            original_state.add_feature("feature-1", "First feature", test_file="tests/test_f1.py")
+            original_state.add_feature("feature-2", "Second feature")
+            original_state.start_feature()
+            original_state.iteration_count = 5
+            original_state.total_cost_usd = 3.50
+
+            # Save to disk
+            original_state.save(project_root)
+
+            # Load from disk
+            loaded_state = WorkflowState.load("roundtrip-test-123", project_root)
+
+            # Verify all Beads fields are preserved exactly
+            assert loaded_state.beads_task_id == "jean_claude-2sz.2"
+            assert loaded_state.beads_task_title == "Link WorkflowState to Beads Tasks"
+            assert loaded_state.phase == "implementing"
+
+            # Verify other fields are also preserved
+            assert loaded_state.workflow_id == "roundtrip-test-123"
+            assert loaded_state.workflow_name == "Roundtrip Test Workflow"
+            assert loaded_state.workflow_type == "feature"
+            assert len(loaded_state.features) == 2
+            assert loaded_state.features[0].name == "feature-1"
+            assert loaded_state.iteration_count == 5
+            assert loaded_state.total_cost_usd == 3.50
+

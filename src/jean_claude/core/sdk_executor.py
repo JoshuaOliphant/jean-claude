@@ -1,11 +1,11 @@
-# ABOUTME: Async execution module using the Claude Code SDK
+# ABOUTME: Async execution module using the Claude Agent SDK
 # ABOUTME: Provides SDK-based execution with streaming, retry logic, and observability
 
-"""Claude Code SDK executor module.
+"""Claude Agent SDK executor module.
 
-This module provides async execution of Claude Code prompts using the official
-Claude Code SDK instead of subprocess calls. It maintains compatibility with
-the existing ExecutionResult model while adding proper async support.
+This module provides async execution of Claude Agent prompts using the official
+Claude Agent SDK. It maintains compatibility with the existing ExecutionResult
+model while adding proper async support and subagent capabilities.
 """
 
 import json
@@ -15,8 +15,9 @@ from typing import Any, AsyncIterator, Optional
 
 import anyio
 
-from claude_code_sdk import (
-    ClaudeCodeOptions,
+from claude_agent_sdk import (
+    ClaudeAgentOptions,
+    AgentDefinition,
     query,
     AssistantMessage,
     ResultMessage,
@@ -24,8 +25,9 @@ from claude_code_sdk import (
     ClaudeSDKError,
     CLINotFoundError,
     ProcessError,
+    HookMatcher,
 )
-from claude_code_sdk.types import HookMatcher, Message
+from claude_agent_sdk.types import Message
 
 from jean_claude.core.agent import (
     ExecutionResult,
@@ -40,11 +42,15 @@ from jean_claude.core.agent import (
 from jean_claude.core.security import bash_security_hook
 
 
-async def _execute_prompt_async(request: PromptRequest) -> ExecutionResult:
-    """Execute a single prompt attempt using the Claude Code SDK.
+async def _execute_prompt_async(
+    request: PromptRequest,
+    agents: Optional[dict[str, dict]] = None,
+) -> ExecutionResult:
+    """Execute a single prompt attempt using the Claude Agent SDK.
 
     Args:
         request: The prompt request configuration
+        agents: Optional dict of subagent definitions (SDK format)
 
     Returns:
         ExecutionResult with output and status
@@ -83,12 +89,13 @@ async def _execute_prompt_async(request: PromptRequest) -> ExecutionResult:
         }
 
     # Build SDK options
-    options = ClaudeCodeOptions(
+    options = ClaudeAgentOptions(
         model=model,
         cwd=str(request.working_dir) if request.working_dir else None,
         max_turns=100,
         permission_mode="acceptEdits" if request.dangerously_skip_permissions else None,
         hooks=hooks,
+        agents=agents,  # Subagent definitions for Task tool delegation
     )
 
     messages: list[dict[str, Any]] = []
@@ -228,6 +235,7 @@ def _save_outputs(
 async def execute_prompt_async(
     request: PromptRequest,
     max_retries: int = 3,
+    agents: Optional[dict[str, dict]] = None,
 ) -> ExecutionResult:
     """Execute a prompt with Claude Code SDK with retry logic.
 
@@ -237,6 +245,7 @@ async def execute_prompt_async(
     Args:
         request: The prompt request configuration
         max_retries: Maximum retry attempts (default: 3)
+        agents: Optional dict of subagent definitions (SDK format)
 
     Returns:
         ExecutionResult with output and status
@@ -249,7 +258,7 @@ async def execute_prompt_async(
             delay = retry_delays[min(attempt - 1, len(retry_delays) - 1)]
             await anyio.sleep(delay)
 
-        result = await _execute_prompt_async(request)
+        result = await _execute_prompt_async(request, agents=agents)
         last_result = result
 
         if result.success or result.retry_code == RetryCode.NONE:
@@ -293,6 +302,7 @@ async def execute_template_async(request: TemplateRequest) -> ExecutionResult:
 def execute_prompt_sdk(
     request: PromptRequest,
     max_retries: int = 3,
+    agents: Optional[dict[str, dict]] = None,
 ) -> ExecutionResult:
     """Execute a prompt with Claude Code SDK (sync wrapper).
 
@@ -302,13 +312,16 @@ def execute_prompt_sdk(
     Args:
         request: The prompt request configuration
         max_retries: Maximum retry attempts (default: 3)
+        agents: Optional dict of subagent definitions (SDK format)
 
     Returns:
         ExecutionResult with output and status
     """
-    return anyio.from_thread.run_sync(
-        lambda: anyio.run(execute_prompt_async, request, max_retries)
-    )
+
+    async def _run() -> ExecutionResult:
+        return await execute_prompt_async(request, max_retries, agents)
+
+    return anyio.from_thread.run_sync(lambda: anyio.run(_run))
 
 
 def execute_template_sdk(request: TemplateRequest) -> ExecutionResult:
@@ -329,6 +342,7 @@ def execute_template_sdk(request: TemplateRequest) -> ExecutionResult:
 
 async def execute_prompt_streaming(
     request: PromptRequest,
+    agents: Optional[dict[str, dict]] = None,
 ) -> AsyncIterator[Message]:
     """Execute a prompt and stream messages as they arrive.
 
@@ -337,6 +351,7 @@ async def execute_prompt_streaming(
 
     Args:
         request: The prompt request configuration
+        agents: Optional dict of subagent definitions (SDK format)
 
     Yields:
         Message objects (AssistantMessage, ToolResultMessage, ResultMessage, etc.)
@@ -390,12 +405,13 @@ async def execute_prompt_streaming(
         }
 
     # Build SDK options
-    options = ClaudeCodeOptions(
+    options = ClaudeAgentOptions(
         model=model,
         cwd=str(request.working_dir) if request.working_dir else None,
         max_turns=100,
         permission_mode="acceptEdits" if request.dangerously_skip_permissions else None,
         hooks=hooks,
+        agents=agents,  # Subagent definitions for Task tool delegation
     )
 
     # Stream messages directly to caller

@@ -32,22 +32,34 @@ def version() -> None:
 
 # Import and register commands
 from jean_claude.cli.commands import (
+    dashboard,
     implement,
     init,
     initialize,
+    logs,
+    migrate,
     onboard,
+    prime,
     prompt,
     run,
+    status,
     workflow,
+    work,
 )
 
+cli.add_command(dashboard.dashboard)
 cli.add_command(implement.implement)
 cli.add_command(init.init)
 cli.add_command(initialize.initialize)
+cli.add_command(logs.logs)
+cli.add_command(migrate.migrate)
 cli.add_command(onboard.onboard)
+cli.add_command(prime.prime)
 cli.add_command(prompt.prompt)
 cli.add_command(run.run)
+cli.add_command(status.status)
 cli.add_command(workflow.workflow)
+cli.add_command(work.work)
 
 # Future commands (will be added as implemented):
 # from jean_claude.cli.commands import watch

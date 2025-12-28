@@ -12,7 +12,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 try:
-    from claude_code_sdk import AssistantMessage, TextBlock, ToolResultMessage
+    from claude_agent_sdk import AssistantMessage, TextBlock, ToolResultMessage
 except ImportError:
     # Graceful fallback if SDK not installed
     AssistantMessage = None

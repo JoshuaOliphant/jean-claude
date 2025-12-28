@@ -38,6 +38,8 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskPr
 from jean_claude.core.state import WorkflowState, Feature
 from jean_claude.core.agent import PromptRequest, ExecutionResult, _execute_prompt_sdk_async
 from jean_claude.core.verification import run_verification, VerificationResult
+from jean_claude.core.events import EventLogger, EventType
+from jean_claude.core.feature_commit_orchestrator import FeatureCommitOrchestrator
 
 
 console = Console()
@@ -121,6 +123,7 @@ async def run_auto_continue(
     delay_seconds: float = 2.0,
     model: str = "sonnet",
     verify_first: bool = True,
+    event_logger: Optional[EventLogger] = None,
 ) -> WorkflowState:
     """Run workflow in a loop until all features complete.
 
@@ -235,6 +238,18 @@ async def run_auto_continue(
                 description=f"[cyan]Feature {state.current_feature_index + 1}/{len(state.features)}: {feature.name}[/cyan]",
             )
 
+            # Emit feature.started event
+            if event_logger:
+                event_logger.emit(
+                    workflow_id=state.workflow_id,
+                    event_type=EventType.FEATURE_STARTED,
+                    data={
+                        "feature_name": feature.name,
+                        "feature_index": state.current_feature_index,
+                        "total_features": len(state.features),
+                    }
+                )
+
             # Build prompt
             prompt = build_feature_prompt(feature, state, project_root)
 
@@ -272,10 +287,75 @@ async def run_auto_continue(
                         f"[green]✓ Completed: {feature.name}[/green] "
                         f"({state.progress_percentage:.1f}% done)"
                     )
+
+                    # Trigger commit workflow for completed feature
+                    try:
+                        console.print("[dim]Creating commit for completed feature...[/dim]")
+                        commit_orchestrator = FeatureCommitOrchestrator(repo_path=project_root)
+
+                        # Determine feature number (1-based index)
+                        feature_number = state.current_feature_index
+
+                        # Get Beads task ID (if available)
+                        beads_task_id = state.beads_task_id or "unknown"
+
+                        commit_result = commit_orchestrator.commit_feature(
+                            feature_name=feature.name,
+                            feature_description=feature.description,
+                            beads_task_id=beads_task_id,
+                            feature_number=feature_number,
+                            total_features=len(state.features),
+                            feature_context=feature.name
+                        )
+
+                        if commit_result["success"]:
+                            console.print(
+                                f"[green]✓ Commit created: {commit_result['commit_sha']}[/green]"
+                            )
+                        else:
+                            # Log commit failure but don't block workflow
+                            console.print(
+                                f"[yellow]⚠ Commit failed ({commit_result['step']}): "
+                                f"{commit_result['error']}[/yellow]"
+                            )
+                            console.print("[dim]Continuing workflow despite commit failure...[/dim]")
+
+                    except Exception as commit_error:
+                        # Handle commit errors gracefully without blocking workflow
+                        console.print(
+                            f"[yellow]⚠ Commit error: {str(commit_error)}[/yellow]"
+                        )
+                        console.print("[dim]Continuing workflow despite commit error...[/dim]")
+
+                    # Emit feature.completed event
+                    if event_logger:
+                        event_logger.emit(
+                            workflow_id=state.workflow_id,
+                            event_type=EventType.FEATURE_COMPLETED,
+                            data={
+                                "feature_name": feature.name,
+                                "feature_index": state.current_feature_index - 1,
+                                "total_features": len(state.features),
+                                "cost_usd": result.cost_usd,
+                                "duration_ms": result.duration_ms,
+                            }
+                        )
                 else:
                     state.mark_feature_failed(result.output)
                     console.print(f"[red]✗ Failed: {feature.name}[/red]")
                     console.print(f"[red]Error: {result.output}[/red]")
+
+                    # Emit feature.failed event
+                    if event_logger:
+                        event_logger.emit(
+                            workflow_id=state.workflow_id,
+                            event_type=EventType.FEATURE_FAILED,
+                            data={
+                                "feature_name": feature.name,
+                                "feature_index": state.current_feature_index,
+                                "error": result.output[:500] if result.output else "Unknown error",
+                            }
+                        )
 
                     # Decide whether to continue or stop
                     # For now, stop on first failure

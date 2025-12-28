@@ -3,13 +3,9 @@
 
 """Tests for SubagentStop hook functionality."""
 
-import json
-from pathlib import Path
-from datetime import datetime
-
 import pytest
 
-from jean_claude.core.message import Message, MessagePriority
+from jean_claude.core.message import MessagePriority
 from jean_claude.core.mailbox_api import Mailbox
 from jean_claude.orchestration.subagent_stop_hook import subagent_stop_hook
 
@@ -32,18 +28,15 @@ class TestSubagentStopHookBasics:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_hook_returns_none_when_only_normal_messages(self, tmp_path):
+    async def test_hook_returns_none_when_only_normal_messages(self, tmp_path, message_factory):
         """Test that hook returns None when outbox has only normal priority messages."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send a normal priority message
-        msg = Message(
-            from_agent="agent-1",
-            to_agent="coordinator",
-            type="status",
-            subject="Status update",
-            body="Work is progressing",
+        msg = message_factory(
+            to_agent="coordinator", type="status",
+            subject="Status update", body="Work is progressing",
             priority=MessagePriority.NORMAL
         )
         mailbox.send_message(msg, to_inbox=False)
@@ -58,14 +51,13 @@ class TestSubagentStopHookBasics:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_hook_returns_none_when_messages_not_awaiting_response(self, tmp_path):
+    async def test_hook_returns_none_when_messages_not_awaiting_response(self, tmp_path, message_factory):
         """Test that hook returns None when messages are not awaiting response."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send a message that's not awaiting response
-        msg = Message(
-            from_agent="agent-1",
+        msg = message_factory(
             to_agent="coordinator",
             type="notification",
             subject="FYI",
@@ -88,14 +80,13 @@ class TestSubagentStopHookUrgentMessages:
     """Tests for SubagentStop hook with urgent messages."""
 
     @pytest.mark.asyncio
-    async def test_hook_notifies_on_urgent_message(self, tmp_path):
+    async def test_hook_notifies_on_urgent_message(self, tmp_path, message_factory):
         """Test that hook returns systemMessage for urgent messages."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send an urgent message
-        msg = Message(
-            from_agent="agent-1",
+        msg = message_factory(
             to_agent="coordinator",
             type="help_request",
             subject="Need help",
@@ -117,14 +108,13 @@ class TestSubagentStopHookUrgentMessages:
         assert "Need help" in result["systemMessage"]
 
     @pytest.mark.asyncio
-    async def test_hook_notifies_on_awaiting_response_message(self, tmp_path):
+    async def test_hook_notifies_on_awaiting_response_message(self, tmp_path, message_factory):
         """Test that hook returns systemMessage for messages awaiting response."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send a message awaiting response
-        msg = Message(
-            from_agent="agent-1",
+        msg = message_factory(
             to_agent="coordinator",
             type="question",
             subject="Question about approach",
@@ -146,14 +136,13 @@ class TestSubagentStopHookUrgentMessages:
         assert "Question about approach" in result["systemMessage"]
 
     @pytest.mark.asyncio
-    async def test_hook_notifies_on_urgent_and_awaiting_response(self, tmp_path):
+    async def test_hook_notifies_on_urgent_and_awaiting_response(self, tmp_path, message_factory):
         """Test that hook handles messages that are both urgent AND awaiting response."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send a message that's both urgent and awaiting response
-        msg = Message(
-            from_agent="agent-1",
+        msg = message_factory(
             to_agent="coordinator",
             type="help_request",
             subject="Urgent question",
@@ -177,13 +166,13 @@ class TestSubagentStopHookUrgentMessages:
         assert "urgent" in msg_lower or "awaiting response" in msg_lower
 
     @pytest.mark.asyncio
-    async def test_hook_includes_message_details(self, tmp_path):
+    async def test_hook_includes_message_details(self, tmp_path, message_factory):
         """Test that hook includes relevant message details in notification."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send an urgent message
-        msg = Message(
+        msg = message_factory(
             from_agent="subagent-x",
             to_agent="coordinator",
             type="help_request",
@@ -209,15 +198,14 @@ class TestSubagentStopHookMultipleMessages:
     """Tests for SubagentStop hook with multiple messages."""
 
     @pytest.mark.asyncio
-    async def test_hook_handles_multiple_urgent_messages(self, tmp_path):
+    async def test_hook_handles_multiple_urgent_messages(self, tmp_path, message_factory):
         """Test that hook handles multiple urgent messages."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send multiple urgent messages
         for i in range(3):
-            msg = Message(
-                from_agent="agent-1",
+            msg = message_factory(
                 to_agent="coordinator",
                 type="help_request",
                 subject=f"Issue {i}",
@@ -240,15 +228,14 @@ class TestSubagentStopHookMultipleMessages:
         assert "Issue 0" in system_msg or "Issue 1" in system_msg or "Issue 2" in system_msg
 
     @pytest.mark.asyncio
-    async def test_hook_ignores_normal_messages_when_urgent_present(self, tmp_path):
+    async def test_hook_ignores_normal_messages_when_urgent_present(self, tmp_path, message_factory):
         """Test that hook focuses on urgent/awaiting messages when mixed."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send normal messages
         for i in range(3):
-            msg = Message(
-                from_agent="agent-1",
+            msg = message_factory(
                 to_agent="coordinator",
                 type="status",
                 subject=f"Status {i}",
@@ -258,8 +245,7 @@ class TestSubagentStopHookMultipleMessages:
             mailbox.send_message(msg, to_inbox=False)
 
         # Send one urgent message
-        urgent_msg = Message(
-            from_agent="agent-1",
+        urgent_msg = message_factory(
             to_agent="coordinator",
             type="help_request",
             subject="Urgent help",
@@ -353,13 +339,13 @@ class TestSubagentStopHookIntegration:
     """Integration tests for SubagentStop hook."""
 
     @pytest.mark.asyncio
-    async def test_hook_workflow_with_coordinator_workflow_id(self, tmp_path):
+    async def test_hook_workflow_with_coordinator_workflow_id(self, tmp_path, message_factory):
         """Test hook with realistic coordinator workflow_id."""
         workflow_id = "beads-jean_claude-abc123"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Subagent sends urgent help request
-        msg = Message(
+        msg = message_factory(
             from_agent=workflow_id,
             to_agent="coordinator",
             type="help_request",
@@ -383,14 +369,13 @@ class TestSubagentStopHookIntegration:
         assert "ambiguous" in result["systemMessage"]
 
     @pytest.mark.asyncio
-    async def test_hook_notification_format(self, tmp_path):
+    async def test_hook_notification_format(self, tmp_path, message_factory):
         """Test that notification has proper format for orchestrator."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send urgent message
-        msg = Message(
-            from_agent="agent-1",
+        msg = message_factory(
             to_agent="coordinator",
             type="help_request",
             subject="Test subject",

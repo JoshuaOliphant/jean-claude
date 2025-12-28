@@ -20,7 +20,7 @@ from jean_claude.core.mailbox_paths import MailboxPaths
 class TestWriteMessageBasics:
     """Tests for basic write_message functionality - consolidated from 4 tests to 1."""
 
-    def test_write_message_to_inbox_outbox_creates_dir_and_appends(self, tmp_path):
+    def test_write_message_to_inbox_outbox_creates_dir_and_appends(self, tmp_path, message_factory):
         """Test writing to inbox, outbox, directory creation, and appending."""
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
 
@@ -28,10 +28,7 @@ class TestWriteMessageBasics:
         assert not paths.mailbox_dir.exists()
 
         # Write to inbox (creates directory)
-        inbox_msg = Message(
-            from_agent="agent-1", to_agent="agent-2", type="test",
-            subject="Inbox message", body="Test body"
-        )
+        inbox_msg = message_factory(subject="Inbox message", body="Test body")
         write_message(inbox_msg, MessageBox.INBOX, paths)
 
         # Directory and file should exist
@@ -44,17 +41,13 @@ class TestWriteMessageBasics:
         assert parsed["subject"] == "Inbox message"
 
         # Write to outbox
-        outbox_msg = Message(
-            from_agent="agent-1", to_agent="agent-2", type="notification",
-            subject="Outbox message", body="Body"
-        )
+        outbox_msg = message_factory(type="notification", subject="Outbox message")
         write_message(outbox_msg, MessageBox.OUTBOX, paths)
         assert paths.outbox_path.exists()
 
         # Verify appending
-        second_msg = Message(
-            from_agent="agent-3", to_agent="agent-4", type="test",
-            subject="Second message", body="Body"
+        second_msg = message_factory(
+            from_agent="agent-3", to_agent="agent-4", subject="Second message"
         )
         write_message(second_msg, MessageBox.INBOX, paths)
 
@@ -65,14 +58,14 @@ class TestWriteMessageBasics:
 class TestWriteMessageJSONLSerialization:
     """Tests for JSONL serialization - consolidated from 4 tests to 1."""
 
-    def test_write_message_jsonl_format_and_field_preservation(self, tmp_path):
+    def test_write_message_jsonl_format_and_field_preservation(self, tmp_path, message_factory):
         """Test JSONL format and all field preservation including special chars."""
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
 
         # Write multiple messages
         for i in range(3):
-            msg = Message(
-                from_agent=f"agent-{i}", to_agent="agent-x", type="test",
+            msg = message_factory(
+                from_agent=f"agent-{i}", to_agent="agent-x",
                 subject=f"Message {i}", body=f"Body {i}"
             )
             write_message(msg, MessageBox.INBOX, paths)
@@ -115,7 +108,7 @@ class TestWriteMessageJSONLSerialization:
 class TestWriteMessageErrorHandling:
     """Tests for error handling - consolidated from 4 tests to 1."""
 
-    def test_write_message_handles_errors_gracefully(self, tmp_path):
+    def test_write_message_handles_errors_gracefully(self, tmp_path, message_factory):
         """Test error handling for invalid inputs and permissions."""
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
 
@@ -124,10 +117,7 @@ class TestWriteMessageErrorHandling:
             write_message("not a message", MessageBox.INBOX, paths)
 
         # Invalid mailbox type
-        msg = Message(
-            from_agent="agent-1", to_agent="agent-2", type="test",
-            subject="Test", body="Body"
-        )
+        msg = message_factory(subject="Test", body="Body")
         with pytest.raises((ValueError, AttributeError)):
             write_message(msg, "invalid_mailbox", paths)
 
@@ -143,17 +133,16 @@ class TestWriteMessageErrorHandling:
 class TestWriteMessagePrioritiesAndFlags:
     """Tests for priorities and awaiting_response - consolidated from 5 tests to 1."""
 
-    def test_write_message_preserves_all_priorities_and_flags(self, tmp_path):
+    def test_write_message_preserves_all_priorities_and_flags(self, tmp_path, message_factory):
         """Test all priority levels and awaiting_response flag are preserved."""
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
 
         # All priority levels and awaiting_response combinations
         for priority in [MessagePriority.LOW, MessagePriority.NORMAL, MessagePriority.URGENT]:
             for awaiting in [True, False]:
-                msg = Message(
-                    from_agent="agent-1", to_agent="agent-2",
-                    type="test", subject=f"{priority.value}-{awaiting}",
-                    body="Body", priority=priority, awaiting_response=awaiting
+                msg = message_factory(
+                    subject=f"{priority.value}-{awaiting}",
+                    priority=priority, awaiting_response=awaiting
                 )
                 write_message(msg, MessageBox.INBOX, paths)
 
@@ -217,26 +206,21 @@ class TestWriteMessageEdgeCases:
 class TestMessageBoxEnum:
     """Tests for MessageBox enum - consolidated from 4 tests to 1."""
 
-    def test_messagebox_enum_maps_to_correct_paths(self, tmp_path):
+    def test_messagebox_enum_maps_to_correct_paths(self, tmp_path, sample_message):
         """Test that INBOX and OUTBOX map to correct file paths."""
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
 
         assert hasattr(MessageBox, 'INBOX')
         assert hasattr(MessageBox, 'OUTBOX')
 
-        msg = Message(
-            from_agent="agent-1", to_agent="agent-2", type="test",
-            subject="Test", body="Body"
-        )
-
         # INBOX maps to inbox.jsonl
-        write_message(msg, MessageBox.INBOX, paths)
+        write_message(sample_message, MessageBox.INBOX, paths)
         assert paths.inbox_path.exists()
         assert not paths.outbox_path.exists()
 
         # OUTBOX maps to outbox.jsonl
         paths2 = MailboxPaths(workflow_id="test-workflow-2", base_dir=tmp_path)
-        write_message(msg, MessageBox.OUTBOX, paths2)
+        write_message(sample_message, MessageBox.OUTBOX, paths2)
         assert paths2.outbox_path.exists()
         assert not paths2.inbox_path.exists()
 

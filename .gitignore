@@ -17,3 +17,8 @@ logs/
 .adw_backups/
 .env
 .mcp.json
+
+# Jean Claude CLI
+agents/
+trees/
+.jc/

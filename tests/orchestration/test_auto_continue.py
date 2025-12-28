@@ -20,43 +20,9 @@ from jean_claude.orchestration.auto_continue import (
 )
 
 
-@pytest.fixture
-def mock_project_root(tmp_path: Path) -> Path:
-    """Create a temporary project root directory."""
-    agents_dir = tmp_path / "agents"
-    agents_dir.mkdir(parents=True, exist_ok=True)
-    return tmp_path
-
-
-@pytest.fixture
-def sample_workflow_state(mock_project_root: Path) -> WorkflowState:
-    """Create a sample workflow state with features."""
-    state = WorkflowState(
-        workflow_id="test-abc123",
-        workflow_name="Test Workflow",
-        workflow_type="feature",
-        max_iterations=10,
-    )
-
-    # Add three features
-    state.add_feature(
-        name="Feature 1",
-        description="Implement authentication",
-        test_file="tests/test_auth.py",
-    )
-    state.add_feature(
-        name="Feature 2",
-        description="Add user profile",
-        test_file="tests/test_profile.py",
-    )
-    state.add_feature(
-        name="Feature 3",
-        description="Implement logout",
-        test_file="tests/test_logout.py",
-    )
-
-    state.save(mock_project_root)
-    return state
+# Fixtures moved to tests/orchestration/conftest.py:
+# - mock_project_root: Creates temp project with agents/ directory
+# - sample_workflow_state: Pre-configured state with 3 features
 
 
 class TestBuildFeaturePrompt:

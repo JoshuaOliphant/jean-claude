@@ -39,6 +39,7 @@ from rich.prompt import Confirm
 
 from jean_claude.core.state import WorkflowState, Feature
 from jean_claude.core.agent import PromptRequest, ExecutionResult, _execute_prompt_sdk_async
+from jean_claude.core.events import EventLogger
 from jean_claude.orchestration.auto_continue import run_auto_continue
 
 
@@ -231,13 +232,25 @@ async def run_initializer(
     if len(data["features"]) == 0:
         raise ValueError("Feature list is empty")
 
-    # Create WorkflowState
-    state = WorkflowState(
-        workflow_id=workflow_id,
-        workflow_name=description[:100],
-        workflow_type="two-agent",
-        max_iterations=len(data["features"]) * 3,  # Allow 3 attempts per feature
-    )
+    # Load existing WorkflowState or create new one
+    state_path = project_root / "agents" / workflow_id / "state.json"
+    if state_path.exists():
+        # Preserve existing state (phase, beads_task_id, etc.)
+        state = WorkflowState.load_from_file(state_path)
+        # Update with new planning data
+        state.workflow_name = description[:100]
+        state.max_iterations = len(data["features"]) * 3
+        # Clear old features if re-planning
+        state.features = []
+        state.current_feature_index = 0
+    else:
+        # Create new WorkflowState
+        state = WorkflowState(
+            workflow_id=workflow_id,
+            workflow_name=description[:100],
+            workflow_type="two-agent",
+            max_iterations=len(data["features"]) * 3,  # Allow 3 attempts per feature
+        )
 
     # Add features
     for i, feature_data in enumerate(data["features"]):
@@ -289,6 +302,7 @@ async def run_two_agent_workflow(
     coder_model: str = "sonnet",
     max_iterations: Optional[int] = None,
     auto_confirm: bool = False,
+    event_logger: Optional["EventLogger"] = None,
 ) -> WorkflowState:
     """Run complete two-agent workflow.
 
@@ -352,6 +366,7 @@ async def run_two_agent_workflow(
         max_iterations=max_iterations,
         model=coder_model,
         verify_first=True,
+        event_logger=event_logger,
     )
 
     return final_state

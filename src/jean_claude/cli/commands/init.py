@@ -16,7 +16,7 @@ from jean_claude.config.models import ProjectConfig
 console = Console()
 
 # Directories to create
-INIT_DIRECTORIES = ["specs", "agents", "trees", ".jc"]
+INIT_DIRECTORIES = ["specs", "agents", "trees", ".jc", ".claude/commands"]
 
 # Entries to add to .gitignore
 GITIGNORE_ENTRIES = [
@@ -26,6 +26,30 @@ GITIGNORE_ENTRIES = [
     "trees/",
     ".jc/",
 ]
+
+# Slash command templates to create
+SLASH_COMMANDS = {
+    "prime.md": """\
+# Prime
+
+Gather project context using the prime subagent for context-efficient exploration.
+
+## Execute
+
+Run the following command to gather project context:
+
+```bash
+jc prime --raw
+```
+
+The prime subagent will:
+1. Explore the codebase structure using Haiku (fast and cheap)
+2. Identify tech stack, entry points, and testing setup
+3. Return a condensed ~500 word summary
+
+This keeps file exploration out of your main context window.
+""",
+}
 
 
 def detect_project_name(project_root: Path) -> str:
@@ -102,6 +126,24 @@ def update_gitignore(project_root: Path) -> bool:
     return True
 
 
+def create_slash_commands(project_root: Path) -> list[str]:
+    """Create slash command templates in .claude/commands/.
+
+    Returns:
+        List of created command file names
+    """
+    commands_dir = project_root / ".claude" / "commands"
+    created = []
+
+    for filename, content in SLASH_COMMANDS.items():
+        command_path = commands_dir / filename
+        if not command_path.exists():
+            command_path.write_text(content)
+            created.append(filename)
+
+    return created
+
+
 @click.command()
 @click.option(
     "--force",
@@ -121,11 +163,12 @@ def init(force: bool, minimal: bool) -> None:
 
     \b
     Creates:
-      - .jc-project.yaml  Project configuration
-      - specs/            Workflow specifications
-      - agents/           Agent working directories
-      - trees/            Git worktrees for isolation
-      - .jc/              Internal state (events.db)
+      - .jc-project.yaml       Project configuration
+      - specs/                 Workflow specifications
+      - agents/                Agent working directories
+      - trees/                 Git worktrees for isolation
+      - .jc/                   Internal state (events.db)
+      - .claude/commands/      Slash command templates (e.g., /prime)
 
     Also updates .gitignore to exclude generated directories.
     """
@@ -179,6 +222,9 @@ def init(force: bool, minimal: bool) -> None:
     # Update .gitignore
     gitignore_updated = update_gitignore(project_root)
 
+    # Create slash commands
+    created_commands = create_slash_commands(project_root)
+
     # Display results
     results_table = Table(show_header=False, box=None, padding=(0, 2))
     results_table.add_column(style="green")
@@ -188,6 +234,9 @@ def init(force: bool, minimal: bool) -> None:
 
     for dir_name in created_dirs:
         results_table.add_row("✓", f"Created [cyan]{dir_name}/[/cyan]")
+
+    for cmd_name in created_commands:
+        results_table.add_row("✓", f"Created [cyan].claude/commands/{cmd_name}[/cyan]")
 
     if gitignore_updated:
         results_table.add_row("✓", "Updated [cyan].gitignore[/cyan]")
@@ -215,6 +264,7 @@ def init(force: bool, minimal: bool) -> None:
             "[bold green]Jean Claude initialized successfully![/bold green]\n\n"
             "Next steps:\n"
             "  • Edit [cyan].jc-project.yaml[/cyan] to customize settings\n"
+            "  • Run [cyan]jc prime[/cyan] or [cyan]/prime[/cyan] to gather project context\n"
             "  • Run [cyan]jc prompt \"your prompt\"[/cyan] to execute prompts\n"
             "  • Run [cyan]jc run chore \"task\"[/cyan] to start workflows",
             title="[bold green]Success[/bold green]",

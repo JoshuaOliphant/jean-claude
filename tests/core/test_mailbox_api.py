@@ -38,17 +38,14 @@ class TestMailboxInitialization:
 class TestMailboxSendMessage:
     """Tests for send_message method - consolidated from 6 tests to 2."""
 
-    def test_send_message_to_inbox_and_outbox(self, tmp_path):
+    def test_send_message_to_inbox_and_outbox(self, tmp_path, message_factory):
         """Test sending messages to both inbox and outbox."""
         mailbox = Mailbox(workflow_id="test-workflow", base_dir=tmp_path)
 
         # Create test messages
-        inbox_msg = Message(
-            from_agent="agent-1", to_agent="agent-2", type="test",
-            subject="Inbox message", body="In inbox"
-        )
-        outbox_msg = Message(
-            from_agent="agent-2", to_agent="agent-1", type="test",
+        inbox_msg = message_factory(subject="Inbox message", body="In inbox")
+        outbox_msg = message_factory(
+            from_agent="agent-2", to_agent="agent-1",
             subject="Outbox message", body="In outbox"
         )
 
@@ -70,13 +67,13 @@ class TestMailboxSendMessage:
         assert mailbox2.paths.outbox_path.exists()
         assert not mailbox2.paths.inbox_path.exists()
 
-    def test_send_multiple_messages(self, tmp_path):
+    def test_send_multiple_messages(self, tmp_path, message_factory):
         """Test sending multiple messages to inbox."""
         mailbox = Mailbox(workflow_id="test-workflow", base_dir=tmp_path)
 
         for i in range(3):
-            msg = Message(
-                from_agent=f"agent-{i}", to_agent="agent-x", type="test",
+            msg = message_factory(
+                from_agent=f"agent-{i}", to_agent="agent-x",
                 subject=f"Message {i}", body=f"Body {i}"
             )
             mailbox.send_message(msg, to_inbox=True)
@@ -89,7 +86,7 @@ class TestMailboxSendMessage:
 class TestMailboxGetMessages:
     """Tests for get_inbox_messages and get_outbox_messages - consolidated from 8 tests to 2."""
 
-    def test_get_messages_returns_correct_type_and_order(self, tmp_path):
+    def test_get_messages_returns_correct_type_and_order(self, tmp_path, message_factory):
         """Test that get_inbox/outbox_messages returns correct messages in order."""
         mailbox = Mailbox(workflow_id="test-workflow", base_dir=tmp_path)
 
@@ -99,12 +96,12 @@ class TestMailboxGetMessages:
 
         # Send messages
         for i in range(3):
-            inbox_msg = Message(
-                from_agent=f"agent-{i}", to_agent="me", type="test",
+            inbox_msg = message_factory(
+                from_agent=f"agent-{i}", to_agent="me",
                 subject=f"Inbox {i}", body=f"Body {i}"
             )
-            outbox_msg = Message(
-                from_agent="me", to_agent=f"agent-{i}", type="test",
+            outbox_msg = message_factory(
+                from_agent="me", to_agent=f"agent-{i}",
                 subject=f"Outbox {i}", body=f"Body {i}"
             )
             mailbox.send_message(inbox_msg, to_inbox=True)
@@ -122,17 +119,13 @@ class TestMailboxGetMessages:
         assert len(outbox) == 3
         assert outbox[0].subject == "Outbox 0"
 
-    def test_inbox_and_outbox_are_isolated(self, tmp_path):
+    def test_inbox_and_outbox_are_isolated(self, tmp_path, message_factory):
         """Test that inbox and outbox don't mix."""
         mailbox = Mailbox(workflow_id="test-workflow", base_dir=tmp_path)
 
-        inbox_msg = Message(
-            from_agent="agent-1", to_agent="me", type="test",
-            subject="Inbox only", body="Body"
-        )
-        outbox_msg = Message(
-            from_agent="me", to_agent="agent-1", type="test",
-            subject="Outbox only", body="Body"
+        inbox_msg = message_factory(subject="Inbox only")
+        outbox_msg = message_factory(
+            from_agent="me", to_agent="agent-1", subject="Outbox only"
         )
         mailbox.send_message(inbox_msg, to_inbox=True)
         mailbox.send_message(outbox_msg, to_inbox=False)
@@ -149,7 +142,7 @@ class TestMailboxGetMessages:
 class TestMailboxUnreadCount:
     """Tests for unread count - consolidated from 4 tests to 1."""
 
-    def test_unread_count_behavior(self, tmp_path):
+    def test_unread_count_behavior(self, tmp_path, message_factory):
         """Test complete unread count behavior in one test."""
         mailbox = Mailbox(workflow_id="test-workflow", base_dir=tmp_path)
 
@@ -158,8 +151,8 @@ class TestMailboxUnreadCount:
 
         # Inbox messages increment count
         for i in range(3):
-            msg = Message(
-                from_agent=f"agent-{i}", to_agent="me", type="test",
+            msg = message_factory(
+                from_agent=f"agent-{i}", to_agent="me",
                 subject=f"Inbox {i}", body=f"Body {i}"
             )
             mailbox.send_message(msg, to_inbox=True)
@@ -167,8 +160,8 @@ class TestMailboxUnreadCount:
 
         # Outbox messages don't affect count
         for i in range(5):
-            msg = Message(
-                from_agent="me", to_agent=f"agent-{i}", type="test",
+            msg = message_factory(
+                from_agent="me", to_agent=f"agent-{i}",
                 subject=f"Outbox {i}", body=f"Body {i}"
             )
             mailbox.send_message(msg, to_inbox=False)
@@ -178,14 +171,14 @@ class TestMailboxUnreadCount:
 class TestMailboxMarkAsRead:
     """Tests for mark_as_read - consolidated from 5 tests to 1."""
 
-    def test_mark_as_read_behavior(self, tmp_path):
+    def test_mark_as_read_behavior(self, tmp_path, message_factory):
         """Test complete mark_as_read behavior in one test."""
         mailbox = Mailbox(workflow_id="test-workflow", base_dir=tmp_path)
 
         # Send 5 messages
         for i in range(5):
-            msg = Message(
-                from_agent=f"agent-{i}", to_agent="me", type="test",
+            msg = message_factory(
+                from_agent=f"agent-{i}", to_agent="me",
                 subject=f"Message {i}", body=f"Body {i}"
             )
             mailbox.send_message(msg, to_inbox=True)
@@ -208,7 +201,7 @@ class TestMailboxMarkAsRead:
 class TestMailboxIntegration:
     """Integration tests for complete mailbox workflows - kept essential tests."""
 
-    def test_mailbox_complete_workflow(self, tmp_path):
+    def test_mailbox_complete_workflow(self, tmp_path, message_factory):
         """Test a complete mailbox workflow."""
         mailbox = Mailbox(workflow_id="test-workflow", base_dir=tmp_path)
 
@@ -219,7 +212,7 @@ class TestMailboxIntegration:
 
         # Receive 2 messages in inbox
         for i in range(2):
-            msg = Message(
+            msg = message_factory(
                 from_agent=f"agent-{i}", to_agent="me", type="request",
                 subject=f"Request {i}", body=f"Please help with {i}"
             )
@@ -230,7 +223,7 @@ class TestMailboxIntegration:
 
         # Send 3 responses in outbox
         for i in range(3):
-            msg = Message(
+            msg = message_factory(
                 from_agent="me", to_agent=f"agent-{i}", type="response",
                 subject=f"Re: Request {i}", body=f"Here's help for {i}"
             )
@@ -244,13 +237,14 @@ class TestMailboxIntegration:
         assert mailbox.get_unread_count() == 0
         assert len(mailbox.get_inbox_messages()) == 2  # Still there
 
-    def test_mailbox_handles_urgent_messages(self, tmp_path):
+    def test_mailbox_handles_urgent_messages(self, tmp_path, message_factory):
         """Test mailbox with urgent priority messages."""
         mailbox = Mailbox(workflow_id="test-workflow", base_dir=tmp_path)
 
-        urgent_msg = Message(
-            from_agent="agent-1", to_agent="me", type="help_request",
-            subject="Urgent help needed", body="Need immediate assistance",
+        # Urgent message with specific priority - use factory with priority param
+        urgent_msg = message_factory(
+            type="help_request", subject="Urgent help needed",
+            body="Need immediate assistance",
             priority=MessagePriority.URGENT, awaiting_response=True
         )
         mailbox.send_message(urgent_msg, to_inbox=True)
@@ -264,19 +258,15 @@ class TestMailboxIntegration:
 class TestMailboxIsolation:
     """Tests for workflow isolation - consolidated from 2 tests to 1."""
 
-    def test_different_workflows_are_isolated(self, tmp_path):
+    def test_different_workflows_are_isolated(self, tmp_path, message_factory):
         """Test that different workflows have isolated mailboxes."""
         mailbox1 = Mailbox(workflow_id="workflow-1", base_dir=tmp_path)
         mailbox2 = Mailbox(workflow_id="workflow-2", base_dir=tmp_path)
 
         # Send to each
-        msg1 = Message(
-            from_agent="agent-1", to_agent="me", type="test",
-            subject="Workflow 1", body="Body 1"
-        )
-        msg2 = Message(
-            from_agent="agent-2", to_agent="me", type="test",
-            subject="Workflow 2", body="Body 2"
+        msg1 = message_factory(subject="Workflow 1", body="Body 1")
+        msg2 = message_factory(
+            from_agent="agent-2", subject="Workflow 2", body="Body 2"
         )
         mailbox1.send_message(msg1, to_inbox=True)
         mailbox2.send_message(msg2, to_inbox=True)
@@ -314,14 +304,14 @@ class TestMailboxErrorHandling:
 class TestMailboxEdgeCases:
     """Tests for edge cases - consolidated from 3 tests to 1."""
 
-    def test_edge_case_behaviors(self, tmp_path):
+    def test_edge_case_behaviors(self, tmp_path, message_factory):
         """Test edge case behaviors in one test."""
         mailbox = Mailbox(workflow_id="test-workflow", base_dir=tmp_path)
 
         # Send 2 messages
         for i in range(2):
-            msg = Message(
-                from_agent=f"agent-{i}", to_agent="me", type="test",
+            msg = message_factory(
+                from_agent=f"agent-{i}", to_agent="me",
                 subject=f"Message {i}", body=f"Body {i}"
             )
             mailbox.send_message(msg, to_inbox=True)
@@ -333,8 +323,8 @@ class TestMailboxEdgeCases:
         # Mark 0 as read - should not change
         mailbox2 = Mailbox(workflow_id="test-workflow-2", base_dir=tmp_path)
         for i in range(3):
-            msg = Message(
-                from_agent=f"agent-{i}", to_agent="me", type="test",
+            msg = message_factory(
+                from_agent=f"agent-{i}", to_agent="me",
                 subject=f"Message {i}", body=f"Body {i}"
             )
             mailbox2.send_message(msg, to_inbox=True)
@@ -345,6 +335,7 @@ class TestMailboxEdgeCases:
         """Test mailbox with very long message."""
         mailbox = Mailbox(workflow_id="test-workflow", base_dir=tmp_path)
 
+        # Very long body - edge case, keep inline for clarity
         long_body = "A" * 100000  # 100KB message
         msg = Message(
             from_agent="agent-1", to_agent="agent-2", type="test",

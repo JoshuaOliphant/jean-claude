@@ -185,12 +185,84 @@ git clone https://github.com/joshuaoliphant/jean-claude
 cd jean-claude
 uv sync
 
-# Run tests
-uv run pytest
-
 # Run CLI in development
 uv run jc --help
 ```
+
+## Testing
+
+Jean Claude has a focused test suite (~800 tests) that tests OUR code, not external dependencies. We mock external tools like Beads rather than testing their implementation.
+
+### Running Tests
+
+```bash
+# Run all tests (parallel execution)
+uv run pytest
+
+# Run with verbose output
+uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/test_work_command.py
+
+# Run specific test class
+uv run pytest tests/test_work_command.py::TestWorkCommand
+
+# Run tests matching a pattern
+uv run pytest -k "beads"
+
+# Run with coverage
+uv run pytest --cov=jean_claude --cov-report=html
+```
+
+### Test Organization
+
+```
+tests/
+├── conftest.py                  # Root fixtures (cli_runner, mock_beads_task, etc.)
+├── core/
+│   ├── conftest.py              # Core module fixtures (sample_beads_task, subprocess mocks)
+│   ├── test_beads*.py           # Beads model and integration tests
+│   └── ...
+├── orchestration/
+│   ├── conftest.py              # Orchestration fixtures (workflow_state, execution_result)
+│   ├── test_auto_continue.py    # Auto-continue workflow tests
+│   └── test_two_agent.py        # Two-agent pattern tests
+├── templates/
+│   ├── conftest.py              # Template path fixtures
+│   └── test_beads_spec.py       # Template tests
+├── test_work_command.py         # CLI work command tests
+├── test_dashboard.py            # Dashboard tests
+└── ...
+```
+
+### Key Fixtures
+
+| Fixture | Location | Purpose |
+|---------|----------|---------|
+| `cli_runner` | conftest.py | Click CLI testing |
+| `mock_beads_task` | conftest.py | Standard BeadsTask for testing |
+| `mock_beads_task_factory` | conftest.py | Factory for custom BeadsTask |
+| `work_command_mocks` | conftest.py | All mocks for work command |
+| `sample_beads_task` | core/conftest.py | Fully-populated BeadsTask |
+| `mock_subprocess_success` | core/conftest.py | Subprocess mock for success |
+| `mock_project_root` | orchestration/conftest.py | Temp project with agents/ dir |
+| `sample_workflow_state` | orchestration/conftest.py | Pre-configured workflow state |
+
+### Test Categories
+
+- **Unit tests**: Test individual functions and classes
+- **Integration tests**: Test CLI commands and workflows
+- **Model tests**: Test Pydantic models and validation
+- **Template tests**: Test Jinja template rendering
+
+## Contributing
+
+1. **Only test OUR code** - Mock external tools (Beads, etc.), don't test them
+2. Write tests first (TDD approach)
+3. Use existing fixtures from conftest.py files
+4. Follow the mock patching rule: patch where used, not where defined
+5. Run full test suite before submitting PR
 
 ## License
 

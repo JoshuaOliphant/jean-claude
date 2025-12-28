@@ -11,13 +11,14 @@ MOCKING ASYNC FUNCTIONS:
 """
 
 from pathlib import Path
-from typing import Generator
+from typing import Callable, Generator
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from click.testing import CliRunner
 
-from jean_claude.core.beads import BeadsTask, BeadsTaskStatus
+from jean_claude.core.beads import BeadsTask, BeadsTaskStatus, BeadsTaskPriority, BeadsTaskType
+from jean_claude.core.message import Message, MessagePriority
 from jean_claude.core.state import WorkflowState
 
 
@@ -69,7 +70,9 @@ def mock_beads_task_factory():
         title: str = "Test Task",
         description: str = "A test task",
         acceptance_criteria: list[str] | None = None,
-        status: str | BeadsTaskStatus = BeadsTaskStatus.OPEN
+        status: str | BeadsTaskStatus = BeadsTaskStatus.OPEN,
+        priority: str | BeadsTaskPriority | None = None,
+        task_type: str | BeadsTaskType | None = None,
     ) -> BeadsTask:
         # Convert string to enum if needed
         if isinstance(status, str):
@@ -79,7 +82,9 @@ def mock_beads_task_factory():
             title=title,
             description=description,
             acceptance_criteria=acceptance_criteria or [],
-            status=status
+            status=status,
+            priority=priority,
+            task_type=task_type,
         )
     return _create_task
 
@@ -290,3 +295,63 @@ def mock_subprocess_failure():
             stderr="Error: Task not found"
         )
         yield mock
+
+
+# =============================================================================
+# Message Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def sample_message() -> Message:
+    """Provide a standard Message for testing."""
+    return Message(
+        from_agent="agent-1",
+        to_agent="agent-2",
+        type="test",
+        subject="Test Message",
+        body="This is a test message body."
+    )
+
+
+@pytest.fixture
+def urgent_message() -> Message:
+    """Provide an urgent priority Message for testing."""
+    return Message(
+        from_agent="agent-1",
+        to_agent="coordinator",
+        type="help_request",
+        subject="Urgent Help Needed",
+        body="I need immediate assistance.",
+        priority=MessagePriority.URGENT,
+        awaiting_response=True
+    )
+
+
+@pytest.fixture
+def message_factory() -> Callable[..., Message]:
+    """Factory fixture for creating Message with custom values.
+
+    Usage:
+        def test_something(message_factory):
+            msg = message_factory(priority=MessagePriority.URGENT)
+    """
+    def _create_message(
+        from_agent: str = "agent-1",
+        to_agent: str = "agent-2",
+        type: str = "test",
+        subject: str = "Test Subject",
+        body: str = "Test body content",
+        priority: MessagePriority = MessagePriority.NORMAL,
+        awaiting_response: bool = False,
+    ) -> Message:
+        return Message(
+            from_agent=from_agent,
+            to_agent=to_agent,
+            type=type,
+            subject=subject,
+            body=body,
+            priority=priority,
+            awaiting_response=awaiting_response,
+        )
+    return _create_message

@@ -3,13 +3,9 @@
 
 """Tests for UserPromptSubmit hook functionality."""
 
-import json
-from pathlib import Path
-from datetime import datetime
-
 import pytest
 
-from jean_claude.core.message import Message, MessagePriority
+from jean_claude.core.message import MessagePriority
 from jean_claude.core.mailbox_api import Mailbox
 from jean_claude.orchestration.user_prompt_submit_hook import user_prompt_submit_hook
 
@@ -35,13 +31,13 @@ class TestUserPromptSubmitHookBasics:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_hook_returns_none_when_unread_count_is_zero(self, tmp_path):
+    async def test_hook_returns_none_when_unread_count_is_zero(self, tmp_path, message_factory):
         """Test that hook returns None when unread count is 0."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send a message to inbox
-        msg = Message(
+        msg = message_factory(
             from_agent="coordinator",
             to_agent="agent-1",
             type="response",
@@ -67,13 +63,13 @@ class TestUserPromptSubmitHookBasics:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_hook_injects_unread_message_as_additional_context(self, tmp_path):
+    async def test_hook_injects_unread_message_as_additional_context(self, tmp_path, message_factory):
         """Test that hook injects unread message as additionalContext."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send an unread message to inbox
-        msg = Message(
+        msg = message_factory(
             from_agent="coordinator",
             to_agent="agent-1",
             type="response",
@@ -103,13 +99,13 @@ class TestUserPromptSubmitHookMessageFormatting:
     """Tests for message formatting in UserPromptSubmit hook."""
 
     @pytest.mark.asyncio
-    async def test_hook_formats_message_with_priority(self, tmp_path):
+    async def test_hook_formats_message_with_priority(self, tmp_path, message_factory):
         """Test that hook includes priority in formatted message."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send an urgent message
-        msg = Message(
+        msg = message_factory(
             from_agent="coordinator",
             to_agent="agent-1",
             type="help",
@@ -134,13 +130,13 @@ class TestUserPromptSubmitHookMessageFormatting:
         assert "URGENT" in context_text or "urgent" in context_text.lower()
 
     @pytest.mark.asyncio
-    async def test_hook_formats_message_with_subject_and_body(self, tmp_path):
+    async def test_hook_formats_message_with_subject_and_body(self, tmp_path, message_factory):
         """Test that hook includes both subject and body in formatted message."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send a message
-        msg = Message(
+        msg = message_factory(
             from_agent="coordinator",
             to_agent="agent-1",
             type="instruction",
@@ -166,14 +162,14 @@ class TestUserPromptSubmitHookMessageFormatting:
         assert "Test Body Content" in context_text
 
     @pytest.mark.asyncio
-    async def test_hook_formats_multiple_messages_clearly(self, tmp_path):
+    async def test_hook_formats_multiple_messages_clearly(self, tmp_path, message_factory):
         """Test that hook formats multiple messages in a clear, readable way."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send multiple messages
         for i in range(3):
-            msg = Message(
+            msg = message_factory(
                 from_agent="coordinator",
                 to_agent="agent-1",
                 type="info",
@@ -204,14 +200,14 @@ class TestUserPromptSubmitHookInboxCountUpdate:
     """Tests for inbox count update after reading messages."""
 
     @pytest.mark.asyncio
-    async def test_hook_updates_inbox_count_after_reading(self, tmp_path):
+    async def test_hook_updates_inbox_count_after_reading(self, tmp_path, message_factory):
         """Test that hook marks messages as read and updates inbox_count."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send messages to inbox
         for i in range(3):
-            msg = Message(
+            msg = message_factory(
                 from_agent="coordinator",
                 to_agent="agent-1",
                 type="info",
@@ -240,13 +236,13 @@ class TestUserPromptSubmitHookInboxCountUpdate:
         assert mailbox.get_unread_count() == 0
 
     @pytest.mark.asyncio
-    async def test_hook_only_marks_unread_messages_as_read(self, tmp_path):
+    async def test_hook_only_marks_unread_messages_as_read(self, tmp_path, message_factory):
         """Test that hook only affects unread messages."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send first batch and mark as read
-        msg1 = Message(
+        msg1 = message_factory(
             from_agent="coordinator",
             to_agent="agent-1",
             type="info",
@@ -259,7 +255,7 @@ class TestUserPromptSubmitHookInboxCountUpdate:
 
         # Send new unread messages
         for i in range(2):
-            msg = Message(
+            msg = message_factory(
                 from_agent="coordinator",
                 to_agent="agent-1",
                 type="info",
@@ -295,14 +291,14 @@ class TestUserPromptSubmitHookUnreadMessageSelection:
     """Tests for selecting only unread messages."""
 
     @pytest.mark.asyncio
-    async def test_hook_only_injects_unread_messages(self, tmp_path):
+    async def test_hook_only_injects_unread_messages(self, tmp_path, message_factory):
         """Test that hook only injects unread messages, not all inbox messages."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send old messages (total 5)
         for i in range(5):
-            msg = Message(
+            msg = message_factory(
                 from_agent="coordinator",
                 to_agent="agent-1",
                 type="info",
@@ -422,13 +418,13 @@ class TestUserPromptSubmitHookErrorHandling:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_hook_handles_corrupted_inbox_count_gracefully(self, tmp_path):
+    async def test_hook_handles_corrupted_inbox_count_gracefully(self, tmp_path, message_factory):
         """Test that hook handles corrupted inbox_count.json gracefully."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send a message
-        msg = Message(
+        msg = message_factory(
             from_agent="coordinator",
             to_agent="agent-1",
             type="info",
@@ -460,13 +456,13 @@ class TestUserPromptSubmitHookIntegration:
     """Integration tests for UserPromptSubmit hook."""
 
     @pytest.mark.asyncio
-    async def test_hook_workflow_with_realistic_workflow_id(self, tmp_path):
+    async def test_hook_workflow_with_realistic_workflow_id(self, tmp_path, message_factory):
         """Test hook with realistic beads workflow_id."""
         workflow_id = "beads-jean_claude-abc123"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Coordinator sends response to subagent
-        msg = Message(
+        msg = message_factory(
             from_agent="coordinator",
             to_agent=workflow_id,
             type="response",
@@ -496,13 +492,13 @@ class TestUserPromptSubmitHookIntegration:
         assert mailbox.get_unread_count() == 0
 
     @pytest.mark.asyncio
-    async def test_hook_context_format(self, tmp_path):
+    async def test_hook_context_format(self, tmp_path, message_factory):
         """Test that additionalContext has proper format."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send message
-        msg = Message(
+        msg = message_factory(
             from_agent="coordinator",
             to_agent="agent-1",
             type="response",
@@ -528,7 +524,7 @@ class TestUserPromptSubmitHookIntegration:
         assert len(result["additionalContext"]) > 0
 
     @pytest.mark.asyncio
-    async def test_hook_with_mixed_priority_messages(self, tmp_path):
+    async def test_hook_with_mixed_priority_messages(self, tmp_path, message_factory):
         """Test hook with messages of different priorities."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
@@ -536,7 +532,7 @@ class TestUserPromptSubmitHookIntegration:
         # Send messages with different priorities
         priorities = [MessagePriority.URGENT, MessagePriority.NORMAL, MessagePriority.LOW]
         for i, priority in enumerate(priorities):
-            msg = Message(
+            msg = message_factory(
                 from_agent="coordinator",
                 to_agent="agent-1",
                 type="info",
@@ -566,13 +562,13 @@ class TestUserPromptSubmitHookIntegration:
         assert mailbox.get_unread_count() == 0
 
     @pytest.mark.asyncio
-    async def test_hook_preserves_user_prompt(self, tmp_path):
+    async def test_hook_preserves_user_prompt(self, tmp_path, message_factory):
         """Test that hook doesn't modify the original user prompt."""
         workflow_id = "test-workflow"
         mailbox = Mailbox(workflow_id=workflow_id, base_dir=tmp_path)
 
         # Send a message
-        msg = Message(
+        msg = message_factory(
             from_agent="coordinator",
             to_agent="agent-1",
             type="info",
