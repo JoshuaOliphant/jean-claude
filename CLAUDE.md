@@ -118,6 +118,9 @@ def test_something(mock_fetch):
 | `mock_beads_task_factory` | Factory for custom BeadsTask |
 | `work_command_mocks` | All mocks for work command |
 | `mock_task_validator` | TaskValidator mock for validation tests |
+| `sample_message` | Standard Message for testing |
+| `urgent_message` | Urgent priority Message |
+| `message_factory` | Factory for custom Message with defaults |
 
 **Core fixtures (tests/core/conftest.py)**:
 | Fixture | Purpose |

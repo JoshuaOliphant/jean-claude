@@ -94,6 +94,15 @@ jc work task-123 --show-plan
 jc work task-123 --model opus
 ```
 
+### Monitoring & Status
+
+```bash
+jc status                            # Check workflow status
+jc logs                              # View workflow event logs
+jc dashboard                         # Start web monitoring dashboard
+jc version                           # Display version information
+```
+
 ### Project Management
 
 ```bash
@@ -191,7 +200,7 @@ uv run jc --help
 
 ## Testing
 
-Jean Claude has a focused test suite (~800 tests) that tests OUR code, not external dependencies. We mock external tools like Beads rather than testing their implementation.
+Jean Claude has a focused test suite (~450 tests) that tests OUR code, not external dependencies. We mock external tools like Beads rather than testing their implementation.
 
 ### Running Tests
 
