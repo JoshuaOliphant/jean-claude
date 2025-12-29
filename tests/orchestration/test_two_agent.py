@@ -43,7 +43,7 @@ async def test_run_initializer_success(
 ) -> None:
     """Test successful initializer execution."""
     with patch(
-        "jean_claude.orchestration.two_agent._execute_prompt_sdk_async",
+        "jean_claude.orchestration.two_agent.execute_prompt_async",
         new_callable=AsyncMock,
     ) as mock_execute:
         mock_execute.return_value = mock_execution_result
@@ -88,7 +88,7 @@ async def test_run_initializer_with_markdown_code_block(
     )
 
     with patch(
-        "jean_claude.orchestration.two_agent._execute_prompt_sdk_async",
+        "jean_claude.orchestration.two_agent.execute_prompt_async",
         new_callable=AsyncMock,
     ) as mock_execute:
         mock_execute.return_value = result
@@ -115,7 +115,7 @@ async def test_run_initializer_invalid_json(project_root: Path) -> None:
     )
 
     with patch(
-        "jean_claude.orchestration.two_agent._execute_prompt_sdk_async",
+        "jean_claude.orchestration.two_agent.execute_prompt_async",
         new_callable=AsyncMock,
     ) as mock_execute:
         mock_execute.return_value = result
@@ -139,7 +139,7 @@ async def test_run_initializer_missing_features_key(project_root: Path) -> None:
     )
 
     with patch(
-        "jean_claude.orchestration.two_agent._execute_prompt_sdk_async",
+        "jean_claude.orchestration.two_agent.execute_prompt_async",
         new_callable=AsyncMock,
     ) as mock_execute:
         mock_execute.return_value = result
@@ -163,7 +163,7 @@ async def test_run_initializer_empty_features(project_root: Path) -> None:
     )
 
     with patch(
-        "jean_claude.orchestration.two_agent._execute_prompt_sdk_async",
+        "jean_claude.orchestration.two_agent.execute_prompt_async",
         new_callable=AsyncMock,
     ) as mock_execute:
         mock_execute.return_value = result
@@ -187,7 +187,7 @@ async def test_run_initializer_auto_generates_workflow_id(project_root: Path) ->
     )
 
     with patch(
-        "jean_claude.orchestration.two_agent._execute_prompt_sdk_async",
+        "jean_claude.orchestration.two_agent.execute_prompt_async",
         new_callable=AsyncMock,
     ) as mock_execute:
         mock_execute.return_value = result
@@ -210,7 +210,7 @@ async def test_run_two_agent_workflow_with_auto_confirm(
     """Test full two-agent workflow with auto-confirmation."""
     # Mock initializer execution
     with patch(
-        "jean_claude.orchestration.two_agent._execute_prompt_sdk_async",
+        "jean_claude.orchestration.two_agent.execute_prompt_async",
         new_callable=AsyncMock,
     ) as mock_execute:
         mock_execute.return_value = mock_execution_result
@@ -254,7 +254,7 @@ async def test_run_two_agent_workflow_user_cancellation(
 ) -> None:
     """Test workflow handles user cancellation."""
     with patch(
-        "jean_claude.orchestration.two_agent._execute_prompt_sdk_async",
+        "jean_claude.orchestration.two_agent.execute_prompt_async",
         new_callable=AsyncMock,
     ) as mock_execute:
         mock_execute.return_value = mock_execution_result
@@ -281,7 +281,7 @@ async def test_initializer_uses_correct_model(project_root: Path) -> None:
     )
 
     with patch(
-        "jean_claude.orchestration.two_agent._execute_prompt_sdk_async",
+        "jean_claude.orchestration.two_agent.execute_prompt_async",
         new_callable=AsyncMock,
     ) as mock_execute:
         mock_execute.return_value = result
@@ -304,7 +304,7 @@ async def test_two_agent_workflow_uses_different_models(
 ) -> None:
     """Test workflow uses different models for initializer and coder."""
     with patch(
-        "jean_claude.orchestration.two_agent._execute_prompt_sdk_async",
+        "jean_claude.orchestration.two_agent.execute_prompt_async",
         new_callable=AsyncMock,
     ) as mock_execute:
         mock_execute.return_value = mock_execution_result

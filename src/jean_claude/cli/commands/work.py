@@ -213,7 +213,18 @@ def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm
         # Write spec to file
         spec_filename = f"beads-{beads_id}.md"
         spec_path = specs_dir / spec_filename
-        spec_path.write_text(spec_content)
+        try:
+            spec_path.write_text(spec_content)
+        except PermissionError as e:
+            console.print(f"[bold red]Error:[/bold red] Permission denied writing spec file to [cyan]{spec_path}[/cyan]")
+            console.print(f"[dim]Details: {e}[/dim]")
+            console.print("[dim]Check file and directory permissions[/dim]")
+            raise click.Abort()
+        except OSError as e:
+            console.print(f"[bold red]Error:[/bold red] Failed to write spec file to [cyan]{spec_path}[/cyan]")
+            console.print(f"[dim]Details: {e}[/dim]")
+            console.print("[dim]Check disk space and file system availability[/dim]")
+            raise click.Abort()
         console.print(f"[green]✓[/green] Specification saved to: [cyan]{spec_path}[/cyan]")
         console.print()
 
@@ -390,7 +401,4 @@ def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm
 
     except RuntimeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise click.Abort()
-    except Exception as e:
-        console.print(f"[bold red]Unexpected error:[/bold red] {e}")
         raise click.Abort()

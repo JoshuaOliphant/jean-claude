@@ -44,13 +44,13 @@ from jean_claude.core.security import bash_security_hook
 
 async def _execute_prompt_async(
     request: PromptRequest,
-    agents: Optional[dict[str, dict]] = None,
+    agents: Optional[dict[str, AgentDefinition]] = None,
 ) -> ExecutionResult:
     """Execute a single prompt attempt using the Claude Agent SDK.
 
     Args:
         request: The prompt request configuration
-        agents: Optional dict of subagent definitions (SDK format)
+        agents: Optional dict of SDK AgentDefinition instances
 
     Returns:
         ExecutionResult with output and status
@@ -235,7 +235,7 @@ def _save_outputs(
 async def execute_prompt_async(
     request: PromptRequest,
     max_retries: int = 3,
-    agents: Optional[dict[str, dict]] = None,
+    agents: Optional[dict[str, AgentDefinition]] = None,
 ) -> ExecutionResult:
     """Execute a prompt with Claude Code SDK with retry logic.
 
@@ -245,7 +245,7 @@ async def execute_prompt_async(
     Args:
         request: The prompt request configuration
         max_retries: Maximum retry attempts (default: 3)
-        agents: Optional dict of subagent definitions (SDK format)
+        agents: Optional dict of SDK AgentDefinition instances
 
     Returns:
         ExecutionResult with output and status
@@ -302,7 +302,7 @@ async def execute_template_async(request: TemplateRequest) -> ExecutionResult:
 def execute_prompt_sdk(
     request: PromptRequest,
     max_retries: int = 3,
-    agents: Optional[dict[str, dict]] = None,
+    agents: Optional[dict[str, AgentDefinition]] = None,
 ) -> ExecutionResult:
     """Execute a prompt with Claude Code SDK (sync wrapper).
 
@@ -312,7 +312,7 @@ def execute_prompt_sdk(
     Args:
         request: The prompt request configuration
         max_retries: Maximum retry attempts (default: 3)
-        agents: Optional dict of subagent definitions (SDK format)
+        agents: Optional dict of SDK AgentDefinition instances
 
     Returns:
         ExecutionResult with output and status
@@ -342,7 +342,7 @@ def execute_template_sdk(request: TemplateRequest) -> ExecutionResult:
 
 async def execute_prompt_streaming(
     request: PromptRequest,
-    agents: Optional[dict[str, dict]] = None,
+    agents: Optional[dict[str, AgentDefinition]] = None,
 ) -> AsyncIterator[Message]:
     """Execute a prompt and stream messages as they arrive.
 
@@ -351,7 +351,7 @@ async def execute_prompt_streaming(
 
     Args:
         request: The prompt request configuration
-        agents: Optional dict of subagent definitions (SDK format)
+        agents: Optional dict of SDK AgentDefinition instances
 
     Yields:
         Message objects (AssistantMessage, ToolResultMessage, ResultMessage, etc.)

@@ -1,10 +1,15 @@
 # ABOUTME: Tests for the status CLI command
 # ABOUTME: Consolidated tests for workflow status display and JSON output
+# ABOUTME: Includes integration tests verifying status and logs use shared find_most_recent_workflow
 
 """Tests for jc status command.
 
 Consolidated from 21 separate tests to focused tests covering
 essential behaviors without per-status-icon redundancy.
+
+Includes integration tests (TestStatusAndLogsIntegration) that verify
+both status and logs commands correctly use the unified workflow finder
+from workflow_utils.py.
 """
 
 import json
@@ -295,7 +300,8 @@ class TestStatusHelperFunctions:
 
     def test_find_most_recent_and_get_all_workflows(self, tmp_path: Path):
         """Test finding most recent workflow and getting all workflows."""
-        from jean_claude.cli.commands.status import find_most_recent_workflow, get_all_workflows
+        from jean_claude.core.workflow_utils import find_most_recent_workflow
+        from jean_claude.cli.commands.status import get_all_workflows
 
         # No agents dir
         assert find_most_recent_workflow(tmp_path) is None
@@ -390,3 +396,314 @@ class TestStatusHelperFunctions:
         result = get_feature_durations(tmp_path, "test-workflow")
         assert "Test Feature" in result
         assert result["Test Feature"] == 45000  # 45 seconds in ms
+
+
+class TestStatusAndLogsIntegration:
+    """Integration tests to verify status and logs commands work with shared workflow_utils."""
+
+    def test_both_commands_find_workflow_with_only_state_file(
+        self,
+        cli_runner: CliRunner,
+        tmp_path: Path,
+        monkeypatch,
+    ):
+        """Test both status and logs find workflow when only state.json exists."""
+        import time
+        from jean_claude.cli.commands.status import status
+        from jean_claude.cli.commands.logs import logs
+
+        # Create workflow with only state.json
+        state = WorkflowState(
+            workflow_id="state-only-wf",
+            workflow_name="State Only Workflow",
+            workflow_type="feature",
+            beads_task_title="Test Task",
+            phase="implementing",
+        )
+        state.add_feature("Feature A", "Description A")
+        state.save(tmp_path)
+
+        monkeypatch.chdir(tmp_path)
+
+        # Test status command finds it
+        result = cli_runner.invoke(status, [])
+        assert result.exit_code == 0
+        assert "state-only-wf" in result.output
+        assert "Feature A" in result.output
+
+        # Test logs command finds it (should show no logs message)
+        result = cli_runner.invoke(logs, [])
+        # Should not error, even though no events.jsonl exists
+        assert result.exit_code == 0
+
+    def test_both_commands_find_workflow_with_only_events_file(
+        self,
+        cli_runner: CliRunner,
+        tmp_path: Path,
+        monkeypatch,
+    ):
+        """Test both status and logs find workflow when only events.jsonl exists."""
+        from jean_claude.cli.commands.status import status
+        from jean_claude.cli.commands.logs import logs
+
+        # Create workflow directory with only events.jsonl
+        agents_dir = tmp_path / "agents"
+        workflow_dir = agents_dir / "events-only-wf"
+        workflow_dir.mkdir(parents=True)
+
+        # Create events.jsonl
+        events_file = workflow_dir / "events.jsonl"
+        events = [
+            {
+                "id": "evt-1",
+                "timestamp": datetime.now().isoformat(),
+                "workflow_id": "events-only-wf",
+                "event_type": "workflow.started",
+                "data": {"beads_task": "test"}
+            }
+        ]
+        with open(events_file, 'w') as f:
+            for event in events:
+                f.write(json.dumps(event) + '\n')
+
+        monkeypatch.chdir(tmp_path)
+
+        # Test logs command finds it
+        result = cli_runner.invoke(logs, [])
+        assert result.exit_code == 0
+        assert "workflow.started" in result.output
+
+        # Note: status command needs state.json, so it won't show this workflow
+        # This is expected behavior
+
+    def test_both_commands_find_most_recent_when_multiple_workflows(
+        self,
+        cli_runner: CliRunner,
+        tmp_path: Path,
+        monkeypatch,
+    ):
+        """Test both commands correctly identify most recent workflow."""
+        import time
+        from jean_claude.cli.commands.status import status
+        from jean_claude.cli.commands.logs import logs
+
+        # Create older workflow
+        old_state = WorkflowState(
+            workflow_id="old-workflow",
+            workflow_name="Old Workflow",
+            workflow_type="feature",
+            updated_at=datetime.now() - timedelta(hours=2),
+        )
+        old_state.add_feature("Old Feature", "Old description")
+        old_state.save(tmp_path)
+
+        # Create older events file
+        old_workflow_dir = tmp_path / "agents" / "old-workflow"
+        old_events_file = old_workflow_dir / "events.jsonl"
+        old_events = [
+            {
+                "id": "old-evt",
+                "timestamp": (datetime.now() - timedelta(hours=2)).isoformat(),
+                "workflow_id": "old-workflow",
+                "event_type": "workflow.started",
+                "data": {}
+            }
+        ]
+        with open(old_events_file, 'w') as f:
+            for event in old_events:
+                f.write(json.dumps(event) + '\n')
+
+        # Wait to ensure different mtimes
+        time.sleep(0.1)
+
+        # Create newer workflow
+        new_state = WorkflowState(
+            workflow_id="new-workflow",
+            workflow_name="New Workflow",
+            workflow_type="chore",
+            updated_at=datetime.now(),
+        )
+        new_state.add_feature("New Feature", "New description")
+        new_state.save(tmp_path)
+
+        # Create newer events file
+        new_workflow_dir = tmp_path / "agents" / "new-workflow"
+        new_events_file = new_workflow_dir / "events.jsonl"
+        new_events = [
+            {
+                "id": "new-evt",
+                "timestamp": datetime.now().isoformat(),
+                "workflow_id": "new-workflow",
+                "event_type": "workflow.started",
+                "data": {}
+            }
+        ]
+        with open(new_events_file, 'w') as f:
+            for event in new_events:
+                f.write(json.dumps(event) + '\n')
+
+        monkeypatch.chdir(tmp_path)
+
+        # Test status shows new-workflow
+        result = cli_runner.invoke(status, [])
+        assert result.exit_code == 0
+        assert "new-workflow" in result.output
+        assert "New Feature" in result.output
+        assert "old-workflow" not in result.output
+
+        # Test logs shows new-workflow
+        result = cli_runner.invoke(logs, [])
+        assert result.exit_code == 0
+        assert "new-workflow" in result.output or "workflow.started" in result.output
+        # The new-evt event should be shown
+
+    def test_both_commands_use_events_mtime_when_more_recent(
+        self,
+        cli_runner: CliRunner,
+        tmp_path: Path,
+        monkeypatch,
+    ):
+        """Test both commands prefer workflow with recently modified events.jsonl."""
+        import time
+        from jean_claude.cli.commands.status import status
+        from jean_claude.cli.commands.logs import logs
+
+        # Create workflow-1 with old state.json
+        state1 = WorkflowState(
+            workflow_id="workflow-1",
+            workflow_name="Workflow 1",
+            workflow_type="feature",
+            updated_at=datetime.now() - timedelta(hours=1),
+        )
+        state1.add_feature("Feature 1", "Desc 1")
+        state1.save(tmp_path)
+
+        time.sleep(0.1)
+
+        # Create workflow-2 with recent state.json but old events
+        state2 = WorkflowState(
+            workflow_id="workflow-2",
+            workflow_name="Workflow 2",
+            workflow_type="feature",
+            updated_at=datetime.now() - timedelta(minutes=30),
+        )
+        state2.add_feature("Feature 2", "Desc 2")
+        state2.save(tmp_path)
+
+        # Create old events for workflow-2
+        wf2_dir = tmp_path / "agents" / "workflow-2"
+        wf2_events = wf2_dir / "events.jsonl"
+        wf2_events.write_text(json.dumps({
+            "id": "evt",
+            "timestamp": (datetime.now() - timedelta(hours=2)).isoformat(),
+            "workflow_id": "workflow-2",
+            "event_type": "workflow.started",
+            "data": {}
+        }) + '\n')
+
+        time.sleep(0.1)
+
+        # Create very recent events for workflow-1
+        wf1_dir = tmp_path / "agents" / "workflow-1"
+        wf1_events = wf1_dir / "events.jsonl"
+        wf1_events.write_text(json.dumps({
+            "id": "evt-recent",
+            "timestamp": datetime.now().isoformat(),
+            "workflow_id": "workflow-1",
+            "event_type": "feature.completed",
+            "data": {}
+        }) + '\n')
+
+        monkeypatch.chdir(tmp_path)
+
+        # Both commands should identify workflow-1 as most recent
+        # because its events.jsonl mtime is most recent
+        result = cli_runner.invoke(status, [])
+        assert result.exit_code == 0
+        # Should show workflow-1 since its events.jsonl was modified most recently
+        assert "workflow-1" in result.output or "Feature 1" in result.output
+
+    def test_both_commands_handle_corrupted_state_gracefully(
+        self,
+        cli_runner: CliRunner,
+        tmp_path: Path,
+        monkeypatch,
+    ):
+        """Test both commands skip corrupted state.json files."""
+        from jean_claude.cli.commands.status import status
+        from jean_claude.cli.commands.logs import logs
+
+        # Create workflow with corrupted state.json
+        agents_dir = tmp_path / "agents"
+        corrupted_dir = agents_dir / "corrupted-wf"
+        corrupted_dir.mkdir(parents=True)
+        (corrupted_dir / "state.json").write_text("invalid json {{{")
+
+        # Create valid workflow
+        valid_state = WorkflowState(
+            workflow_id="valid-wf",
+            workflow_name="Valid Workflow",
+            workflow_type="feature",
+        )
+        valid_state.add_feature("Valid Feature", "Valid desc")
+        valid_state.save(tmp_path)
+
+        monkeypatch.chdir(tmp_path)
+
+        # Status should skip corrupted and show valid
+        result = cli_runner.invoke(status, [])
+        assert result.exit_code == 0
+        assert "valid-wf" in result.output
+
+    def test_unified_workflow_finder_consistency(self, tmp_path: Path):
+        """Test that the shared find_most_recent_workflow function is consistent."""
+        from jean_claude.core.workflow_utils import find_most_recent_workflow
+        import time
+
+        # Create multiple workflows with different file combinations
+        # Workflow 1: state.json only (oldest)
+        state1 = WorkflowState(
+            workflow_id="wf-state-only",
+            workflow_name="State Only",
+            workflow_type="feature",
+            updated_at=datetime.now() - timedelta(hours=3),
+        )
+        state1.save(tmp_path)
+
+        time.sleep(0.1)
+
+        # Workflow 2: events.jsonl only (middle)
+        wf2_dir = tmp_path / "agents" / "wf-events-only"
+        wf2_dir.mkdir(parents=True)
+        wf2_events = wf2_dir / "events.jsonl"
+        wf2_events.write_text(json.dumps({
+            "id": "evt",
+            "timestamp": (datetime.now() - timedelta(hours=1)).isoformat(),
+            "workflow_id": "wf-events-only",
+            "event_type": "workflow.started",
+            "data": {}
+        }) + '\n')
+
+        time.sleep(0.1)
+
+        # Workflow 3: both files (most recent)
+        state3 = WorkflowState(
+            workflow_id="wf-both",
+            workflow_name="Both Files",
+            workflow_type="feature",
+            updated_at=datetime.now(),
+        )
+        state3.save(tmp_path)
+        wf3_dir = tmp_path / "agents" / "wf-both"
+        wf3_events = wf3_dir / "events.jsonl"
+        wf3_events.write_text(json.dumps({
+            "id": "evt-both",
+            "timestamp": datetime.now().isoformat(),
+            "workflow_id": "wf-both",
+            "event_type": "workflow.started",
+            "data": {}
+        }) + '\n')
+
+        # Should return the most recent workflow
+        result = find_most_recent_workflow(tmp_path)
+        assert result == "wf-both"

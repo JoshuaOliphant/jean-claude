@@ -8,6 +8,7 @@ mailbox paths (inbox/outbox/inbox_count) and updates inbox_count.json accordingl
 It increments the unread count on inbox writes and performs no-op on outbox writes.
 """
 
+import logging
 from pathlib import Path
 from typing import Any, Optional, Dict
 
@@ -124,7 +125,13 @@ async def post_tool_use_hook(
         # Not a mailbox path - no operation needed
         return None
 
-    except Exception:
+    except Exception as e:
         # Gracefully handle any errors (path resolution, permission issues, etc.)
+        # Log the error with full stack trace for debugging
+        logging.error(
+            f"Error in post_tool_use_hook: {e}",
+            exc_info=True,
+            extra={'hook': __name__}
+        )
         # Return None to avoid breaking the agent
         return None

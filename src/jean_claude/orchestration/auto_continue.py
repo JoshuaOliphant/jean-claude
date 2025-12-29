@@ -25,22 +25,26 @@ Safety Features:
     - Clear progress logging
 """
 
-import asyncio
 import signal
 from pathlib import Path
-from typing import Optional
 
 import anyio
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+)
 
-from jean_claude.core.state import WorkflowState, Feature
-from jean_claude.core.agent import PromptRequest, ExecutionResult, _execute_prompt_sdk_async
-from jean_claude.core.verification import run_verification, VerificationResult
+from jean_claude.core.agent import ExecutionResult, PromptRequest
 from jean_claude.core.events import EventLogger, EventType
 from jean_claude.core.feature_commit_orchestrator import FeatureCommitOrchestrator
-
+from jean_claude.core.sdk_executor import execute_prompt_async
+from jean_claude.core.state import Feature, WorkflowState
+from jean_claude.core.verification import run_verification
 
 console = Console()
 
@@ -51,7 +55,9 @@ class AutoContinueError(Exception):
     pass
 
 
-def build_feature_prompt(feature: Feature, state: WorkflowState, project_root: Path) -> str:
+def build_feature_prompt(
+    feature: Feature, state: WorkflowState, project_root: Path
+) -> str:
     """Build a prompt for implementing the next feature.
 
     The prompt follows the verification-first pattern:
@@ -119,11 +125,11 @@ Work on EXACTLY ONE feature this session. Do not proceed to the next feature.
 async def run_auto_continue(
     state: WorkflowState,
     project_root: Path,
-    max_iterations: Optional[int] = None,
+    max_iterations: int | None = None,
     delay_seconds: float = 2.0,
     model: str = "sonnet",
     verify_first: bool = True,
-    event_logger: Optional[EventLogger] = None,
+    event_logger: EventLogger | None = None,
 ) -> WorkflowState:
     """Run workflow in a loop until all features complete.
 
@@ -158,7 +164,9 @@ async def run_auto_continue(
     def signal_handler(signum, frame):
         nonlocal interrupted
         interrupted = True
-        console.print("\n[yellow]⚠ Interrupt received. Finishing current iteration...[/yellow]")
+        console.print(
+            "\n[yellow]⚠ Interrupt received. Finishing current iteration...[/yellow]"
+        )
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -185,7 +193,7 @@ async def run_auto_continue(
         console=console,
     ) as progress:
         task = progress.add_task(
-            f"Processing features...",
+            "Processing features...",
             total=len(state.features),
             completed=state.current_feature_index,
         )
@@ -208,7 +216,9 @@ async def run_auto_continue(
                 state.save(project_root)
 
                 if verification_result.skipped:
-                    console.print(f"[dim]Skipped: {verification_result.skip_reason}[/dim]")
+                    console.print(
+                        f"[dim]Skipped: {verification_result.skip_reason}[/dim]"
+                    )
                 elif verification_result.passed:
                     console.print(
                         f"[green]✓ Verification passed[/green] "
@@ -217,8 +227,8 @@ async def run_auto_continue(
                     )
                 else:
                     console.print(
-                        f"[red]✗ Verification failed![/red] "
-                        f"Fix these tests before continuing:"
+                        "[red]✗ Verification failed![/red] "
+                        "Fix these tests before continuing:"
                     )
                     for failed_test in verification_result.failed_tests:
                         console.print(f"  [red]• {failed_test}[/red]")
@@ -226,7 +236,9 @@ async def run_auto_continue(
                     console.print("[yellow]Output:[/yellow]")
                     console.print(verification_result.test_output)
                     console.print()
-                    console.print("[yellow]Stopping workflow due to test failures[/yellow]")
+                    console.print(
+                        "[yellow]Stopping workflow due to test failures[/yellow]"
+                    )
                     break
 
                 console.print()
@@ -247,7 +259,7 @@ async def run_auto_continue(
                         "feature_name": feature.name,
                         "feature_index": state.current_feature_index,
                         "total_features": len(state.features),
-                    }
+                    },
                 )
 
             # Build prompt
@@ -266,7 +278,9 @@ async def run_auto_continue(
             )
 
             try:
-                result: ExecutionResult = await _execute_prompt_sdk_async(request, max_retries=3)
+                result: ExecutionResult = await execute_prompt_async(
+                    request, max_retries=3
+                )
 
                 # Update state based on result
                 if result.success:
@@ -290,8 +304,12 @@ async def run_auto_continue(
 
                     # Trigger commit workflow for completed feature
                     try:
-                        console.print("[dim]Creating commit for completed feature...[/dim]")
-                        commit_orchestrator = FeatureCommitOrchestrator(repo_path=project_root)
+                        console.print(
+                            "[dim]Creating commit for completed feature...[/dim]"
+                        )
+                        commit_orchestrator = FeatureCommitOrchestrator(
+                            repo_path=project_root
+                        )
 
                         # Determine feature number (1-based index)
                         feature_number = state.current_feature_index
@@ -305,7 +323,7 @@ async def run_auto_continue(
                             beads_task_id=beads_task_id,
                             feature_number=feature_number,
                             total_features=len(state.features),
-                            feature_context=feature.name
+                            feature_context=feature.name,
                         )
 
                         if commit_result["success"]:
@@ -318,14 +336,18 @@ async def run_auto_continue(
                                 f"[yellow]⚠ Commit failed ({commit_result['step']}): "
                                 f"{commit_result['error']}[/yellow]"
                             )
-                            console.print("[dim]Continuing workflow despite commit failure...[/dim]")
+                            console.print(
+                                "[dim]Continuing workflow despite commit failure...[/dim]"
+                            )
 
                     except Exception as commit_error:
                         # Handle commit errors gracefully without blocking workflow
                         console.print(
                             f"[yellow]⚠ Commit error: {str(commit_error)}[/yellow]"
                         )
-                        console.print("[dim]Continuing workflow despite commit error...[/dim]")
+                        console.print(
+                            "[dim]Continuing workflow despite commit error...[/dim]"
+                        )
 
                     # Emit feature.completed event
                     if event_logger:
@@ -338,7 +360,7 @@ async def run_auto_continue(
                                 "total_features": len(state.features),
                                 "cost_usd": result.cost_usd,
                                 "duration_ms": result.duration_ms,
-                            }
+                            },
                         )
                 else:
                     state.mark_feature_failed(result.output)
@@ -353,8 +375,10 @@ async def run_auto_continue(
                             data={
                                 "feature_name": feature.name,
                                 "feature_index": state.current_feature_index,
-                                "error": result.output[:500] if result.output else "Unknown error",
-                            }
+                                "error": result.output[:500]
+                                if result.output
+                                else "Unknown error",
+                            },
                         )
 
                     # Decide whether to continue or stop
@@ -381,7 +405,9 @@ async def run_auto_continue(
     # Summary
     console.print()
     summary = state.get_summary()
-    status_color = "green" if state.is_complete() else "yellow" if state.is_failed() else "blue"
+    status_color = (
+        "green" if state.is_complete() else "yellow" if state.is_failed() else "blue"
+    )
 
     console.print(
         Panel(
@@ -404,7 +430,7 @@ async def initialize_workflow(
     workflow_id: str,
     workflow_name: str,
     workflow_type: str,
-    features: list[tuple[str, str, Optional[str]]],
+    features: list[tuple[str, str, str | None]],
     project_root: Path,
     max_iterations: int = 50,
 ) -> WorkflowState:

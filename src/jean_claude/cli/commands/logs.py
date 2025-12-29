@@ -15,6 +15,7 @@ from rich.console import Console
 from rich.text import Text
 
 from jean_claude.core.state import WorkflowState
+from jean_claude.core.workflow_utils import find_most_recent_workflow
 
 console = Console()
 
@@ -77,38 +78,6 @@ def parse_duration(duration_str: str) -> timedelta:
         return timedelta(days=value)
     else:
         raise ValueError(f"Unknown time unit: {unit}")
-
-
-def find_most_recent_workflow(project_root: Path) -> str | None:
-    """Find the most recently updated workflow.
-
-    Args:
-        project_root: Root directory of the project
-
-    Returns:
-        Workflow ID of the most recent workflow, or None if no workflows exist
-    """
-    agents_dir = project_root / "agents"
-    if not agents_dir.exists():
-        return None
-
-    workflow_dirs = [d for d in agents_dir.iterdir() if d.is_dir()]
-    if not workflow_dirs:
-        return None
-
-    # Find the most recently modified events.jsonl
-    most_recent = None
-    most_recent_time = None
-
-    for workflow_dir in workflow_dirs:
-        events_file = workflow_dir / "events.jsonl"
-        if events_file.exists():
-            mtime = events_file.stat().st_mtime
-            if most_recent_time is None or mtime > most_recent_time:
-                most_recent = workflow_dir.name
-                most_recent_time = mtime
-
-    return most_recent
 
 
 def read_events(events_file: Path) -> Iterator[dict]:

@@ -172,7 +172,7 @@ class TestRunAutoContinue:
         )
 
         with patch(
-            "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+            "jean_claude.orchestration.auto_continue.execute_prompt_async",
             new=AsyncMock(return_value=mock_result),
         ):
             final_state = await run_auto_continue(
@@ -205,7 +205,7 @@ class TestRunAutoContinue:
         )
 
         with patch(
-            "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+            "jean_claude.orchestration.auto_continue.execute_prompt_async",
             new=AsyncMock(return_value=mock_result),
         ):
             final_state = await run_auto_continue(
@@ -242,7 +242,7 @@ class TestRunAutoContinue:
                 )
 
         with patch(
-            "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+            "jean_claude.orchestration.auto_continue.execute_prompt_async",
             new=mock_execute,
         ):
             final_state = await run_auto_continue(
@@ -275,7 +275,7 @@ class TestRunAutoContinue:
         )
 
         with patch(
-            "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+            "jean_claude.orchestration.auto_continue.execute_prompt_async",
             new=AsyncMock(return_value=mock_result),
         ):
             final_state = await run_auto_continue(
@@ -291,6 +291,74 @@ class TestRunAutoContinue:
         assert final_state.iteration_count == 2
 
     @pytest.mark.asyncio
+    async def test_run_auto_continue_respects_max_iterations(
+        self, mock_project_root
+    ):
+        """Test that auto-continue loop respects max_iterations limit.
+
+        Verifies that:
+        1. The loop stops when max_iterations is reached
+        2. iteration_count matches max_iterations
+        3. The workflow is not marked as complete if stopped early
+        """
+        # Create a workflow with MORE features than max_iterations
+        # This ensures the loop is limited by iterations, not by feature count
+        state = WorkflowState(
+            workflow_id="test-max-iter",
+            workflow_name="Test Max Iterations",
+            workflow_type="feature",
+            max_iterations=10,
+        )
+
+        # Add 10 features (more than our max_iter limit)
+        for i in range(10):
+            state.add_feature(
+                name=f"Feature {i+1}",
+                description=f"Test feature {i+1}",
+                test_file=f"tests/test_feature_{i+1}.py",
+            )
+
+        state.save(mock_project_root)
+
+        # Mock successful execution - each call completes one feature
+        mock_result = ExecutionResult(
+            output="Feature completed successfully",
+            success=True,
+            cost_usd=0.02,
+            duration_ms=500,
+        )
+
+        max_iter = 4  # Stop after 4 iterations (leaving 6 features incomplete)
+
+        with patch(
+            "jean_claude.orchestration.auto_continue.execute_prompt_async",
+            new=AsyncMock(return_value=mock_result),
+        ):
+            final_state = await run_auto_continue(
+                state=state,
+                project_root=mock_project_root,
+                max_iterations=max_iter,
+                delay_seconds=0.1,
+                model="haiku",
+            )
+
+        # Verify the loop stopped at max_iterations
+        assert final_state.iteration_count == max_iter, \
+            f"Expected iteration_count to be {max_iter}, got {final_state.iteration_count}"
+
+        # Verify workflow is not complete (since not all features were finished)
+        assert not final_state.is_complete(), \
+            "Workflow should not be complete when stopped by max_iterations"
+
+        # Verify exactly max_iter features were completed
+        assert final_state.current_feature_index == max_iter, \
+            f"Expected {max_iter} features completed, got {final_state.current_feature_index}"
+
+        # Verify there are still features remaining
+        assert final_state.current_feature_index < len(final_state.features), \
+            "Should have incomplete features when limited by max_iterations"
+
+    @pytest.mark.asyncio
     async def test_run_auto_continue_state_persistence(
         self, sample_workflow_state, mock_project_root
     ):
@@ -298,7 +366,7 @@ class TestRunAutoContinue:
         mock_result = ExecutionResult(output="Success", success=True, cost_usd=0.05)
 
         with patch(
-            "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+            "jean_claude.orchestration.auto_continue.execute_prompt_async",
             new=AsyncMock(return_value=mock_result),
         ):
             final_state = await run_auto_continue(
@@ -329,7 +397,7 @@ class TestRunAutoContinue:
         )
 
         with patch(
-            "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+            "jean_claude.orchestration.auto_continue.execute_prompt_async",
             new=AsyncMock(return_value=mock_result),
         ):
             final_state = await run_auto_continue(
@@ -368,7 +436,7 @@ class TestRunAutoContinue:
             )
 
         with patch(
-            "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+            "jean_claude.orchestration.auto_continue.execute_prompt_async",
             new=mock_execute,
         ):
             final_state = await run_auto_continue(
@@ -391,7 +459,7 @@ class TestRunAutoContinue:
         mock_result = ExecutionResult(output="Success", success=True)
 
         with patch(
-            "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+            "jean_claude.orchestration.auto_continue.execute_prompt_async",
             new=AsyncMock(return_value=mock_result),
         ):
             await run_auto_continue(
@@ -411,3 +479,5 @@ class TestRunAutoContinue:
         # Check iteration directories
         iteration_dirs = list(output_dir.glob("iteration_*"))
         assert len(iteration_dirs) == 3  # Three features completed
+
+

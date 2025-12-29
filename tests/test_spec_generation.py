@@ -16,10 +16,9 @@ from jean_claude.core.beads import BeadsTask, BeadsTaskStatus, generate_spec_fro
 class TestGenerateSpecFromBeads:
     """Tests for generate_spec_from_beads function."""
 
-    @pytest.fixture
-    def basic_task(self):
-        """Create a basic BeadsTask for testing."""
-        return BeadsTask(
+    def test_generate_spec_complete_structure(self, mock_beads_task_factory):
+        """Test that generated spec has complete structure with all sections."""
+        basic_task = mock_beads_task_factory(
             id="test-123",
             title="Test Task Title",
             description="This is a test task description.",
@@ -28,9 +27,6 @@ class TestGenerateSpecFromBeads:
             created_at=datetime(2025, 1, 1, 12, 0, 0),
             updated_at=datetime(2025, 1, 2, 12, 0, 0)
         )
-
-    def test_generate_spec_complete_structure(self, basic_task):
-        """Test that generated spec has complete structure with all sections."""
         spec = generate_spec_from_beads(basic_task)
 
         # Is valid non-empty string
@@ -163,8 +159,17 @@ class TestGenerateSpecFromBeads:
         for criterion in criteria:
             assert f"- {criterion}" in spec
 
-    def test_generate_spec_is_idempotent(self, basic_task):
+    def test_generate_spec_is_idempotent(self, mock_beads_task_factory):
         """Test that calling generate_spec_from_beads multiple times produces same result."""
+        basic_task = mock_beads_task_factory(
+            id="test-123",
+            title="Test Task Title",
+            description="This is a test task description.",
+            acceptance_criteria=["Criterion 1", "Criterion 2", "Criterion 3"],
+            status=BeadsTaskStatus.OPEN,
+            created_at=datetime(2025, 1, 1, 12, 0, 0),
+            updated_at=datetime(2025, 1, 2, 12, 0, 0)
+        )
         spec1 = generate_spec_from_beads(basic_task)
         spec2 = generate_spec_from_beads(basic_task)
         assert spec1 == spec2

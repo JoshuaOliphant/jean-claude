@@ -84,7 +84,7 @@ async def test_full_workflow_lifecycle(mock_project_root):
 
     # 3. Run auto-continue loop
     with patch(
-        "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+        "jean_claude.orchestration.auto_continue.execute_prompt_async",
         new=mock_execute,
     ), patch(
         "jean_claude.orchestration.auto_continue.run_verification",
@@ -152,7 +152,7 @@ async def test_workflow_with_failure_recovery(mock_project_root):
             return ExecutionResult(output="Success", success=True, cost_usd=0.05)
 
     with patch(
-        "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+        "jean_claude.orchestration.auto_continue.execute_prompt_async",
         new=mock_execute_with_failure,
     ), patch(
         "jean_claude.orchestration.auto_continue.run_verification",
@@ -187,7 +187,7 @@ async def test_workflow_with_failure_recovery(mock_project_root):
         return ExecutionResult(output="Success", success=True, cost_usd=0.05)
 
     with patch(
-        "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+        "jean_claude.orchestration.auto_continue.execute_prompt_async",
         new=mock_execute_success,
     ), patch(
         "jean_claude.orchestration.auto_continue.run_verification",
@@ -233,7 +233,7 @@ async def test_workflow_interrupt_and_resume(mock_project_root):
         return ExecutionResult(output="Success", success=True, cost_usd=0.05)
 
     with patch(
-        "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+        "jean_claude.orchestration.auto_continue.execute_prompt_async",
         new=mock_execute_limited,
     ), patch(
         "jean_claude.orchestration.auto_continue.run_verification",
@@ -259,7 +259,7 @@ async def test_workflow_interrupt_and_resume(mock_project_root):
     # Continue execution
     call_count = 0
     with patch(
-        "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+        "jean_claude.orchestration.auto_continue.execute_prompt_async",
         new=mock_execute_limited,
     ), patch(
         "jean_claude.orchestration.auto_continue.run_verification",
@@ -291,7 +291,7 @@ async def test_empty_workflow_completes_immediately(mock_project_root):
 
     # Run should complete immediately with no features
     with patch(
-        "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async"
+        "jean_claude.orchestration.auto_continue.execute_prompt_async"
     ) as mock_exec, patch(
         "jean_claude.orchestration.auto_continue.run_verification"
     ):
@@ -352,7 +352,7 @@ async def test_workflow_cost_and_duration_tracking(mock_project_root):
         return result
 
     with patch(
-        "jean_claude.orchestration.auto_continue._execute_prompt_sdk_async",
+        "jean_claude.orchestration.auto_continue.execute_prompt_async",
         new=mock_execute,
     ), patch(
         "jean_claude.orchestration.auto_continue.run_verification",

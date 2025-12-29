@@ -1,0 +1,1409 @@
+{
+  "summary": {
+    "total_files": 63,
+    "total_imports": 166,
+    "src_files": 27,
+    "test_files": 36
+  },
+  "files": [
+    {
+      "path": "src/jean_claude/core/mailbox_api.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message_writer",
+          "items": [
+            "write_message",
+            "MessageBox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message_reader",
+          "items": [
+            "read_messages"
+          ]
+        },
+        {
+          "module": "jean_claude.core.inbox_count_persistence",
+          "items": [
+            "read_inbox_count",
+            "write_inbox_count"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/verification.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/mailbox_storage.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.message_writer",
+          "items": [
+            "MessageBox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/feature_commit_orchestrator.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.test_runner_validator",
+          "items": [
+            "TestRunnerValidator"
+          ]
+        },
+        {
+          "module": "jean_claude.core.git_file_stager",
+          "items": [
+            "GitFileStager"
+          ]
+        },
+        {
+          "module": "jean_claude.core.conventional_commit_parser",
+          "items": [
+            "ConventionalCommitParser"
+          ]
+        },
+        {
+          "module": "jean_claude.core.commit_body_generator",
+          "items": [
+            "CommitBodyGenerator"
+          ]
+        },
+        {
+          "module": "jean_claude.core.commit_message_formatter",
+          "items": [
+            "CommitMessageFormatter"
+          ]
+        },
+        {
+          "module": "jean_claude.core.commit_error_handler",
+          "items": [
+            "CommitErrorHandler"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/__init__.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.agent",
+          "items": [
+            "ExecutionResult",
+            "PromptRequest",
+            "RetryCode",
+            "TemplateRequest",
+            "execute_prompt",
+            "execute_template",
+            "find_claude_cli",
+            "check_claude_installed"
+          ]
+        },
+        {
+          "module": "jean_claude.core.beads",
+          "items": [
+            "BeadsTask",
+            "BeadsTaskStatus"
+          ]
+        },
+        {
+          "module": "jean_claude.core.beads_trailer_formatter",
+          "items": [
+            "BeadsTrailerFormatter"
+          ]
+        },
+        {
+          "module": "jean_claude.core.commit_body_generator",
+          "items": [
+            "CommitBodyGenerator"
+          ]
+        },
+        {
+          "module": "jean_claude.core.events",
+          "items": [
+            "Event",
+            "EventLogger",
+            "EventType"
+          ]
+        },
+        {
+          "module": "jean_claude.core.feature_commit_orchestrator",
+          "items": [
+            "FeatureCommitOrchestrator"
+          ]
+        },
+        {
+          "module": "jean_claude.core.git_file_stager",
+          "items": [
+            "GitFileStager"
+          ]
+        },
+        {
+          "module": "jean_claude.core.inbox_count",
+          "items": [
+            "InboxCount"
+          ]
+        },
+        {
+          "module": "jean_claude.core.inbox_count_persistence",
+          "items": [
+            "read_inbox_count",
+            "write_inbox_count"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_api",
+          "items": [
+            "Mailbox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message",
+            "MessagePriority"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message_reader",
+          "items": [
+            "read_messages"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message_writer",
+          "items": [
+            "MessageBox",
+            "write_message"
+          ]
+        },
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "Feature",
+            "WorkflowPhase",
+            "WorkflowState"
+          ]
+        },
+        {
+          "module": "jean_claude.core.task_validator",
+          "items": [
+            "TaskValidator",
+            "ValidationResult"
+          ]
+        },
+        {
+          "module": "jean_claude.core.test_runner_validator",
+          "items": [
+            "TestRunnerValidator"
+          ]
+        },
+        {
+          "module": "jean_claude.core.validation_output_formatter",
+          "items": [
+            "ValidationOutputFormatter"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/interactive_prompt_handler.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.task_validator",
+          "items": [
+            "ValidationResult"
+          ]
+        },
+        {
+          "module": "jean_claude.core.validation_output_formatter",
+          "items": [
+            "ValidationOutputFormatter"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/edit_and_revalidate.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.edit_task_handler",
+          "items": [
+            "EditTaskHandler"
+          ]
+        },
+        {
+          "module": "jean_claude.core.beads",
+          "items": [
+            "fetch_beads_task"
+          ]
+        },
+        {
+          "module": "jean_claude.core.task_validator",
+          "items": [
+            "TaskValidator",
+            "ValidationResult"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/message_reader.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message_writer",
+          "items": [
+            "MessageBox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_storage",
+          "items": [
+            "resolve_mailbox_path"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/message_writer.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/sdk_executor.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.agent",
+          "items": [
+            "ExecutionResult",
+            "RetryCode",
+            "PromptRequest",
+            "TemplateRequest",
+            "OUTPUT_JSONL",
+            "OUTPUT_JSON",
+            "FINAL_OBJECT_JSON",
+            "generate_workflow_id"
+          ]
+        },
+        {
+          "module": "jean_claude.core.security",
+          "items": [
+            "bash_security_hook"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/workflow_utils.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/inbox_count_persistence.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.inbox_count",
+          "items": [
+            "InboxCount"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/validation_output_formatter.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.task_validator",
+          "items": [
+            "ValidationResult"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/core/task_validator.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.beads",
+          "items": [
+            "BeadsTask"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/dashboard/app.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/orchestration/subagent_stop_hook.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.mailbox_api",
+          "items": [
+            "Mailbox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message",
+            "MessagePriority"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/orchestration/two_agent.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.agent",
+          "items": [
+            "ExecutionResult",
+            "PromptRequest"
+          ]
+        },
+        {
+          "module": "jean_claude.core.events",
+          "items": [
+            "EventLogger"
+          ]
+        },
+        {
+          "module": "jean_claude.core.sdk_executor",
+          "items": [
+            "execute_prompt_async"
+          ]
+        },
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/orchestration/user_prompt_submit_hook.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.mailbox_api",
+          "items": [
+            "Mailbox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message",
+            "MessagePriority"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/orchestration/post_tool_use_hook.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        },
+        {
+          "module": "jean_claude.core.inbox_count_persistence",
+          "items": [
+            "read_inbox_count",
+            "write_inbox_count"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/orchestration/auto_continue.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.agent",
+          "items": [
+            "ExecutionResult",
+            "PromptRequest"
+          ]
+        },
+        {
+          "module": "jean_claude.core.events",
+          "items": [
+            "EventLogger",
+            "EventType"
+          ]
+        },
+        {
+          "module": "jean_claude.core.feature_commit_orchestrator",
+          "items": [
+            "FeatureCommitOrchestrator"
+          ]
+        },
+        {
+          "module": "jean_claude.core.sdk_executor",
+          "items": [
+            "execute_prompt_async"
+          ]
+        },
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "Feature",
+            "WorkflowState"
+          ]
+        },
+        {
+          "module": "jean_claude.core.verification",
+          "items": [
+            "run_verification"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/cli/commands/run.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.agent",
+          "items": [
+            "ExecutionResult",
+            "TemplateRequest",
+            "check_claude_installed",
+            "execute_template",
+            "generate_workflow_id"
+          ]
+        },
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/cli/commands/prime.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.agent",
+          "items": [
+            "PromptRequest",
+            "check_claude_installed",
+            "generate_workflow_id"
+          ]
+        },
+        {
+          "module": "jean_claude.core.sdk_executor",
+          "items": [
+            "execute_prompt_async"
+          ]
+        },
+        {
+          "module": "jean_claude.core.subagents",
+          "items": [
+            "get_subagents_for_sdk"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/cli/commands/work.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.beads",
+          "items": [
+            "fetch_beads_task",
+            "generate_spec_from_beads",
+            "update_beads_status",
+            "close_beads_task"
+          ]
+        },
+        {
+          "module": "jean_claude.core.events",
+          "items": [
+            "EventLogger"
+          ]
+        },
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        },
+        {
+          "module": "jean_claude.core.task_validator",
+          "items": [
+            "TaskValidator"
+          ]
+        },
+        {
+          "module": "jean_claude.core.interactive_prompt_handler",
+          "items": [
+            "InteractivePromptHandler",
+            "PromptAction"
+          ]
+        },
+        {
+          "module": "jean_claude.core.edit_and_revalidate",
+          "items": [
+            "edit_and_revalidate"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/cli/commands/logs.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        },
+        {
+          "module": "jean_claude.core.workflow_utils",
+          "items": [
+            "find_most_recent_workflow"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/cli/commands/implement.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/cli/commands/prompt.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.agent",
+          "items": [
+            "ExecutionResult",
+            "PromptRequest",
+            "RetryCode",
+            "check_claude_installed",
+            "execute_prompt",
+            "generate_workflow_id"
+          ]
+        },
+        {
+          "module": "jean_claude.core.sdk_executor",
+          "items": [
+            "execute_prompt_streaming"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/jean_claude/cli/commands/status.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        },
+        {
+          "module": "jean_claude.core.events",
+          "items": [
+            "EventLogger"
+          ]
+        },
+        {
+          "module": "jean_claude.core.workflow_utils",
+          "items": [
+            "find_most_recent_workflow"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_conventional_commit_parser.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.conventional_commit_parser",
+          "items": [
+            "ConventionalCommitParser"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_feature_commit_orchestrator.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.feature_commit_orchestrator",
+          "items": [
+            "FeatureCommitOrchestrator"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_security.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.security",
+          "items": [
+            "DEFAULT_ALLOWED_COMMANDS",
+            "WORKFLOW_ALLOWLISTS",
+            "bash_security_hook",
+            "create_custom_allowlist",
+            "extract_base_command",
+            "get_allowlist_for_workflow",
+            "validate_command"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_workflow_utils.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.workflow_utils",
+          "items": [
+            "find_most_recent_workflow"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/conftest.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.beads",
+          "items": [
+            "BeadsTask",
+            "BeadsTaskStatus",
+            "BeadsTaskPriority",
+            "BeadsTaskType"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message",
+            "MessagePriority"
+          ]
+        },
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        },
+        {
+          "module": "jean_claude.core.task_validator",
+          "items": [
+            "ValidationResult"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_task_validator.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.beads",
+          "items": [
+            "BeadsTaskStatus"
+          ]
+        },
+        {
+          "module": "jean_claude.core.task_validator",
+          "items": [
+            "TaskValidator",
+            "ValidationResult"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_commit_message_formatter.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.commit_message_formatter",
+          "items": [
+            "CommitMessageFormatter"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_git_file_stager.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.git_file_stager",
+          "items": [
+            "GitFileStager"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_message_reader.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.message_reader",
+          "items": [
+            "read_messages"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message",
+            "MessagePriority"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message_writer",
+          "items": [
+            "MessageBox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        },
+        {
+          "module": "jean_claude.core",
+          "items": [
+            "mailbox_storage"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_commit_workflow_integration.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState",
+            "Feature"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_file_utils.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.file_utils",
+          "items": [
+            "read_jsonl_file"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_interactive_prompt.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.task_validator",
+          "items": [
+            "ValidationResult"
+          ]
+        },
+        {
+          "module": "jean_claude.core.interactive_prompt_handler",
+          "items": [
+            "InteractivePromptHandler",
+            "PromptAction"
+          ]
+        },
+        {
+          "module": "jean_claude.core.validation_output_formatter",
+          "items": [
+            "ValidationOutputFormatter"
+          ]
+        },
+        {
+          "module": "jean_claude.core.validation_output_formatter",
+          "items": [
+            "ValidationOutputFormatter"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_test_runner_validator.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.test_runner_validator",
+          "items": [
+            "TestRunnerValidator"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_state.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "Feature",
+            "WorkflowState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_work_command.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.beads",
+          "items": [
+            "BeadsTask",
+            "BeadsTaskStatus"
+          ]
+        },
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_commit_body_generator.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.commit_body_generator",
+          "items": [
+            "CommitBodyGenerator"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_mailbox_storage.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.mailbox_storage",
+          "items": [
+            "resolve_mailbox_path"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message_writer",
+          "items": [
+            "MessageBox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_status_command.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        },
+        {
+          "module": "jean_claude.core.workflow_utils",
+          "items": [
+            "find_most_recent_workflow"
+          ]
+        },
+        {
+          "module": "jean_claude.core.workflow_utils",
+          "items": [
+            "find_most_recent_workflow"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_edit_integration.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.task_validator",
+          "items": [
+            "ValidationResult",
+            "TaskValidator"
+          ]
+        },
+        {
+          "module": "jean_claude.core.interactive_prompt_handler",
+          "items": [
+            "InteractivePromptHandler",
+            "PromptAction"
+          ]
+        },
+        {
+          "module": "jean_claude.core.beads",
+          "items": [
+            "BeadsTask",
+            "BeadsTaskStatus",
+            "BeadsTaskPriority",
+            "BeadsTaskType"
+          ]
+        },
+        {
+          "module": "jean_claude.core.edit_task_handler",
+          "items": [
+            "EditTaskHandler"
+          ]
+        },
+        {
+          "module": "jean_claude.core.edit_and_revalidate",
+          "items": [
+            "edit_and_revalidate"
+          ]
+        },
+        {
+          "module": "jean_claude.core.edit_and_revalidate",
+          "items": [
+            "edit_and_revalidate"
+          ]
+        },
+        {
+          "module": "jean_claude.core.edit_and_revalidate",
+          "items": [
+            "edit_and_revalidate"
+          ]
+        },
+        {
+          "module": "jean_claude.core.edit_and_revalidate",
+          "items": [
+            "edit_and_revalidate"
+          ]
+        },
+        {
+          "module": "jean_claude.core.edit_and_revalidate",
+          "items": [
+            "edit_and_revalidate"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_commit_error_handler.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.commit_error_handler",
+          "items": [
+            "CommitErrorHandler"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_spec_generation.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.beads",
+          "items": [
+            "BeadsTask",
+            "BeadsTaskStatus",
+            "generate_spec_from_beads"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_verification.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        },
+        {
+          "module": "jean_claude.core.verification",
+          "items": [
+            "VerificationResult",
+            "run_verification",
+            "should_verify",
+            "_parse_failed_tests"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/core/conftest.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.beads",
+          "items": [
+            "BeadsTask",
+            "BeadsTaskStatus",
+            "BeadsTaskPriority",
+            "BeadsTaskType"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message",
+            "MessagePriority"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/core/test_mailbox_api.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message",
+            "MessagePriority"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_api",
+          "items": [
+            "Mailbox"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/core/test_message_reader.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message",
+            "MessagePriority"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message_reader",
+          "items": [
+            "read_messages"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message_writer",
+          "items": [
+            "write_message",
+            "MessageBox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/core/test_message_writer.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "Message",
+            "MessagePriority"
+          ]
+        },
+        {
+          "module": "jean_claude.core.message_writer",
+          "items": [
+            "write_message",
+            "MessageBox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/orchestration/test_no_private_imports.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.sdk_executor",
+          "items": [
+            "execute_prompt_async"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/orchestration/conftest.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.agent",
+          "items": [
+            "ExecutionResult"
+          ]
+        },
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState",
+            "Feature"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/orchestration/test_auto_continue.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState",
+            "Feature"
+          ]
+        },
+        {
+          "module": "jean_claude.core.agent",
+          "items": [
+            "ExecutionResult"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/orchestration/test_user_prompt_submit_hook.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "MessagePriority"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_api",
+          "items": [
+            "Mailbox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/orchestration/test_post_tool_use_hook_logging.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/orchestration/test_post_tool_use_hook.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        },
+        {
+          "module": "jean_claude.core.inbox_count_persistence",
+          "items": [
+            "read_inbox_count",
+            "write_inbox_count"
+          ]
+        },
+        {
+          "module": "jean_claude.core.inbox_count",
+          "items": [
+            "InboxCount"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/orchestration/test_auto_continue_integration.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState"
+          ]
+        },
+        {
+          "module": "jean_claude.core.agent",
+          "items": [
+            "ExecutionResult"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/orchestration/test_two_agent.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.state",
+          "items": [
+            "WorkflowState",
+            "Feature"
+          ]
+        },
+        {
+          "module": "jean_claude.core.agent",
+          "items": [
+            "ExecutionResult"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/orchestration/test_subagent_stop_hook.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.message",
+          "items": [
+            "MessagePriority"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_api",
+          "items": [
+            "Mailbox"
+          ]
+        },
+        {
+          "module": "jean_claude.core.mailbox_paths",
+          "items": [
+            "MailboxPaths"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/cli/commands/test_work_error_handling.py",
+      "imports": [
+        {
+          "module": "jean_claude.core.beads",
+          "items": [
+            "BeadsTask",
+            "BeadsTaskStatus"
+          ]
+        }
+      ]
+    }
+  ]
+}

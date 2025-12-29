@@ -37,11 +37,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
 
-from jean_claude.core.state import WorkflowState, Feature
-from jean_claude.core.agent import PromptRequest, ExecutionResult, _execute_prompt_sdk_async
+from jean_claude.core.agent import ExecutionResult, PromptRequest
 from jean_claude.core.events import EventLogger
+from jean_claude.core.sdk_executor import execute_prompt_async
+from jean_claude.core.state import WorkflowState
 from jean_claude.orchestration.auto_continue import run_auto_continue
-
 
 console = Console()
 
@@ -143,7 +143,7 @@ OUTPUT ONLY THE JSON. NO ADDITIONAL TEXT BEFORE OR AFTER THE JSON.
 async def run_initializer(
     description: str,
     project_root: Path,
-    workflow_id: Optional[str] = None,
+    workflow_id: str | None = None,
     model: str = "opus",
 ) -> WorkflowState:
     """Run initializer agent to create feature list.
@@ -196,7 +196,7 @@ async def run_initializer(
     )
 
     console.print("[blue]Running initializer agent...[/blue]")
-    result: ExecutionResult = await _execute_prompt_sdk_async(request, max_retries=3)
+    result: ExecutionResult = await execute_prompt_async(request, max_retries=3)
 
     if not result.success:
         raise ValueError(f"Initializer failed: {result.output}")
@@ -217,8 +217,8 @@ async def run_initializer(
     try:
         data = json.loads(output)
     except json.JSONDecodeError as e:
-        console.print(f"[red]Failed to parse initializer output as JSON[/red]")
-        console.print(f"[yellow]Output:[/yellow]")
+        console.print("[red]Failed to parse initializer output as JSON[/red]")
+        console.print("[yellow]Output:[/yellow]")
         console.print(output)
         raise ValueError(f"Initializer output is not valid JSON: {e}") from e
 
@@ -297,10 +297,10 @@ async def run_initializer(
 async def run_two_agent_workflow(
     description: str,
     project_root: Path,
-    workflow_id: Optional[str] = None,
+    workflow_id: str | None = None,
     initializer_model: str = "opus",
     coder_model: str = "sonnet",
-    max_iterations: Optional[int] = None,
+    max_iterations: int | None = None,
     auto_confirm: bool = False,
     event_logger: Optional["EventLogger"] = None,
 ) -> WorkflowState:

@@ -145,7 +145,23 @@ def workflow(
     task_description: str
     if spec_file:
         console.print(f"[dim]Reading spec file: {spec_file}[/dim]")
-        task_description = spec_file.read_text()
+        try:
+            task_description = spec_file.read_text()
+        except FileNotFoundError as e:
+            console.print(f"[bold red]Error:[/bold red] Spec file not found at [cyan]{spec_file}[/cyan]")
+            console.print(f"[dim]Details: {e}[/dim]")
+            console.print("[dim]Check that the file path is correct[/dim]")
+            raise click.Abort()
+        except PermissionError as e:
+            console.print(f"[bold red]Error:[/bold red] Permission denied reading spec file at [cyan]{spec_file}[/cyan]")
+            console.print(f"[dim]Details: {e}[/dim]")
+            console.print("[dim]Check file permissions[/dim]")
+            raise click.Abort()
+        except OSError as e:
+            console.print(f"[bold red]Error:[/bold red] Failed to read spec file at [cyan]{spec_file}[/cyan]")
+            console.print(f"[dim]Details: {e}[/dim]")
+            console.print("[dim]Check file system availability and file integrity[/dim]")
+            raise click.Abort()
     else:
         task_description = description  # type: ignore
 

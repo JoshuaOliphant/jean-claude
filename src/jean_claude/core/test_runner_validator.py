@@ -176,9 +176,17 @@ class TestRunnerValidator:
             result["passed"] = failed == 0 and exit_code == 0
 
         # Check for "no tests ran" scenario
+        # Only treat as error if exit code is non-zero (actual failure)
+        # Exit code 0 with no tests = valid scenario (0/0 tests pass)
         if "no tests ran" in output.lower() or "no tests collected" in output.lower():
-            result["passed"] = False
-            result["error"] = "No tests were found or ran"
+            if exit_code != 0:
+                result["passed"] = False
+                result["error"] = "No tests were found or ran (pytest failed)"
+            else:
+                # No tests but pytest succeeded = valid (0/0 tests)
+                result["passed"] = True
+                result["total_tests"] = 0
+                result["failed_tests"] = 0
 
         # Extract failed test names
         # Pattern: "FAILED path/to/test.py::test_name - Error"

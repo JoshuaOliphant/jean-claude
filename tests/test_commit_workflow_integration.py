@@ -43,7 +43,7 @@ class TestCommitWorkflowIntegration:
         return state
 
     @pytest.mark.asyncio
-    @patch('jean_claude.orchestration.auto_continue._execute_prompt_sdk_async')
+    @patch('jean_claude.orchestration.auto_continue.execute_prompt_async')
     @patch('jean_claude.orchestration.auto_continue.run_verification')
     @patch('jean_claude.orchestration.auto_continue.FeatureCommitOrchestrator')
     async def test_commit_triggered_after_feature_completion(
@@ -101,7 +101,7 @@ class TestCommitWorkflowIntegration:
         assert call_args["total_features"] == 2
 
     @pytest.mark.asyncio
-    @patch('jean_claude.orchestration.auto_continue._execute_prompt_sdk_async')
+    @patch('jean_claude.orchestration.auto_continue.execute_prompt_async')
     @patch('jean_claude.orchestration.auto_continue.run_verification')
     @patch('jean_claude.orchestration.auto_continue.FeatureCommitOrchestrator')
     async def test_commit_failure_does_not_block_workflow(
@@ -151,7 +151,7 @@ class TestCommitWorkflowIntegration:
         assert final_state.features[0].status == "completed"
 
     @pytest.mark.asyncio
-    @patch('jean_claude.orchestration.auto_continue._execute_prompt_sdk_async')
+    @patch('jean_claude.orchestration.auto_continue.execute_prompt_async')
     @patch('jean_claude.orchestration.auto_continue.run_verification')
     @patch('jean_claude.orchestration.auto_continue.FeatureCommitOrchestrator')
     async def test_commit_not_triggered_on_feature_failure(
@@ -191,7 +191,7 @@ class TestCommitWorkflowIntegration:
         mock_orchestrator.commit_feature.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch('jean_claude.orchestration.auto_continue._execute_prompt_sdk_async')
+    @patch('jean_claude.orchestration.auto_continue.execute_prompt_async')
     @patch('jean_claude.orchestration.auto_continue.run_verification')
     @patch('jean_claude.orchestration.auto_continue.FeatureCommitOrchestrator')
     async def test_commit_receives_correct_task_metadata(
@@ -244,7 +244,7 @@ class TestCommitWorkflowIntegration:
         assert call_args["total_features"] == 2
 
     @pytest.mark.asyncio
-    @patch('jean_claude.orchestration.auto_continue._execute_prompt_sdk_async')
+    @patch('jean_claude.orchestration.auto_continue.execute_prompt_async')
     @patch('jean_claude.orchestration.auto_continue.run_verification')
     @patch('jean_claude.orchestration.auto_continue.FeatureCommitOrchestrator')
     async def test_commit_uses_feature_context(
@@ -293,7 +293,7 @@ class TestCommitWorkflowIntegration:
         assert call_args["feature_context"] == "test-feature-1"
 
     @pytest.mark.asyncio
-    @patch('jean_claude.orchestration.auto_continue._execute_prompt_sdk_async')
+    @patch('jean_claude.orchestration.auto_continue.execute_prompt_async')
     @patch('jean_claude.orchestration.auto_continue.run_verification')
     @patch('jean_claude.orchestration.auto_continue.FeatureCommitOrchestrator')
     async def test_commit_sha_saved_to_feature_state(
@@ -345,7 +345,7 @@ class TestCommitWorkflowIntegration:
         assert reloaded_state.features[0].status == "completed"
 
     @pytest.mark.asyncio
-    @patch('jean_claude.orchestration.auto_continue._execute_prompt_sdk_async')
+    @patch('jean_claude.orchestration.auto_continue.execute_prompt_async')
     @patch('jean_claude.orchestration.auto_continue.run_verification')
     @patch('jean_claude.orchestration.auto_continue.FeatureCommitOrchestrator')
     async def test_multiple_features_each_get_commit(
@@ -403,7 +403,7 @@ class TestCommitWorkflowIntegration:
         assert second_call["feature_name"] == "test-feature-2"
 
     @pytest.mark.asyncio
-    @patch('jean_claude.orchestration.auto_continue._execute_prompt_sdk_async')
+    @patch('jean_claude.orchestration.auto_continue.execute_prompt_async')
     @patch('jean_claude.orchestration.auto_continue.run_verification')
     @patch('jean_claude.orchestration.auto_continue.FeatureCommitOrchestrator')
     async def test_commit_orchestrator_initialized_with_repo_path(

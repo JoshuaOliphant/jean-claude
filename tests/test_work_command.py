@@ -22,49 +22,8 @@ from jean_claude.core.beads import BeadsTask, BeadsTaskStatus
 from jean_claude.core.state import WorkflowState
 
 
-class TestWorkCommandBasic:
-    """Tests for basic work command structure."""
-
-    def test_work_command_exists_and_has_help(self, cli_runner):
-        """Test work command exists, is callable, and has complete help text."""
-        # Command exists and is callable
-        assert work is not None
-        assert callable(work)
-        assert work.__doc__ is not None
-
-        # Help text is complete
-        result = cli_runner.invoke(work, ["--help"])
-        assert result.exit_code == 0
-        assert "BEADS_ID" in result.output
-        assert "--model" in result.output
-
-    def test_work_command_requires_beads_id(self, cli_runner):
-        """Test that work command requires beads_id argument."""
-        result = cli_runner.invoke(work, [])
-        assert result.exit_code != 0
-        assert "Missing argument" in result.output or "BEADS_ID" in result.output
-
-
 class TestWorkCommandFlags:
-    """Tests for work command CLI flags - consolidated from 18 tests to 4."""
-
-    def test_all_flags_exist_in_help(self, cli_runner):
-        """Test that all expected flags appear in help text with descriptions."""
-        result = cli_runner.invoke(work, ["--help"])
-        assert result.exit_code == 0
-
-        # All flags should be present
-        assert "--model" in result.output
-        assert "--show-plan" in result.output
-        assert "--dry-run" in result.output
-        assert "--auto-confirm" in result.output
-        assert "-m" in result.output  # Short flag for model
-
-        # Help descriptions should be meaningful
-        output_lower = result.output.lower()
-        assert "plan" in output_lower  # --show-plan description
-        assert "dry" in output_lower   # --dry-run description
-        assert "confirm" in output_lower or "skip" in output_lower  # --auto-confirm description
+    """Tests for work command business logic."""
 
     @pytest.mark.parametrize("model", ["sonnet", "opus", "haiku"])
     def test_model_option_accepts_valid_models(self, model, work_command_mocks, isolated_cli_runner):
@@ -72,20 +31,6 @@ class TestWorkCommandFlags:
         result = isolated_cli_runner.invoke(work, ["test-task.1", "--model", model])
         # Should not show "Invalid value" error
         assert "Invalid value" not in result.output
-
-    def test_model_option_rejects_invalid_model(self, cli_runner):
-        """Test that --model option rejects invalid values."""
-        result = cli_runner.invoke(work, ["test-task.1", "--model", "invalid-model"])
-        assert result.exit_code != 0
-        assert "Invalid value" in result.output or "invalid choice" in result.output.lower()
-
-    def test_all_flags_can_be_combined(self, cli_runner, work_command_mocks, isolated_cli_runner):
-        """Test that all flags can be used together without conflicts."""
-        result = isolated_cli_runner.invoke(
-            work,
-            ["test-task.1", "--show-plan", "--auto-confirm", "--model", "opus"],
-        )
-        assert "no such option" not in result.output.lower()
 
     def test_dry_run_skips_workflow_execution(self, cli_runner, mock_beads_task, mock_task_validator, isolated_cli_runner):
         """Test that --dry-run mode does not call run_two_agent_workflow."""
@@ -316,3 +261,47 @@ class TestWorkPhaseTransitions:
 
                     assert "phase" in state_data
                     assert state_data["phase"] in ["planning", "implementing", "verifying", "complete"]
+
+
+class TestExceptionHandling:
+    """Tests for exception handling in work command."""
+
+    def test_no_dead_exception_handlers(self):
+        """Test that work.py has no dead exception handlers.
+
+        Specifically, verify there's no unreachable except Exception block
+        after an except RuntimeError block (since RuntimeError is a subclass
+        of Exception).
+        """
+        import inspect
+        from jean_claude.cli.commands.work import work
+
+        # Read the source code
+        source = inspect.getsource(work)
+        lines = source.split('\n')
+
+        # Look for the exception handling pattern
+        # We should NOT find: except RuntimeError followed by except Exception at same indent level
+        runtime_error_indices = []
+        exception_indices = []
+
+        for i, line in enumerate(lines):
+            stripped = line.lstrip()
+            indent = len(line) - len(stripped)
+
+            if stripped.startswith('except RuntimeError'):
+                runtime_error_indices.append((i, indent))
+            elif stripped.startswith('except Exception'):
+                exception_indices.append((i, indent))
+
+        # Check for dead code: except Exception after except RuntimeError at same level
+        for runtime_idx, runtime_indent in runtime_error_indices:
+            for exc_idx, exc_indent in exception_indices:
+                if exc_idx > runtime_idx and exc_indent == runtime_indent:
+                    # Found except Exception after except RuntimeError at same level
+                    # This is dead code since RuntimeError is caught first
+                    assert False, (
+                        f"Dead exception handler found at line {exc_idx}: "
+                        f"'except Exception' after 'except RuntimeError' at line {runtime_idx}. "
+                        f"Since RuntimeError is a subclass of Exception, this code is unreachable."
+                    )

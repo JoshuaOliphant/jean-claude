@@ -214,14 +214,19 @@ def message_factory() -> Callable[..., Message]:
         body: str = "Test body content",
         priority: MessagePriority = MessagePriority.NORMAL,
         awaiting_response: bool = False,
+        id: str | None = None,
     ) -> Message:
-        return Message(
-            from_agent=from_agent,
-            to_agent=to_agent,
-            type=type,
-            subject=subject,
-            body=body,
-            priority=priority,
-            awaiting_response=awaiting_response,
-        )
+        kwargs = {
+            "from_agent": from_agent,
+            "to_agent": to_agent,
+            "type": type,
+            "subject": subject,
+            "body": body,
+            "priority": priority,
+            "awaiting_response": awaiting_response,
+        }
+        # Only add id if provided (otherwise let Message auto-generate)
+        if id is not None:
+            kwargs["id"] = id
+        return Message(**kwargs)
     return _create_message

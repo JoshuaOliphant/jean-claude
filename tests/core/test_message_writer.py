@@ -78,7 +78,7 @@ class TestWriteMessageJSONLSerialization:
             assert parsed["subject"] == f"Message {i}"
 
         # Write message with all fields
-        full_msg = Message(
+        full_msg = message_factory(
             id="msg-123", from_agent="coordinator", to_agent="worker-1",
             type="help_request", subject="Need help", body="I need assistance",
             priority=MessagePriority.URGENT, awaiting_response=True
@@ -92,7 +92,7 @@ class TestWriteMessageJSONLSerialization:
         assert "created_at" in parsed
 
         # Special characters and multiline
-        special_msg = Message(
+        special_msg = message_factory(
             from_agent="agent-1", to_agent="agent-2", type="test",
             subject="Special chars: \"quotes\", <tags>",
             body="Body with\nnewlines and\ttabs and @#$%"

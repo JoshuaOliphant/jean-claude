@@ -73,19 +73,31 @@ def mock_beads_task_factory():
         status: str | BeadsTaskStatus = BeadsTaskStatus.OPEN,
         priority: str | BeadsTaskPriority | None = None,
         task_type: str | BeadsTaskType | None = None,
+        created_at=None,
+        updated_at=None,
     ) -> BeadsTask:
         # Convert string to enum if needed
         if isinstance(status, str):
             status = BeadsTaskStatus(status)
-        return BeadsTask(
-            id=id,
-            title=title,
-            description=description,
-            acceptance_criteria=acceptance_criteria or [],
-            status=status,
-            priority=priority,
-            task_type=task_type,
-        )
+
+        # Build kwargs dict
+        kwargs = {
+            "id": id,
+            "title": title,
+            "description": description,
+            "acceptance_criteria": acceptance_criteria or [],
+            "status": status,
+            "priority": priority,
+            "task_type": task_type,
+        }
+
+        # Only add created_at/updated_at if provided
+        if created_at is not None:
+            kwargs["created_at"] = created_at
+        if updated_at is not None:
+            kwargs["updated_at"] = updated_at
+
+        return BeadsTask(**kwargs)
     return _create_task
 
 
@@ -344,14 +356,19 @@ def message_factory() -> Callable[..., Message]:
         body: str = "Test body content",
         priority: MessagePriority = MessagePriority.NORMAL,
         awaiting_response: bool = False,
+        id: str | None = None,
     ) -> Message:
-        return Message(
-            from_agent=from_agent,
-            to_agent=to_agent,
-            type=type,
-            subject=subject,
-            body=body,
-            priority=priority,
-            awaiting_response=awaiting_response,
-        )
+        kwargs = {
+            "from_agent": from_agent,
+            "to_agent": to_agent,
+            "type": type,
+            "subject": subject,
+            "body": body,
+            "priority": priority,
+            "awaiting_response": awaiting_response,
+        }
+        # Only add id if provided (otherwise let Message auto-generate)
+        if id is not None:
+            kwargs["id"] = id
+        return Message(**kwargs)
     return _create_message

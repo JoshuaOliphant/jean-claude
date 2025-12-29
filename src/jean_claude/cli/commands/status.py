@@ -17,43 +17,9 @@ from rich.text import Text
 
 from jean_claude.core.state import WorkflowState
 from jean_claude.core.events import EventLogger
+from jean_claude.core.workflow_utils import find_most_recent_workflow
 
 console = Console()
-
-
-def find_most_recent_workflow(project_root: Path) -> str | None:
-    """Find the most recently updated workflow.
-
-    Args:
-        project_root: Root directory of the project
-
-    Returns:
-        Workflow ID of the most recent workflow, or None if no workflows exist
-    """
-    agents_dir = project_root / "agents"
-    if not agents_dir.exists():
-        return None
-
-    workflow_dirs = [d for d in agents_dir.iterdir() if d.is_dir()]
-    if not workflow_dirs:
-        return None
-
-    # Find the most recently updated state file
-    most_recent = None
-    most_recent_time = None
-
-    for workflow_dir in workflow_dirs:
-        state_file = workflow_dir / "state.json"
-        if state_file.exists():
-            try:
-                state = WorkflowState.load_from_file(state_file)
-                if most_recent_time is None or state.updated_at > most_recent_time:
-                    most_recent = state.workflow_id
-                    most_recent_time = state.updated_at
-            except Exception:
-                continue
-
-    return most_recent
 
 
 def get_all_workflows(project_root: Path) -> list[WorkflowState]:

@@ -13,6 +13,8 @@ dictionaries. They run in isolated context and return condensed results.
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
+from claude_agent_sdk import AgentDefinition
+
 
 @dataclass
 class SubagentDefinition:
@@ -95,7 +97,7 @@ def get_subagents(names: Optional[List[str]] = None) -> Dict[str, SubagentDefini
     return {name: get_subagent(name) for name in names}
 
 
-def get_subagents_for_sdk(names: Optional[List[str]] = None) -> Dict[str, Dict]:
+def get_subagents_for_sdk(names: Optional[List[str]] = None) -> Dict[str, AgentDefinition]:
     """Get subagent definitions in SDK-compatible format.
 
     This is the format expected by ClaudeAgentOptions.agents parameter.
@@ -104,10 +106,18 @@ def get_subagents_for_sdk(names: Optional[List[str]] = None) -> Dict[str, Dict]:
         names: List of subagent names (None = all registered)
 
     Returns:
-        Dictionary mapping names to SDK-compatible agent dicts
+        Dictionary mapping names to SDK AgentDefinition instances
     """
     subagents = get_subagents(names)
-    return {name: agent.to_dict() for name, agent in subagents.items()}
+    return {
+        name: AgentDefinition(
+            description=agent.description,
+            prompt=agent.prompt,
+            tools=agent.tools,
+            model=agent.model,
+        )
+        for name, agent in subagents.items()
+    }
 
 
 def list_subagents() -> List[str]:

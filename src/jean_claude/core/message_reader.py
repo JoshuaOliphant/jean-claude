@@ -18,6 +18,7 @@ from pydantic import ValidationError
 from jean_claude.core.message import Message
 from jean_claude.core.mailbox_paths import MailboxPaths
 from jean_claude.core.message_writer import MessageBox
+from jean_claude.core.mailbox_storage import resolve_mailbox_path
 
 
 def read_messages(
@@ -57,23 +58,9 @@ def read_messages(
         >>> for msg in messages:
         ...     print(f"From: {msg.from_agent}, Subject: {msg.subject}")
     """
-    # Validate mailbox type
-    if not isinstance(mailbox, MessageBox):
-        raise ValueError(
-            f"mailbox must be a MessageBox enum value, got {type(mailbox).__name__}"
-        )
-
-    # Validate paths (will raise AttributeError if None)
-    if paths is None:
-        raise TypeError("paths cannot be None")
-
-    # Determine the target file path based on mailbox type
-    if mailbox == MessageBox.INBOX:
-        file_path = paths.inbox_path
-    elif mailbox == MessageBox.OUTBOX:
-        file_path = paths.outbox_path
-    else:
-        raise ValueError(f"Invalid mailbox type: {mailbox}")
+    # Use resolve_mailbox_path to get the file path
+    # This validates mailbox type and paths, and returns the correct path
+    file_path = resolve_mailbox_path(mailbox, paths)
 
     # If the file doesn't exist, return an empty list
     if not file_path.exists():

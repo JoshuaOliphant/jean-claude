@@ -9,7 +9,7 @@ essential behaviors without per-keyword redundancy.
 
 import pytest
 
-from jean_claude.core.beads import BeadsTask, BeadsTaskStatus
+from jean_claude.core.beads import BeadsTaskStatus
 from jean_claude.core.task_validator import TaskValidator, ValidationResult
 
 
@@ -98,12 +98,12 @@ class TestTaskValidatorDescriptionLength:
         desc_warnings2 = [w for w in result2.warnings if "description is short" in w.lower()]
         assert len(desc_warnings2) == 0
 
-        # Empty/whitespace descriptions caught by Pydantic - must stay inline
+        # Empty/whitespace descriptions caught by Pydantic
         with pytest.raises(ValueError, match="description cannot be empty"):
-            BeadsTask(id="test-3", title="Test", description="", status=BeadsTaskStatus.OPEN)
+            mock_beads_task_factory(id="test-3", title="Test", description="")
 
         with pytest.raises(ValueError, match="description cannot be empty"):
-            BeadsTask(id="test-4", title="Test", description="   ", status=BeadsTaskStatus.OPEN)
+            mock_beads_task_factory(id="test-4", title="Test", description="   ")
 
 
 class TestTaskValidatorAcceptanceCriteria:
@@ -178,12 +178,10 @@ class TestTaskValidatorTestMentions:
 class TestTaskValidatorIntegration:
     """Integration tests - consolidated from 4 tests to 2."""
 
-    def test_perfect_task_no_warnings(self):
+    def test_perfect_task_no_warnings(self, mock_beads_task_factory):
         """Test that a well-formed task passes without warnings."""
         validator = TaskValidator(min_description_length=50)
-        # This test needs all fields set including priority/task_type
-        # which the factory doesn't support, so use inline creation
-        task = BeadsTask(
+        task = mock_beads_task_factory(
             id="test-1",
             title="Test Task",
             description="This is a detailed task description that contains enough information and mentions that we need to test the implementation thoroughly.",
