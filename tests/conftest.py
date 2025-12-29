@@ -160,6 +160,54 @@ def failed_workflow_state() -> Mock:
     return state
 
 
+@pytest.fixture
+def workflow_state_factory():
+    """Factory fixture for creating WorkflowState with custom values."""
+    def _create_state(
+        workflow_id: str = "test-workflow-123",
+        workflow_name: str = "Test Workflow",
+        workflow_type: str = "feature",
+        beads_task_id: str = None,
+        beads_task_title: str = None,
+        phase: str = None,
+        max_iterations: int = 10,
+        updated_at=None,
+        total_cost_usd: float = None,
+        total_duration_ms: int = None,
+        save_to_path=None,
+    ) -> WorkflowState:
+        kwargs = {
+            "workflow_id": workflow_id,
+            "workflow_name": workflow_name,
+            "workflow_type": workflow_type,
+        }
+
+        # Add optional parameters only if provided
+        if beads_task_id is not None:
+            kwargs["beads_task_id"] = beads_task_id
+        if beads_task_title is not None:
+            kwargs["beads_task_title"] = beads_task_title
+        if phase is not None:
+            kwargs["phase"] = phase
+        if max_iterations != 10:
+            kwargs["max_iterations"] = max_iterations
+        if updated_at is not None:
+            kwargs["updated_at"] = updated_at
+        if total_cost_usd is not None:
+            kwargs["total_cost_usd"] = total_cost_usd
+        if total_duration_ms is not None:
+            kwargs["total_duration_ms"] = total_duration_ms
+
+        state = WorkflowState(**kwargs)
+
+        if save_to_path is not None:
+            state.save(save_to_path)
+
+        return state
+
+    return _create_state
+
+
 # =============================================================================
 # Work Command Mock Fixtures
 # =============================================================================

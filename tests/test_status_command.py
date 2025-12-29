@@ -31,6 +31,7 @@ class TestStatusCommand:
         cli_runner: CliRunner,
         tmp_path: Path,
         monkeypatch,
+        workflow_state_factory,
     ):
         """Test status with no workflows and with a specific workflow ID."""
         # No workflows
@@ -40,7 +41,7 @@ class TestStatusCommand:
         assert "No workflows found" in result.output
 
         # Specific workflow
-        state = WorkflowState(
+        state = workflow_state_factory(
             workflow_id="test-workflow-123",
             workflow_name="Test Workflow",
             workflow_type="feature",
@@ -64,28 +65,29 @@ class TestStatusCommand:
         cli_runner: CliRunner,
         tmp_path: Path,
         monkeypatch,
+        workflow_state_factory,
     ):
         """Test status shows most recent workflow by default."""
         agents_dir = tmp_path / "agents"
         agents_dir.mkdir()
 
         # Older workflow
-        old_state = WorkflowState(
+        old_state = workflow_state_factory(
             workflow_id="old-workflow",
             workflow_name="Old Workflow",
             workflow_type="feature",
             updated_at=datetime.now() - timedelta(hours=2),
+            save_to_path=tmp_path,
         )
-        old_state.save(tmp_path)
 
         # Newer workflow
-        new_state = WorkflowState(
+        new_state = workflow_state_factory(
             workflow_id="new-workflow",
             workflow_name="New Workflow",
             workflow_type="chore",
             updated_at=datetime.now(),
+            save_to_path=tmp_path,
         )
-        new_state.save(tmp_path)
 
         monkeypatch.chdir(tmp_path)
         result = cli_runner.invoke(status, [])
@@ -99,9 +101,10 @@ class TestStatusCommand:
         cli_runner: CliRunner,
         tmp_path: Path,
         monkeypatch,
+        workflow_state_factory,
     ):
         """Test status shows feature progress with correct icons."""
-        state = WorkflowState(
+        state = workflow_state_factory(
             workflow_id="progress-test",
             workflow_name="Progress Test",
             workflow_type="feature",
@@ -132,10 +135,11 @@ class TestStatusCommand:
         cli_runner: CliRunner,
         tmp_path: Path,
         monkeypatch,
+        workflow_state_factory,
     ):
         """Test status --json outputs valid JSON for single and multiple workflows."""
         # Single workflow
-        state = WorkflowState(
+        state = workflow_state_factory(
             workflow_id="json-test",
             workflow_name="JSON Test",
             workflow_type="feature",
@@ -160,7 +164,7 @@ class TestStatusCommand:
         assert output["progress_percentage"] == 100.0
 
         # Multiple workflows with --all --json
-        state2 = WorkflowState(
+        state2 = workflow_state_factory(
             workflow_id="wf-2",
             workflow_name="Second",
             workflow_type="chore",
@@ -178,6 +182,7 @@ class TestStatusCommand:
         cli_runner: CliRunner,
         tmp_path: Path,
         monkeypatch,
+        workflow_state_factory,
     ):
         """Test status --all shows all workflows."""
         workflows = [
@@ -187,12 +192,12 @@ class TestStatusCommand:
         ]
 
         for wf_id, wf_name, wf_type in workflows:
-            state = WorkflowState(
+            state = workflow_state_factory(
                 workflow_id=wf_id,
                 workflow_name=wf_name,
                 workflow_type=wf_type,
+                save_to_path=tmp_path,
             )
-            state.save(tmp_path)
 
         monkeypatch.chdir(tmp_path)
         result = cli_runner.invoke(status, ["--all"])
@@ -207,9 +212,10 @@ class TestStatusCommand:
         cli_runner: CliRunner,
         tmp_path: Path,
         monkeypatch,
+        workflow_state_factory,
     ):
         """Test status --verbose shows feature descriptions."""
-        state = WorkflowState(
+        state = workflow_state_factory(
             workflow_id="verbose-test",
             workflow_name="Verbose Test",
             workflow_type="feature",
@@ -233,6 +239,7 @@ class TestStatusCommand:
         cli_runner: CliRunner,
         tmp_path: Path,
         monkeypatch,
+        workflow_state_factory,
     ):
         """Test status error handling and edge cases."""
         # Nonexistent workflow
@@ -242,7 +249,7 @@ class TestStatusCommand:
         assert "not found" in result.output
 
         # No timing data
-        state = WorkflowState(
+        state = workflow_state_factory(
             workflow_id="no-timing",
             workflow_name="No Timing",
             workflow_type="feature",
@@ -259,10 +266,11 @@ class TestStatusCommand:
         cli_runner: CliRunner,
         tmp_path: Path,
         monkeypatch,
+        workflow_state_factory,
     ):
         """Test status gracefully handles missing and malformed events."""
         # Missing events file
-        state1 = WorkflowState(
+        state1 = workflow_state_factory(
             workflow_id="no-events",
             workflow_name="No Events",
             workflow_type="feature",
@@ -276,7 +284,7 @@ class TestStatusCommand:
         assert result.exit_code == 0
 
         # Malformed events file
-        state2 = WorkflowState(
+        state2 = workflow_state_factory(
             workflow_id="bad-events",
             workflow_name="Bad Events",
             workflow_type="feature",
@@ -298,7 +306,7 @@ class TestStatusCommand:
 class TestStatusHelperFunctions:
     """Tests for status helper functions - consolidated from 5 tests to 2."""
 
-    def test_find_most_recent_and_get_all_workflows(self, tmp_path: Path):
+    def test_find_most_recent_and_get_all_workflows(self, tmp_path: Path, workflow_state_factory):
         """Test finding most recent workflow and getting all workflows."""
         from jean_claude.core.workflow_utils import find_most_recent_workflow, get_all_workflows
 
@@ -313,21 +321,21 @@ class TestStatusHelperFunctions:
         assert get_all_workflows(tmp_path) == []
 
         # Create workflows with different timestamps
-        old_state = WorkflowState(
+        old_state = workflow_state_factory(
             workflow_id="old",
             workflow_name="Old",
             workflow_type="feature",
             updated_at=datetime.now() - timedelta(hours=1),
+            save_to_path=tmp_path,
         )
-        old_state.save(tmp_path)
 
-        new_state = WorkflowState(
+        new_state = workflow_state_factory(
             workflow_id="new",
             workflow_name="New",
             workflow_type="feature",
             updated_at=datetime.now(),
+            save_to_path=tmp_path,
         )
-        new_state.save(tmp_path)
 
         # Most recent
         assert find_most_recent_workflow(tmp_path) == "new"

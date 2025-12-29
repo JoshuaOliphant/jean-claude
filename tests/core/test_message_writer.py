@@ -167,13 +167,13 @@ class TestWriteMessagePrioritiesAndFlags:
 class TestWriteMessageEdgeCases:
     """Tests for edge cases - consolidated from 5 tests to 1."""
 
-    def test_write_message_edge_cases(self, tmp_path):
+    def test_write_message_edge_cases(self, tmp_path, message_factory):
         """Test edge cases: long body, unicode, custom ID, timestamp."""
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
 
         # Long body
         long_body = "A" * 10000
-        msg_long = Message(
+        msg_long = message_factory(
             from_agent="agent-1", to_agent="agent-2", type="test",
             subject="Long", body=long_body
         )
@@ -182,7 +182,7 @@ class TestWriteMessageEdgeCases:
         assert len(parsed["body"]) == 10000
 
         # Unicode
-        msg_unicode = Message(
+        msg_unicode = message_factory(
             from_agent="agent-1", to_agent="agent-2", type="test",
             subject="Unicode: 你好 🚀 café",
             body="Emojis: 😀 and chars: ñ"
@@ -193,7 +193,7 @@ class TestWriteMessageEdgeCases:
         assert "🚀" in parsed["subject"]
 
         # Custom ID preserved
-        msg_id = Message(
+        msg_id = message_factory(
             id="custom-id-12345", from_agent="agent-1", to_agent="agent-2",
             type="test", subject="Test", body="Body"
         )
@@ -228,12 +228,12 @@ class TestMessageBoxEnum:
 class TestWriteMessageIntegration:
     """Integration tests - consolidated from 2 tests to 1."""
 
-    def test_write_message_realistic_workflow(self, tmp_path):
+    def test_write_message_realistic_workflow(self, tmp_path, message_factory):
         """Test realistic workflow with inbox and outbox."""
         paths = MailboxPaths(workflow_id="coordinator-workflow", base_dir=tmp_path)
 
         # Coordinator receives help request
-        help_request = Message(
+        help_request = message_factory(
             from_agent="worker-1", to_agent="coordinator",
             type="help_request", subject="Need assistance",
             body="I'm stuck", priority=MessagePriority.URGENT,
@@ -242,7 +242,7 @@ class TestWriteMessageIntegration:
         write_message(help_request, MessageBox.INBOX, paths)
 
         # Coordinator sends response
-        response = Message(
+        response = message_factory(
             from_agent="coordinator", to_agent="worker-1",
             type="help_response", subject="Re: Need assistance",
             body="Try approach X", priority=MessagePriority.URGENT
@@ -250,7 +250,7 @@ class TestWriteMessageIntegration:
         write_message(response, MessageBox.OUTBOX, paths)
 
         # Coordinator receives status update
-        status = Message(
+        status = message_factory(
             from_agent="worker-2", to_agent="coordinator",
             type="status_update", subject="Done",
             body="Finished", priority=MessagePriority.NORMAL

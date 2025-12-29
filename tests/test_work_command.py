@@ -263,45 +263,8 @@ class TestWorkPhaseTransitions:
                     assert state_data["phase"] in ["planning", "implementing", "verifying", "complete"]
 
 
-class TestExceptionHandling:
-    """Tests for exception handling in work command."""
-
-    def test_no_dead_exception_handlers(self):
-        """Test that work.py has no dead exception handlers.
-
-        Specifically, verify there's no unreachable except Exception block
-        after an except RuntimeError block (since RuntimeError is a subclass
-        of Exception).
-        """
-        import inspect
-        from jean_claude.cli.commands.work import work
-
-        # Read the source code
-        source = inspect.getsource(work)
-        lines = source.split('\n')
-
-        # Look for the exception handling pattern
-        # We should NOT find: except RuntimeError followed by except Exception at same indent level
-        runtime_error_indices = []
-        exception_indices = []
-
-        for i, line in enumerate(lines):
-            stripped = line.lstrip()
-            indent = len(line) - len(stripped)
-
-            if stripped.startswith('except RuntimeError'):
-                runtime_error_indices.append((i, indent))
-            elif stripped.startswith('except Exception'):
-                exception_indices.append((i, indent))
-
-        # Check for dead code: except Exception after except RuntimeError at same level
-        for runtime_idx, runtime_indent in runtime_error_indices:
-            for exc_idx, exc_indent in exception_indices:
-                if exc_idx > runtime_idx and exc_indent == runtime_indent:
-                    # Found except Exception after except RuntimeError at same level
-                    # This is dead code since RuntimeError is caught first
-                    assert False, (
-                        f"Dead exception handler found at line {exc_idx}: "
-                        f"'except Exception' after 'except RuntimeError' at line {runtime_idx}. "
-                        f"Since RuntimeError is a subclass of Exception, this code is unreachable."
-                    )
+# NOTE: Dead exception handler detection removed
+# The previous test gave false positives by only checking indentation levels,
+# not whether exception handlers were part of the same try-except chain.
+# Static analysis tools like Ruff properly detect unreachable exception handlers
+# through AST traversal, making this manual test redundant.

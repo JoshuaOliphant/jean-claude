@@ -379,20 +379,20 @@ class TestReadMessages:
     def test_read_messages_uses_resolve_mailbox_path(self, tmp_path, monkeypatch):
         """Test that read_messages uses resolve_mailbox_path utility."""
         # Arrange
-        from jean_claude.core import mailbox_storage
+        from jean_claude.core import message_reader
 
         paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
         paths.inbox_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Track if resolve_mailbox_path was called
         resolve_called = []
-        original_resolve = mailbox_storage.resolve_mailbox_path
+        original_resolve = message_reader.resolve_mailbox_path
 
         def mock_resolve(mailbox, paths):
             resolve_called.append((mailbox, paths))
             return original_resolve(mailbox, paths)
 
-        monkeypatch.setattr(mailbox_storage, 'resolve_mailbox_path', mock_resolve)
+        monkeypatch.setattr(message_reader, 'resolve_mailbox_path', mock_resolve)
 
         # Act
         messages = read_messages(MessageBox.INBOX, paths)
