@@ -483,3 +483,184 @@ class TestLogsHelp:
         assert "--follow" in result.output
         assert "--since" in result.output
         assert "--level" in result.output
+
+
+class TestLogsCommandRefactor:
+    """Tests for logs command refactor to use get_all_workflows utility function."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create a CLI test runner."""
+        return CliRunner()
+
+    @pytest.fixture
+    def temp_project_multi_workflows(self, tmp_path):
+        """Create a temporary project with multiple workflows for testing --all functionality."""
+        # Create agents directory
+        agents_dir = tmp_path / "agents"
+        agents_dir.mkdir()
+
+        # Create first workflow
+        workflow1_dir = agents_dir / "workflow-one"
+        workflow1_dir.mkdir()
+
+        events1 = [
+            {
+                "id": "evt-1",
+                "timestamp": "2025-01-15T12:00:00",
+                "workflow_id": "workflow-one",
+                "event_type": "workflow.started",
+                "data": {"beads_task": "task-1"}
+            },
+            {
+                "id": "evt-2",
+                "timestamp": "2025-01-15T12:00:10",
+                "workflow_id": "workflow-one",
+                "event_type": "feature.completed",
+                "data": {"feature_name": "Feature A"}
+            }
+        ]
+
+        with open(workflow1_dir / "events.jsonl", 'w') as f:
+            for event in events1:
+                f.write(json.dumps(event) + '\n')
+
+        state1 = {
+            "workflow_id": "workflow-one",
+            "workflow_name": "First Workflow",
+            "workflow_type": "feature",
+            "phase": "complete",
+            "created_at": "2025-01-15T12:00:00",
+            "updated_at": "2025-01-15T12:00:10",
+        }
+        with open(workflow1_dir / "state.json", 'w') as f:
+            json.dump(state1, f)
+
+        # Create second workflow
+        workflow2_dir = agents_dir / "workflow-two"
+        workflow2_dir.mkdir()
+
+        events2 = [
+            {
+                "id": "evt-3",
+                "timestamp": "2025-01-15T13:00:00",
+                "workflow_id": "workflow-two",
+                "event_type": "workflow.started",
+                "data": {"beads_task": "task-2"}
+            },
+            {
+                "id": "evt-4",
+                "timestamp": "2025-01-15T13:00:20",
+                "workflow_id": "workflow-two",
+                "event_type": "agent.error",
+                "data": {"error": "Something failed"}
+            }
+        ]
+
+        with open(workflow2_dir / "events.jsonl", 'w') as f:
+            for event in events2:
+                f.write(json.dumps(event) + '\n')
+
+        state2 = {
+            "workflow_id": "workflow-two",
+            "workflow_name": "Second Workflow",
+            "workflow_type": "bug",
+            "phase": "verifying",
+            "created_at": "2025-01-15T13:00:00",
+            "updated_at": "2025-01-15T13:00:20",
+        }
+        with open(workflow2_dir / "state.json", 'w') as f:
+            json.dump(state2, f)
+
+        return tmp_path
+
+    def test_logs_help_shows_all_option(self, runner):
+        """Test that --help shows --all option."""
+        result = runner.invoke(cli, ["logs", "--help"])
+
+        assert result.exit_code == 0
+        assert "--all" in result.output
+        assert "Show logs from all workflows" in result.output or "all workflows" in result.output
+
+    def test_logs_module_imports_get_all_workflows_from_utils(self):
+        """Test that logs module imports get_all_workflows from workflow_utils."""
+        from jean_claude.cli.commands import logs as logs_module
+        from jean_claude.core.workflow_utils import get_all_workflows as utils_get_all_workflows
+
+        # The logs module should import get_all_workflows from workflow_utils
+        assert hasattr(logs_module, 'get_all_workflows')
+        assert logs_module.get_all_workflows is utils_get_all_workflows
+
+    @patch('jean_claude.cli.commands.logs.get_all_workflows')
+    def test_logs_all_uses_get_all_workflows_function(self, mock_get_all_workflows, runner, temp_project_multi_workflows):
+        """Test that 'jc logs --all' uses the get_all_workflows function."""
+        # Mock get_all_workflows to return empty list to avoid complex setup
+        mock_get_all_workflows.return_value = []
+
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project_multi_workflows / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs", "--all"])
+
+            # Verify get_all_workflows was called
+            mock_get_all_workflows.assert_called_once()
+            call_args = mock_get_all_workflows.call_args[0]
+            assert isinstance(call_args[0], Path)  # Should be called with project_root
+
+    def test_logs_all_shows_logs_from_multiple_workflows(self, runner, temp_project_multi_workflows):
+        """Test that 'jc logs --all' shows logs from all workflows."""
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project_multi_workflows / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs", "--all"])
+
+            assert result.exit_code == 0
+            # Should show events from both workflows
+            assert "workflow-one" in result.output
+            assert "workflow-two" in result.output
+            assert "workflow.started" in result.output
+            assert "Feature A" in result.output or "feature.completed" in result.output
+            assert "agent.error" in result.output
+
+    def test_logs_all_with_json_output(self, runner, temp_project_multi_workflows):
+        """Test that 'jc logs --all --json' outputs valid JSON with logs from all workflows."""
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project_multi_workflows / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs", "--all", "--json"])
+
+            assert result.exit_code == 0
+            # Should be valid JSON
+            try:
+                data = json.loads(result.output)
+                assert isinstance(data, list)
+                # Should have events from both workflows
+                workflow_ids = {event.get("workflow_id") for event in data}
+                assert "workflow-one" in workflow_ids
+                assert "workflow-two" in workflow_ids
+            except json.JSONDecodeError:
+                pytest.fail("Output is not valid JSON")
+
+    def test_logs_all_with_filtering(self, runner, temp_project_multi_workflows):
+        """Test that 'jc logs --all' works with filtering options like --level."""
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project_multi_workflows / "agents", Path.cwd() / "agents")
+
+            # Test with level filtering
+            result = runner.invoke(cli, ["logs", "--all", "--level", "error"])
+
+            assert result.exit_code == 0
+            # Should only show error events
+            assert "agent.error" in result.output
+
+    def test_logs_all_with_no_workflows(self, runner):
+        """Test that 'jc logs --all' handles no workflows gracefully."""
+        with runner.isolated_filesystem():
+            result = runner.invoke(cli, ["logs", "--all"])
+
+            assert result.exit_code == 0
+            assert "no logs" in result.output.lower() or "no workflows" in result.output.lower()

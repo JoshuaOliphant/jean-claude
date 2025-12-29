@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from sse_starlette.sse import EventSourceResponse
 
 from jean_claude.core.state import WorkflowState
+from jean_claude.core.workflow_utils import get_all_workflows as get_all_workflow_states
 
 
 def get_templates_dir() -> Path:
@@ -46,30 +47,9 @@ def create_app(project_root: Path | None = None) -> FastAPI:
 
     def get_all_workflows() -> list[dict]:
         """Get all workflows from agents directory."""
-        agents_dir = project_root / "agents"
-        if not agents_dir.exists():
-            return []
-
-        workflows = []
-        for workflow_dir in agents_dir.iterdir():
-            if not workflow_dir.is_dir():
-                continue
-
-            state_file = workflow_dir / "state.json"
-            if state_file.exists():
-                try:
-                    with open(state_file) as f:
-                        state = json.load(f)
-                    workflows.append(state)
-                except (json.JSONDecodeError, IOError):
-                    continue
-
-        # Sort by updated_at descending
-        workflows.sort(
-            key=lambda w: w.get("updated_at", ""),
-            reverse=True
-        )
-        return workflows
+        workflow_states = get_all_workflow_states(project_root)
+        # Convert WorkflowState objects to dict format for API compatibility
+        return [workflow.model_dump() for workflow in workflow_states]
 
     def get_workflow_state(workflow_id: str) -> dict | None:
         """Get workflow state by ID."""

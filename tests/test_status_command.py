@@ -300,8 +300,7 @@ class TestStatusHelperFunctions:
 
     def test_find_most_recent_and_get_all_workflows(self, tmp_path: Path):
         """Test finding most recent workflow and getting all workflows."""
-        from jean_claude.core.workflow_utils import find_most_recent_workflow
-        from jean_claude.cli.commands.status import get_all_workflows
+        from jean_claude.core.workflow_utils import find_most_recent_workflow, get_all_workflows
 
         # No agents dir
         assert find_most_recent_workflow(tmp_path) is None

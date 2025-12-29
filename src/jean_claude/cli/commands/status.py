@@ -17,40 +17,10 @@ from rich.text import Text
 
 from jean_claude.core.state import WorkflowState
 from jean_claude.core.events import EventLogger
-from jean_claude.core.workflow_utils import find_most_recent_workflow
+from jean_claude.core.workflow_utils import find_most_recent_workflow, get_all_workflows
 
 console = Console()
 
-
-def get_all_workflows(project_root: Path) -> list[WorkflowState]:
-    """Get all workflows sorted by most recent first.
-
-    Args:
-        project_root: Root directory of the project
-
-    Returns:
-        List of WorkflowState objects sorted by updated_at descending
-    """
-    agents_dir = project_root / "agents"
-    if not agents_dir.exists():
-        return []
-
-    workflows = []
-    for workflow_dir in agents_dir.iterdir():
-        if not workflow_dir.is_dir():
-            continue
-
-        state_file = workflow_dir / "state.json"
-        if state_file.exists():
-            try:
-                state = WorkflowState.load_from_file(state_file)
-                workflows.append(state)
-            except Exception:
-                continue
-
-    # Sort by updated_at descending (most recent first)
-    workflows.sort(key=lambda w: w.updated_at, reverse=True)
-    return workflows
 
 
 def get_feature_durations(project_root: Path, workflow_id: str) -> dict[str, int]:

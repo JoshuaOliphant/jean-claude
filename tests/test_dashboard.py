@@ -277,7 +277,8 @@ class TestDashboardWorkflowView:
             state = {
                 "workflow_id": name,
                 "workflow_name": f"Workflow {name.upper()}",
-                "phase": "completed" if i == 0 else "implementing",
+                "workflow_type": "feature",
+                "phase": "complete" if i == 0 else "implementing",
                 "features": [],
                 "created_at": "2025-01-15T12:00:00",
                 "updated_at": "2025-01-15T12:30:00",

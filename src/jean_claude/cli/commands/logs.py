@@ -15,7 +15,7 @@ from rich.console import Console
 from rich.text import Text
 
 from jean_claude.core.state import WorkflowState
-from jean_claude.core.workflow_utils import find_most_recent_workflow
+from jean_claude.core.workflow_utils import find_most_recent_workflow, get_all_workflows
 
 console = Console()
 
@@ -268,6 +268,12 @@ def filter_events(
     is_flag=True,
     help="Output in JSON format for scripting",
 )
+@click.option(
+    "--all",
+    "show_all",
+    is_flag=True,
+    help="Show logs from all workflows",
+)
 def logs(
     workflow_id: str | None,
     follow: bool,
@@ -275,6 +281,7 @@ def logs(
     level: str | None,
     limit: int | None,
     json_output: bool,
+    show_all: bool,
 ) -> None:
     """View workflow event logs.
 
@@ -284,6 +291,7 @@ def logs(
     Examples:
       jc logs                      # Show logs from most recent workflow
       jc logs my-workflow-123      # Show logs from specific workflow
+      jc logs --all                # Show logs from all workflows
       jc logs --follow             # Tail logs in real-time
       jc logs --since 5m           # Show logs from last 5 minutes
       jc logs --level info         # Filter to INFO level and above
@@ -293,6 +301,84 @@ def logs(
       jc logs --json               # Output as JSON array
     """
     project_root = Path.cwd()
+
+    # Validate option combinations
+    if show_all and follow:
+        console.print("[red]Error:[/red] Cannot use --follow with --all (real-time tailing is only supported for single workflow)")
+        raise click.Abort()
+
+    # Show logs from all workflows
+    if show_all:
+        workflows = get_all_workflows(project_root)
+        if not workflows:
+            console.print("[yellow]No workflows found with logs[/yellow]")
+            console.print("[dim]Run 'jc work <task-id>' to start a workflow[/dim]")
+            return
+
+        # Collect all events from all workflows
+        all_events = []
+        for workflow_state in workflows:
+            events_file = project_root / "agents" / workflow_state.workflow_id / "events.jsonl"
+            if events_file.exists():
+                workflow_events = list(read_events(events_file))
+                all_events.extend(workflow_events)
+
+        # Parse since duration
+        since_delta = None
+        if since:
+            try:
+                since_delta = parse_duration(since)
+            except ValueError as e:
+                console.print(f"[red]Error:[/red] {e}")
+                raise click.Abort()
+
+        # Determine if level is a category or actual level
+        category = None
+        level_filter = level
+        if level and level.lower() in ["workflow", "feature", "agent"]:
+            category = level
+            level_filter = None
+
+        # Apply filters to all events
+        filtered_events = list(filter_events(
+            iter(all_events),
+            since=since_delta,
+            level=level_filter,
+            category=category,
+        ))
+
+        # Sort by timestamp to interleave events from different workflows
+        try:
+            filtered_events.sort(key=lambda e: e.get("timestamp", ""))
+        except Exception:
+            # If timestamp parsing fails, keep original order
+            pass
+
+        # Apply limit (take last N events)
+        if limit is not None and limit > 0:
+            filtered_events = filtered_events[-limit:]
+
+        if json_output:
+            console.print_json(data=filtered_events)
+        else:
+            if not filtered_events:
+                console.print("[dim]No matching log entries[/dim]")
+                return
+
+            for event in filtered_events:
+                # Add workflow ID to the display for clarity
+                workflow_id_display = event.get("workflow_id", "unknown")
+                event_line = format_log_line(event)
+                if isinstance(event_line, Text):
+                    # Rich Text object - add workflow prefix
+                    prefixed_line = Text()
+                    prefixed_line.append(f"[{workflow_id_display}] ", style="dim blue")
+                    prefixed_line.append(event_line)
+                    console.print(prefixed_line)
+                else:
+                    # String - add workflow prefix
+                    console.print(f"[{workflow_id_display}] {event_line}")
+        return
 
     # Determine which workflow to show
     if workflow_id is None:
