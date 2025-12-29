@@ -100,6 +100,23 @@ Before doing ANYTHING:
 - Ensure all tests pass
 {f"- Tests should be in: {feature.test_file}" if feature.test_file else ""}
 
+**Testing Guidelines (CRITICAL)**:
+1. **Check existing tests FIRST**: Search for similar tests before writing new ones
+   - Use: `grep -r "def test_.*{{keyword}}" tests/`
+2. **Use existing fixtures**: Read tests/conftest.py and tests/core/conftest.py
+   - Available: cli_runner, mock_beads_task, sample_message, message_factory, etc.
+   - NEVER create inline test data when fixtures exist
+3. **Add to existing test files**: Only create new test files if necessary
+   - Tests for src/jean_claude/core/foo.py → tests/core/test_foo.py
+   - Tests for src/jean_claude/cli/commands/bar.py → tests/test_bar.py
+4. **Consolidate, don't duplicate**: One comprehensive test > five narrow tests
+   - DON'T write separate tests for each variation (priority levels, file types, etc.)
+   - DO use loops or parametrization to test multiple scenarios
+5. **Unit tests > Integration tests**: Test the function directly, not through CLI
+   - If testing workflow_utils.find_most_recent_workflow(), test it directly
+   - DON'T test it indirectly through status/logs commands
+6. **Follow CLAUDE.md test patterns**: See CLAUDE.md "Test Guidelines" section
+
 ## STEP 3: UPDATE STATE
 
 After completing the feature:
@@ -114,6 +131,8 @@ After completing the feature:
 ⚠️ NEVER skip the verification step
 ⚠️ NEVER modify the feature list in state.json
 ⚠️ NEVER work on multiple features simultaneously
+⚠️ NEVER add duplicate test coverage
+⚠️ ALWAYS use existing fixtures and patterns
 ⚠️ ALWAYS save state after completion
 
 Work on EXACTLY ONE feature this session. Do not proceed to the next feature.
