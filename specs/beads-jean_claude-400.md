@@ -100,6 +100,6 @@ Agent: ~3-4 hours (many files to update)
 ## Task Metadata
 
 - **Task ID**: jean_claude-400
-- **Status**: open
+- **Status**: in_progress
 - **Created**: 2025-12-28 17:16:44
-- **Updated**: 2025-12-28 17:16:44
+- **Updated**: 2025-12-28 17:31:18
