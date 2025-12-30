@@ -112,18 +112,22 @@ class TestEventStoreConnectionManagement:
         conn.close()
 
     def test_get_connection_handles_database_creation(self, tmp_path):
-        """Test that get_connection() works even if database file doesn't exist yet."""
+        """Test that get_connection() works with automatically created database."""
         db_path = tmp_path / "new_events.db"
-        event_store = EventStore(db_path)
 
         # Database file doesn't exist yet
         assert not db_path.exists()
 
-        # get_connection should still work (SQLite creates file automatically)
+        # Creating EventStore automatically creates database via _init_schema()
+        event_store = EventStore(db_path)
+
+        # Database file should now exist
+        assert db_path.exists()
+
+        # get_connection should work with the created database
         conn = event_store.get_connection()
 
         assert isinstance(conn, sqlite3.Connection)
-        assert db_path.exists()  # File should be created
 
         conn.close()
 
@@ -131,19 +135,18 @@ class TestEventStoreConnectionManagement:
         """Test that get_connection() raises helpful error for invalid database path."""
         # Use a path that should cause permission errors
         invalid_path = Path("/dev/null/impossible.db")
-        event_store = EventStore(invalid_path)
 
+        # Error should occur during __init__ (which calls _init_schema())
         with pytest.raises((OSError, sqlite3.Error)) as excinfo:
-            event_store.get_connection()
+            event_store = EventStore(invalid_path)
 
         error_msg = str(excinfo.value).lower()
-        assert any(keyword in error_msg for keyword in ["database", "connection", "path", "permission"])
+        assert any(keyword in error_msg for keyword in ["database", "connection", "path", "permission", "schema"])
 
     def test_get_connection_uses_stored_db_path(self, tmp_path):
         """Test that get_connection() uses the db_path stored during initialization."""
         db_path = tmp_path / "specific_events.db"
-        event_store = EventStore(db_path)
-        event_store._init_schema()
+        event_store = EventStore(db_path)  # Automatically calls _init_schema()
 
         conn = event_store.get_connection()
 
@@ -383,11 +386,9 @@ class TestEventStoreConnectionErrorHandling:
         with open(db_path, 'w') as f:
             f.write("This is not a SQLite database")
 
-        event_store = EventStore(db_path)
-
-        # Should raise appropriate error for corrupted database
+        # Should raise appropriate error during __init__ when trying to initialize schema
         with pytest.raises((sqlite3.Error, sqlite3.DatabaseError)):
-            event_store.get_connection()
+            event_store = EventStore(db_path)
 
     def test_connection_with_readonly_database_file(self, tmp_path):
         """Test connection behavior with read-only database file."""
@@ -416,26 +417,23 @@ class TestEventStoreConnectionErrorHandling:
         """Test context manager behavior when connection creation fails."""
         # Use invalid path that will cause connection error
         invalid_path = Path("/dev/null/impossible.db")
-        event_store = EventStore(invalid_path)
 
-        # Context manager should propagate connection errors
+        # Should raise error during __init__ (which calls _init_schema())
         with pytest.raises((OSError, sqlite3.Error)):
-            with event_store as conn:
-                pass  # Should not reach here
+            event_store = EventStore(invalid_path)
 
     def test_connection_error_messages_are_helpful(self, tmp_path):
         """Test that connection error messages provide helpful debugging information."""
         # Test various error scenarios and verify helpful error messages
         test_cases = [
-            (Path("/dev/null/impossible.db"), ["path", "permission", "directory"]),
-            (Path(""), ["path", "empty", "invalid"]),
+            (Path("/dev/null/impossible.db"), ["path", "permission", "directory", "schema"]),
+            (Path(""), ["schema", "database", "initialize"]),  # Path('') becomes '.' which is valid but may fail during schema init
         ]
 
         for invalid_path, expected_keywords in test_cases:
-            event_store = EventStore(invalid_path)
-
+            # Error should occur during __init__ (which calls _init_schema())
             with pytest.raises((OSError, sqlite3.Error, ValueError)) as excinfo:
-                event_store.get_connection()
+                event_store = EventStore(invalid_path)
 
             error_msg = str(excinfo.value).lower()
             # Should contain at least one helpful keyword

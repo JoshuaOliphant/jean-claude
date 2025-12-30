@@ -14,6 +14,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, Mock
 import tempfile
+import sqlite3
 
 # Import will fail until we implement the EventStore class - that's expected in TDD
 try:
@@ -189,10 +190,14 @@ class TestEventStoreErrorHandling:
         # The error should be descriptive and mention permissions/readonly status
         readonly_path = "/usr/readonly/events.db"
 
-        # EventStore.__init__ itself shouldn't fail - it's just storing the path
-        # Error handling should happen when actually trying to create/access the database
-        event_store = EventStore(readonly_path)
-        assert event_store.db_path == Path(readonly_path)
+        # EventStore.__init__ now calls _init_schema() automatically
+        # So errors happen during initialization
+        with pytest.raises((OSError, sqlite3.Error)) as excinfo:
+            event_store = EventStore(readonly_path)
+
+        # Error message should mention the path or permission issues
+        error_msg = str(excinfo.value).lower()
+        assert any(keyword in error_msg for keyword in ["readonly", "permission", "path", "schema"])
 
     def test_init_handles_extremely_long_paths(self):
         """Test handling of extremely long paths."""
@@ -200,9 +205,10 @@ class TestEventStoreErrorHandling:
         long_component = "a" * 200  # Very long directory name
         long_path = Path("/") / long_component / long_component / "events.db"
 
-        # Init should accept it (filesystem limits are checked later during actual file operations)
-        event_store = EventStore(long_path)
-        assert event_store.db_path == long_path
+        # EventStore.__init__ now calls _init_schema() automatically
+        # Filesystem limits will cause an error during initialization
+        with pytest.raises((OSError, sqlite3.Error)):
+            event_store = EventStore(long_path)
 
     def test_init_error_messages_are_descriptive(self):
         """Test that error messages provide helpful information."""

@@ -33,15 +33,14 @@ class TestEventStoreSchemaInitialization:
     def test_init_schema_creates_database_and_tables(self, tmp_path):
         """Test that _init_schema() creates database file and tables when they don't exist."""
         db_path = tmp_path / "test_events.db"
-        event_store = EventStore(db_path)
 
         # Database file shouldn't exist yet
         assert not db_path.exists()
 
-        # Call _init_schema()
-        event_store._init_schema()
+        # Create EventStore - automatically calls _init_schema()
+        event_store = EventStore(db_path)
 
-        # Database file should now exist
+        # Database file should now exist (created by automatic init)
         assert db_path.exists()
         assert db_path.is_file()
 
@@ -97,15 +96,14 @@ class TestEventStoreSchemaInitialization:
     def test_init_schema_creates_parent_directories(self, tmp_path):
         """Test that _init_schema() creates parent directories if they don't exist."""
         nested_path = tmp_path / "data" / "events" / "workflow.db"
-        event_store = EventStore(nested_path)
 
         # Parent directories shouldn't exist yet
         assert not nested_path.parent.exists()
 
-        # Call _init_schema()
-        event_store._init_schema()
+        # Create EventStore - automatically calls _init_schema()
+        event_store = EventStore(nested_path)
 
-        # Database file and parent directories should now exist
+        # Database file and parent directories should now exist (created by automatic init)
         assert nested_path.exists()
         assert nested_path.parent.exists()
 
@@ -129,11 +127,10 @@ class TestEventStoreSchemaInitialization:
         """Test that _init_schema() handles database connection errors gracefully."""
         # Create a path in a location that might cause permissions issues
         readonly_path = Path("/dev/null/impossible.db")  # This should fail
-        event_store = EventStore(readonly_path)
 
-        # Should raise an appropriate exception with helpful message
+        # Should raise an appropriate exception during __init__ (which calls _init_schema())
         with pytest.raises((OSError, sqlite3.Error)) as excinfo:
-            event_store._init_schema()
+            event_store = EventStore(readonly_path)
 
         # Error message should be helpful
         error_msg = str(excinfo.value).lower()

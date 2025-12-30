@@ -105,6 +105,9 @@ class EventStore:
         # Store the path as instance variable
         self.db_path = db_path
 
+        # Automatically initialize the database schema
+        self._init_schema()
+
     def _init_schema(self) -> None:
         """Initialize the database schema for the event store.
 
