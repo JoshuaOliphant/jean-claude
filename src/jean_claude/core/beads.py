@@ -44,6 +44,8 @@ class BeadsTaskType(str, Enum):
     FEATURE = 'feature'
     CHORE = 'chore'
     DOCS = 'docs'
+    TASK = 'task'
+    EPIC = 'epic'
 
 
 class BeadsTask(BaseModel):
@@ -230,7 +232,7 @@ class BeadsTask(BaseModel):
                 return BeadsTaskType(v.lower())
             except ValueError:
                 raise ValueError(
-                    f"Invalid task_type: {v}. Must be one of: bug, feature, chore, docs"
+                    f"Invalid task_type: {v}. Must be one of: bug, feature, chore, docs, task, epic"
                 )
 
         return v

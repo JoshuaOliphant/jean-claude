@@ -15,13 +15,17 @@ from jean_claude.core.agent import (
 )
 from jean_claude.core.beads import BeadsTask, BeadsTaskStatus
 from jean_claude.core.beads_trailer_formatter import BeadsTrailerFormatter
+from jean_claude.core.blocker_detector import BlockerDetector, BlockerDetails, BlockerType
+from jean_claude.core.blocker_message_builder import BlockerMessageBuilder
 from jean_claude.core.commit_body_generator import CommitBodyGenerator
 from jean_claude.core.events import Event, EventLogger, EventType
 from jean_claude.core.feature_commit_orchestrator import FeatureCommitOrchestrator
 from jean_claude.core.git_file_stager import GitFileStager
 from jean_claude.core.inbox_count import InboxCount
 from jean_claude.core.inbox_count_persistence import read_inbox_count, write_inbox_count
+from jean_claude.core.inbox_writer import InboxWriter
 from jean_claude.core.mailbox_api import Mailbox
+from jean_claude.core.mailbox_directory_manager import MailboxDirectoryManager
 from jean_claude.core.mailbox_paths import MailboxPaths
 from jean_claude.core.message import Message, MessagePriority
 from jean_claude.core.message_reader import read_messages
@@ -35,6 +39,10 @@ __all__ = [
     "BeadsTask",
     "BeadsTaskStatus",
     "BeadsTrailerFormatter",
+    "BlockerDetector",
+    "BlockerDetails",
+    "BlockerMessageBuilder",
+    "BlockerType",
     "CommitBodyGenerator",
     "Event",
     "EventLogger",
@@ -44,7 +52,9 @@ __all__ = [
     "FeatureCommitOrchestrator",
     "GitFileStager",
     "InboxCount",
+    "InboxWriter",
     "Mailbox",
+    "MailboxDirectoryManager",
     "MailboxPaths",
     "Message",
     "MessageBox",

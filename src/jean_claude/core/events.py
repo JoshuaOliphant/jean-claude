@@ -53,6 +53,8 @@ class EventType(str, Enum):
     # Workflow events
     WORKFLOW_STARTED = "workflow.started"
     WORKFLOW_PHASE_CHANGED = "workflow.phase_changed"
+    WORKFLOW_PAUSED = "workflow.paused"
+    WORKFLOW_RESUMED = "workflow.resumed"
     WORKFLOW_COMPLETED = "workflow.completed"
 
     # Feature events

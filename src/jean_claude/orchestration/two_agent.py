@@ -43,6 +43,15 @@ from jean_claude.core.sdk_executor import execute_prompt_async
 from jean_claude.core.state import WorkflowState
 from jean_claude.orchestration.auto_continue import run_auto_continue
 
+# Mailbox integration imports
+from jean_claude.core.test_failure_detector import FailureDetector
+from jean_claude.core.error_detector import ErrorDetector
+from jean_claude.core.ambiguity_detector import AmbiguityDetector
+from jean_claude.core.blocker_detector import BlockerType
+from jean_claude.core.blocker_message_builder import BlockerMessageBuilder
+from jean_claude.core.inbox_writer import InboxWriter
+from jean_claude.core.workflow_pause_handler import WorkflowPauseHandler
+
 console = Console()
 
 
@@ -370,3 +379,95 @@ async def run_two_agent_workflow(
     )
 
     return final_state
+
+
+def _check_for_blockers_and_handle(
+    agent_result: ExecutionResult,
+    workflow_state: WorkflowState,
+    project_root: Path,
+) -> bool:
+    """Check for blockers in agent response and handle them with mailbox integration.
+
+    This function integrates mailbox functionality into the two-agent workflow by:
+    1. Running multiple blocker detectors on the agent response
+    2. If blockers are found, creating and sending messages to INBOX
+    3. Pausing the workflow when blockers require user intervention
+
+    Args:
+        agent_result: The result from the agent execution
+        workflow_state: Current workflow state
+        project_root: Project root directory path
+
+    Returns:
+        True if workflow should be paused (blockers detected), False otherwise
+    """
+    try:
+        # Initialize detectors
+        failure_detector = FailureDetector()
+        error_detector = ErrorDetector()
+        ambiguity_detector = AmbiguityDetector()
+
+        # Check for blockers in priority order: test failures, errors, ambiguity
+        blocker_details = None
+
+        # 1. Check for test failures (highest priority)
+        test_failure_result = failure_detector.detect_blocker(agent_result.output)
+        if test_failure_result.blocker_type != BlockerType.NONE:
+            blocker_details = test_failure_result
+
+        # 2. Check for errors (if no test failures)
+        if blocker_details is None:
+            error_result = error_detector.detect_blocker(agent_result.output)
+            if error_result.blocker_type != BlockerType.NONE:
+                blocker_details = error_result
+
+        # 3. Check for ambiguity (if no other blockers)
+        if blocker_details is None:
+            ambiguity_result = ambiguity_detector.detect_blocker(agent_result.output)
+            if ambiguity_result.blocker_type != BlockerType.NONE:
+                blocker_details = ambiguity_result
+
+        # If no blockers detected, continue workflow
+        if blocker_details is None or blocker_details.blocker_type == BlockerType.NONE:
+            return False
+
+        console.print(f"[yellow]Blocker detected: {blocker_details.blocker_type.value}[/yellow]")
+        console.print(f"[yellow]Message: {blocker_details.message}[/yellow]")
+
+        # Build and send message to user
+        message_builder = BlockerMessageBuilder()
+        message = message_builder.build_message(
+            blocker_details=blocker_details,
+            from_agent="coder-agent",
+            to_agent="user"
+        )
+
+        # Write message to INBOX
+        workflow_dir = project_root / "agents" / workflow_state.workflow_id
+        inbox_writer = InboxWriter(workflow_dir)
+        inbox_writer.write_to_inbox(message)
+
+        console.print(f"[green]✓ Blocker message sent to INBOX[/green]")
+
+        # Pause workflow
+        pause_handler = WorkflowPauseHandler(project_root)
+
+        # Create reason based on blocker type
+        reason_map = {
+            BlockerType.TEST_FAILURE: "Test failure blocker detected",
+            BlockerType.ERROR: "Agent error blocker detected",
+            BlockerType.AMBIGUITY: "Requirement ambiguity blocker detected"
+        }
+        reason = reason_map.get(blocker_details.blocker_type, "Unknown blocker detected")
+
+        pause_handler.pause_workflow(workflow_state, reason=reason)
+
+        console.print(f"[yellow]⏸ Workflow paused - waiting for user response[/yellow]")
+
+        return True  # Indicate workflow should be paused
+
+    except Exception as e:
+        # Handle errors gracefully - log but don't crash workflow
+        console.print(f"[red]Error in blocker detection: {str(e)}[/red]")
+        # Continue workflow if there's an error in blocker detection
+        return False

@@ -1,230 +1,281 @@
-# Jean Claude - AI Developer Workflows
+# CLAUDE.md
 
-Programmatic Claude Code orchestration with Beads issue tracking.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Quick Reference
 
 | Task | Command |
 |------|---------|
-| Run tests | `uv run pytest tests/` |
-| Find work | `bd ready` |
-| Create task | `bd create "Title" --type task --priority 2` |
-| Close task | `bd close <id>` |
-| Two-agent workflow | `jc workflow "description"` |
-| Sync issues | `bd sync` |
+| Run all tests | `uv run pytest` |
+| Run single test | `uv run pytest tests/test_work_command.py` |
+| Run with coverage | `uv run pytest --cov=jean_claude` |
+| Lint code | `uv run ruff check .` |
+| Format code | `uv run ruff format .` |
+| Type check | `uv run mypy src/` |
+| Run CLI locally | `uv run jc <command>` |
 
-For beads context: `bd prime`
+## Architecture Overview
 
-## Architecture
+Jean Claude is a **two-layer orchestration framework** that transforms any Python project into an AI-driven development environment:
 
-**Two-layer design**: Agentic Layer (`.claude/commands/`) operates on Application Layer (`src/jean_claude/`).
+### Layer 1: Agentic Layer
+`.claude/commands/` - Slash commands for Claude Code that orchestrate workflows
+
+### Layer 2: Application Layer
+`src/jean_claude/` - The CLI tool itself with four subsystems:
 
 ```
 src/jean_claude/
-├── core/           # agent.py, sdk_executor.py, state.py, security.py
-├── orchestration/  # two_agent.py, auto_continue.py
-├── cli/            # Click commands (main.py, commands/)
-└── integrations/   # Git, VCS plugins
+├── cli/                 # Click-based command interface
+│   ├── main.py          # Root @click.group() at line 14
+│   ├── commands/        # 14 command modules (work, workflow, prompt, etc.)
+│   └── streaming.py     # SSE-based real-time output
+│
+├── core/                # Core business logic (33 modules)
+│   ├── agent.py         # ExecutionResult, PromptRequest models
+│   ├── sdk_executor.py  # Claude Agent SDK wrapper
+│   ├── state.py         # WorkflowState persistence (JSON files)
+│   ├── beads.py         # Beads task model + integration
+│   ├── security.py      # Bash command validation hooks
+│   ├── events.py        # Event logging to SQLite
+│   └── message.py       # Agent-to-agent mailbox communication
+│
+├── orchestration/       # Multi-agent workflow engine
+│   ├── two_agent.py     # Opus plans → Sonnet implements pattern
+│   ├── auto_continue.py # Autonomous continuation loops
+│   └── post_tool_use_hook.py  # Agent SDK hook integration
+│
+└── dashboard/           # FastAPI monitoring UI
+    ├── app.py           # Web server with SSE streaming
+    └── templates/       # HTML templates
 ```
 
-## Development Patterns
+### Key Architectural Patterns
 
-1. **TDD**: Write tests before implementation
-2. **ABOUTME**: All files start with 2-line `# ABOUTME:` comment
-3. **Fixtures**: Use `tests/conftest.py` fixtures, never nested `with patch()` blocks
-4. **AsyncMock**: Use for async functions (not `Mock`)
-5. **Click CLI**: All commands use Click framework
-6. **Pydantic Models**: All data types use Pydantic v2
+**Two-Agent Pattern** (core innovation):
+- **Initializer Agent** (Opus): Analyzes scope once, creates feature list as JSON
+- **Coder Agent** (Sonnet): Loops through features, implements one per iteration
+- **Shared State**: `agents/{workflow_id}/state.json` is the single source of truth
+- **Context Reset**: Coder agent gets fresh context per feature to avoid bloat
 
-## Test Guidelines (CRITICAL FOR AGENTS)
-
-### What NOT to Test (CRITICAL)
-
-**DO NOT write tests for external tools or libraries. We only test OUR code.**
-
-- ❌ **Beads CLI** (`bd` commands) - External tool, not our code
-- ❌ **Beads models/data structures** - Their implementation, not ours
-- ❌ **Any external API behavior** - We mock these, not test them
-- ✅ **Our CLI commands** - `jc work`, `jc prompt`, etc.
-- ✅ **Our integration points** - How we CALL external tools (mocked)
-- ✅ **Our business logic** - Workflows, state management, etc.
-
-**Beads is a moving target under active development. Testing it is wasted effort.**
-
-### BEFORE writing any test, you MUST:
-
-1. **Ask: Is this OUR code?** If testing an external tool → STOP
-2. **Search for existing tests**: `grep -r "def test_.*{keyword}" tests/`
-3. **Check for existing fixtures**: Read `tests/conftest.py` and `tests/core/conftest.py`
-4. **Reuse existing patterns**: Look at similar test files for patterns
-
-### Fixture Usage (Required)
-
+**Workflow State Machine**:
 ```python
-# GOOD - Use shared fixtures
-def test_something(sample_beads_task, mock_subprocess_success):
-    result = my_function(sample_beads_task)
-    assert result.success
-
-# BAD - Inline creation (creates duplicates)
-def test_something():
-    task = BeadsTask(id="test", title="Test", ...)  # DON'T DO THIS
+WorkflowState (state.py):
+  - Features: List[Feature] with status tracking (not_started → in_progress → completed)
+  - Phases: Dict[str, WorkflowPhase] (planning → implementing → verifying → complete)
+  - Session tracking: session_ids, costs, duration
+  - Beads integration: task_id, title for external issue tracking
 ```
 
-### Mock Patterns (Required)
+**Event-Driven Telemetry**:
+- All operations logged to `.jc/events.db` (SQLite)
+- Real-time streaming via FastAPI + SSE (sse-starlette)
+- EventLogger pattern for structured logging
+
+**Beads Integration**:
+- External issue tracker (similar to Jira/Linear)
+- Auto-generates specs from tasks in `specs/beads-{task_id}.md`
+- `jc work <task-id>` executes full workflow from Beads task
+- Model: `BeadsTask` in `core/beads.py` with status/priority enums
+
+**Mailbox Communication**:
+- Agents communicate via INBOX/OUTBOX message files
+- `Message` model with priority levels and response tracking
+- Enables async agent-to-agent messaging
+
+## Development Standards
+
+### Code Organization
+
+1. **ABOUTME Comments**: Every file starts with 2-line comment:
+   ```python
+   # ABOUTME: Brief description of file purpose
+   # ABOUTME: Key responsibility or pattern used
+   ```
+
+2. **Pydantic v2**: All data models use Pydantic for validation and serialization
+
+3. **Click Framework**: All CLI commands use Click decorators, never argparse
+
+4. **Async/Sync Boundary**:
+   - SDK execution is async (`execute_prompt_async` in `sdk_executor.py`)
+   - CLI commands are sync (Click limitation)
+   - Use `anyio.run()` to bridge sync→async
+
+### Testing Philosophy
+
+**Core Principle**: Test OUR code, not external dependencies.
+
+**What to Mock**:
+- ✅ Beads CLI (`bd` commands) - external tool
+- ✅ Claude Agent SDK responses
+- ✅ Subprocess calls (`subprocess.run`)
+- ✅ File system operations (when appropriate)
+
+**What NOT to Mock**:
+- ❌ Pydantic validation - test real models
+- ❌ Click command parsing - trust the framework
+- ❌ Our own business logic - test real implementations
+
+### Critical Mock Patching Rule
+
+**Always patch where an object is USED, not where it's DEFINED.**
 
 ```python
-# GOOD - Use @patch decorators
+# If edit_and_revalidate.py imports:
+# from jean_claude.core.beads import fetch_beads_task
+
+# ✅ CORRECT - patch in the importing module
+@patch('jean_claude.core.edit_and_revalidate.fetch_beads_task')
+def test_something(mock_fetch):
+    pass
+
+# ❌ WRONG - patching in source module won't work
+@patch('jean_claude.core.beads.fetch_beads_task')
+def test_something(mock_fetch):
+    pass
+```
+
+### Test Organization
+
+**File Mapping**:
+- `src/jean_claude/core/foo.py` → `tests/core/test_foo.py`
+- `src/jean_claude/cli/commands/bar.py` → `tests/test_bar.py`
+
+**Fixture Hierarchy**:
+- `tests/conftest.py` - Root fixtures (cli_runner, mock_beads_task, work_command_mocks)
+- `tests/core/conftest.py` - Core module fixtures (sample_beads_task, subprocess mocks)
+- `tests/orchestration/conftest.py` - Workflow fixtures (workflow_state, execution_result)
+- `tests/templates/conftest.py` - Template path fixtures
+
+**Key Fixtures** (see conftest.py files for complete list):
+- `cli_runner` - Click CLI testing
+- `mock_beads_task` / `sample_beads_task` - BeadsTask instances
+- `work_command_mocks` - All mocks for work command
+- `sample_workflow_state` - Pre-configured WorkflowState
+- `mock_subprocess_success/failure` - Subprocess mocks
+
+**Search Before Creating**:
+```bash
+# Find existing tests for a topic
+grep -r "def test_.*beads" tests/
+
+# Check for existing fixtures
+grep -r "def.*fixture" tests/conftest.py tests/core/conftest.py
+```
+
+### Mock Patterns
+
+```python
+# ✅ GOOD - Use @patch decorators (bottom-up order)
 @patch('module.function_c')
 @patch('module.function_b')
 @patch('module.function_a')
 def test_thing(mock_a, mock_b, mock_c):
     pass
 
-# BAD - Nested with patch() blocks
+# ❌ BAD - Nested with patch() blocks
 def test_thing():
     with patch('a'):
         with patch('b'):
-            with patch('c'):  # DON'T NEST LIKE THIS
-                pass
-```
+            pass  # DON'T NEST
 
-### Mock Patching Rule (CRITICAL)
-
-**Always patch where an object is USED, not where it's DEFINED.**
-
-```python
-# If edit_and_revalidate.py has:
-# from jean_claude.core.beads import fetch_beads_task
-
-# CORRECT - patch in the importing module
-@patch('jean_claude.core.edit_and_revalidate.fetch_beads_task')
-def test_something(mock_fetch):
+# ✅ GOOD - Use AsyncMock for async functions
+@patch('module.async_function', new_callable=AsyncMock)
+def test_async(mock_async):
     pass
 
-# WRONG - patching in the source module won't work
-@patch('jean_claude.core.beads.fetch_beads_task')  # DON'T DO THIS
-def test_something(mock_fetch):
+# ❌ BAD - Regular Mock for async functions
+@patch('module.async_function')  # Will cause errors
+def test_async(mock_async):
     pass
 ```
 
-### Available Fixtures
+### Test Consolidation
 
-**Root fixtures (tests/conftest.py)**:
-| Fixture | Purpose |
-|---------|---------|
-| `cli_runner` | Click CLI testing |
-| `mock_beads_task` | Standard BeadsTask |
-| `mock_beads_task_factory` | Factory for custom BeadsTask |
-| `work_command_mocks` | All mocks for work command |
-| `mock_task_validator` | TaskValidator mock for validation tests |
-| `sample_message` | Standard Message for testing |
-| `urgent_message` | Urgent priority Message |
-| `message_factory` | Factory for custom Message with defaults |
-
-**Core fixtures (tests/core/conftest.py)**:
-| Fixture | Purpose |
-|---------|---------|
-| `sample_beads_task` | Fully-populated BeadsTask |
-| `minimal_beads_task` | BeadsTask with only required fields |
-| `beads_task_factory` | Factory for custom BeadsTask |
-| `mock_subprocess_success` | Subprocess mock returning success |
-| `mock_subprocess_failure` | Subprocess mock returning failure |
-| `valid_beads_json` / `invalid_beads_json` | JSON response fixtures |
-
-**Orchestration fixtures (tests/orchestration/conftest.py)**:
-| Fixture | Purpose |
-|---------|---------|
-| `mock_project_root` | Temp project directory with agents/ |
-| `sample_workflow_state` | Pre-configured WorkflowState with features |
-| `mock_execution_result` | Successful ExecutionResult |
-| `workflow_state_factory` | Factory for custom WorkflowState |
-
-**Template fixtures (tests/templates/conftest.py)**:
-| Fixture | Purpose |
-|---------|---------|
-| `template_path` | Path to beads_spec.md template |
-| `templates_dir` | Path to templates directory |
-
-### Test File Organization
-
-- Tests for `src/jean_claude/core/foo.py` → `tests/core/test_foo.py`
-- Tests for `src/jean_claude/cli/commands/bar.py` → `tests/test_bar.py`
-- **NEVER create duplicate test files** - check if one exists first!
-
-### Naming Conventions
+**Prefer one comprehensive test over many narrow tests.**
 
 ```python
-# Test class: Test{ClassName}{Feature}
-class TestBeadsTaskValidation:
-    # Test method: test_{action}_{condition}_{expected_result}
-    def test_validate_empty_id_raises_error(self):
-        pass
+# ✅ GOOD - Comprehensive test
+@pytest.mark.parametrize("priority", [MessagePriority.LOW, MessagePriority.NORMAL, MessagePriority.URGENT])
+def test_read_messages_all_priorities(priority):
+    # Single test covering all priority levels
+    pass
+
+# ❌ BAD - Separate test per priority
+def test_read_low_priority(): pass
+def test_read_normal_priority(): pass
+def test_read_urgent_priority(): pass
 ```
 
-### Test Consolidation Principles
+**Don't test framework behavior**:
+- Click flag parsing - trust Click
+- Pydantic field defaults - trust Pydantic
+- pytest fixture mechanics - trust pytest
 
-**One comprehensive test beats five narrow tests.**
-
-| Anti-Pattern | Correct Pattern |
-|--------------|-----------------|
-| Separate tests for each priority (LOW/NORMAL/URGENT) | One parameterized test covering all |
-| Separate tests for each keyword (test/verify/validate) | One test with all keywords |
-| Testing Click flag parsing (18 tests for flags!) | Trust Click, test 2-3 essential behaviors |
-| Duplicate fixtures in each test class | Shared fixtures in conftest.py |
-| Testing inbox and outbox separately | One test covering both |
-
-```python
-# GOOD - Comprehensive test with multiple assertions
-def test_read_messages_preserves_all_fields(self, tmp_path):
-    """Test all message fields including priority and awaiting_response."""
-    for priority in [MessagePriority.LOW, MessagePriority.NORMAL, MessagePriority.URGENT]:
-        for awaiting in [True, False]:
-            msg = Message(..., priority=priority, awaiting_response=awaiting)
-            write_message(msg, MessageBox.INBOX, paths)
-
-    messages = read_messages(MessageBox.INBOX, paths)
-    assert len(messages) == 6
-    priorities_found = {m.priority for m in messages}
-    assert MessagePriority.LOW in priorities_found
-    assert MessagePriority.URGENT in priorities_found
-
-# BAD - Separate tests for each variation
-def test_read_urgent_priority(self): ...
-def test_read_normal_priority(self): ...
-def test_read_low_priority(self): ...
-def test_awaiting_response_true(self): ...
-def test_awaiting_response_false(self): ...
-```
-
-**Don't test framework behavior:**
-- ❌ Click flag parsing, option validation
-- ❌ Pydantic field defaults, serialization
-- ❌ pytest fixture mechanics
-- ✅ Our business logic that USES these frameworks
-
-## Key Files
+## Key Entry Points
 
 | Purpose | Location |
 |---------|----------|
-| CLI entry point | `src/jean_claude/cli/main.py:14` |
-| SDK executor | `src/jean_claude/core/sdk_executor.py` |
+| CLI root command | `src/jean_claude/cli/main.py:14` |
 | Two-agent workflow | `src/jean_claude/orchestration/two_agent.py` |
-| Security hooks | `src/jean_claude/core/security.py` |
-| Test fixtures | `tests/conftest.py` |
-| Slash commands | `.claude/commands/*.md` |
+| SDK execution | `src/jean_claude/core/sdk_executor.py` |
+| State persistence | `src/jean_claude/core/state.py` |
+| Event logging | `src/jean_claude/core/events.py` |
+| Beads integration | `src/jean_claude/core/beads.py` |
 
-## Docs (Progressive Disclosure)
+## Configuration
 
-- [Testing Patterns](docs/testing.md) - Fixtures, TDD, async mocks
-- [Beads Workflow](docs/beads-workflow.md) - Issue tracking integration
-- [Two-Agent Workflow](docs/two-agent-workflow.md) - Opus plans, Sonnet codes
-- [Security Hooks](docs/security-hooks-implementation.md) - Bash command validation
-- [Auto-Continue](docs/auto-continue-workflow.md) - Autonomous continuation
-- [Streaming](docs/streaming-implementation-summary.md) - Real-time output
+Project configuration in `.jc-project.yaml`:
+```yaml
+directories:
+  specs: specs/       # Workflow specifications
+  agents: agents/     # Agent working directories (state.json here)
+  trees: trees/       # Git worktrees (gitignored)
+  source: src/
+  tests: tests/
+
+tooling:
+  test_command: uv run pytest
+  linter_command: uv run ruff check .
+
+workflows:
+  default_model: sonnet
+  auto_commit: true
+
+vcs:
+  issue_tracker: beads
+  platform: github
+```
 
 ## Output Locations
 
-- Agent outputs: `agents/{adw_id}/{agent_name}/`
-- Specs/plans: `specs/` and `specs/plans/`
-- Worktrees: `trees/` (gitignored)
+- **Agent state**: `agents/{workflow_id}/state.json` - WorkflowState persistence
+- **Event logs**: `agents/{workflow_id}/events.jsonl` - JSONL event log per workflow
+- **SQLite events**: `.jc/events.db` - Centralized event store
+- **Temporary files**: `.jc/temp/` - Verification scripts (check_*.py, demo_*.py)
+- **Reports**: `.jc/reports/` - Status and completion reports
+- **Specs**: `specs/` and `specs/plans/` - Workflow specifications
+- **Worktrees**: `trees/` (gitignored) - Isolated git worktrees
+
+## Documentation
+
+For deeper architectural understanding:
+
+- [Testing Patterns](docs/testing.md) - Fixtures, TDD, async mocks
+- [Two-Agent Workflow](docs/two-agent-workflow.md) - Opus/Sonnet orchestration pattern
+- [Auto-Continue](docs/auto-continue-workflow.md) - Autonomous continuation loops
+- [Security Hooks](docs/security-hooks-implementation.md) - Bash command validation
+- [Streaming](docs/streaming-implementation-summary.md) - Real-time SSE output
+- [Beads Workflow](docs/beads-workflow.md) - External issue tracker integration
+- [Event Store Architecture](docs/event-store-architecture.md) - SQLite event logging
+- [Architecture Overview](docs/ARCHITECTURE.md) - Complete system architecture
+
+## Common Pitfalls
+
+1. **AsyncMock vs Mock**: Use `AsyncMock` for async functions, `Mock` for sync
+2. **Patch Location**: Patch where used, not where defined
+3. **Fixture Duplication**: Check conftest.py files before creating new fixtures
+4. **Testing External Tools**: Don't test Beads/SDK - mock them and test our integration
+5. **Nested Mocking**: Use @patch decorators, not nested `with patch()` blocks
+6. **Test File Location**: Follow the established directory structure (core/, orchestration/, etc.)

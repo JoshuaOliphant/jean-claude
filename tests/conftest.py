@@ -126,7 +126,22 @@ def mock_workflow_state_instance() -> Mock:
     """
     mock_state = Mock(spec=WorkflowState)
     mock_state.workflow_id = "test-workflow-123"
+    mock_state.workflow_name = "Test Workflow"
+    mock_state.workflow_type = "two-agent"
     mock_state.phase = "planning"
+    mock_state.features = []
+    mock_state.current_feature_index = 0
+    mock_state.is_complete.return_value = False
+    mock_state.is_failed.return_value = False
+    mock_state.get_summary.return_value = {
+        'completed_features': 0,
+        'total_features': 0,
+        'failed_features': 0,
+        'progress_percentage': 0.0,
+        'iteration_count': 0,
+        'total_cost_usd': 0.0,
+        'total_duration_ms': 0
+    }
     return mock_state
 
 

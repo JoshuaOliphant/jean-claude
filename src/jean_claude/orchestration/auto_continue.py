@@ -42,9 +42,12 @@ from rich.progress import (
 from jean_claude.core.agent import ExecutionResult, PromptRequest
 from jean_claude.core.events import EventLogger, EventType
 from jean_claude.core.feature_commit_orchestrator import FeatureCommitOrchestrator
+from jean_claude.core.outbox_monitor import OutboxMonitor
+from jean_claude.core.response_parser import ResponseParser
 from jean_claude.core.sdk_executor import execute_prompt_async
 from jean_claude.core.state import Feature, WorkflowState
 from jean_claude.core.verification import run_verification
+from jean_claude.core.workflow_resume_handler import WorkflowResumeHandler
 
 console = Console()
 
@@ -218,6 +221,35 @@ async def run_auto_continue(
         )
 
         while state.iteration_count < max_iter and not interrupted:
+            # Check if workflow is waiting for response (mailbox integration)
+            if state.waiting_for_response:
+                console.print("[yellow]Workflow is paused, waiting for user response...[/yellow]")
+
+                # Monitor outbox for user responses
+                workflow_dir = project_root / "agents" / state.workflow_id
+                outbox_monitor = OutboxMonitor(workflow_dir)
+                messages = outbox_monitor.poll_for_new_messages()
+
+                if messages:
+                    console.print(f"[blue]Found {len(messages)} response message(s) in outbox[/blue]")
+
+                    # Process the first (oldest) message
+                    response_message = messages[0]
+                    response_parser = ResponseParser()
+                    user_decision = response_parser.parse_response(response_message.body)
+
+                    console.print(f"[green]User decision: {user_decision.decision_type}[/green]")
+
+                    # Resume workflow based on user decision
+                    resume_handler = WorkflowResumeHandler(project_root)
+                    resume_handler.resume_workflow(state, user_decision)
+
+                    console.print("[green]Workflow resumed[/green]")
+                else:
+                    # No response yet, break out of loop and wait
+                    console.print("[dim]No response messages found, workflow remains paused[/dim]")
+                    break
+
             # Get next feature
             feature = state.get_next_feature()
 
@@ -300,6 +332,23 @@ async def run_auto_continue(
                 result: ExecutionResult = await execute_prompt_async(
                     request, max_retries=3
                 )
+
+                # Check for blockers and handle with mailbox integration
+                if result.success:
+                    # Import here to avoid circular imports
+                    from jean_claude.orchestration.two_agent import _check_for_blockers_and_handle
+
+                    # Check for blockers in the agent response
+                    should_pause = _check_for_blockers_and_handle(
+                        agent_result=result,
+                        workflow_state=state,
+                        project_root=project_root
+                    )
+
+                    # If blockers detected, break out of the loop to pause workflow
+                    if should_pause:
+                        console.print("[yellow]Workflow paused due to detected blockers[/yellow]")
+                        break
 
                 # Update state based on result
                 if result.success:
