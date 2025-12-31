@@ -258,6 +258,53 @@ vcs:
 - **Specs**: `specs/` and `specs/plans/` - Workflow specifications
 - **Worktrees**: `trees/` (gitignored) - Isolated git worktrees
 
+## Coordinator Communication Patterns
+
+### ntfy Response Polling
+
+When escalating questions to La Boeuf via ntfy.sh, **always use sleep intervals to poll for responses** rather than blocking indefinitely.
+
+**Pattern**:
+```python
+from jean_claude.tools.mailbox_tools import escalate_to_human, poll_ntfy_responses
+import time
+
+# 1. Send escalation
+escalate_to_human(
+    title="Question from Coordinator",
+    message=f"Workflow: {workflow_id}\n\nQuestion: {question}",
+    priority=5
+)
+
+# 2. Poll with sleep intervals (not blocking wait)
+max_attempts = 30  # 30 attempts × 10 seconds = 5 minutes
+for attempt in range(max_attempts):
+    time.sleep(10)  # Poll every 10 seconds
+
+    responses = poll_ntfy_responses()
+    matching = [r for r in responses if r['workflow_id'] == workflow_id]
+
+    if matching:
+        response = matching[0]['response']
+        break
+else:
+    # No response after 5 minutes
+    response = None
+```
+
+**Why**: La Boeuf may be away from phone or need time to think. Polling with sleep intervals:
+- Allows time for human response without blocking
+- Shows respect for asynchronous nature of mobile communication
+- Provides clear timeout behavior
+- Enables progress updates during wait
+
+**Response Format**: Messages from phone must include workflow ID:
+```
+{workflow-id}: {response text}
+```
+
+Example: `mobile-test-001: Yes, proceed with migration`
+
 ## Documentation
 
 For deeper architectural understanding:
@@ -270,6 +317,7 @@ For deeper architectural understanding:
 - [Beads Workflow](docs/beads-workflow.md) - External issue tracker integration
 - [Event Store Architecture](docs/event-store-architecture.md) - SQLite event logging
 - [Architecture Overview](docs/ARCHITECTURE.md) - Complete system architecture
+- [Coordinator Pattern](docs/coordinator-pattern.md) - Agent-to-human communication with ntfy.sh
 
 ## Common Pitfalls
 
