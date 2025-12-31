@@ -5,6 +5,35 @@ All notable changes to Jean Claude will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2025-12-30
+
+### Added
+
+- **Mobile Response Flow**: Fully mobile coordinator pattern with bidirectional ntfy.sh communication
+  - `JEAN_CLAUDE_NTFY_RESPONSE_TOPIC` environment variable for response channel
+  - `poll_ntfy_responses()` function to fetch responses from ntfy.sh
+  - `process_ntfy_responses()` function to write responses to workflow OUTBOX
+  - Auto-continue loop polls response topic every iteration (2-second interval)
+  - Response format: `{workflow-id}: {response text}`
+
+- **Documentation**:
+  - Updated NTFY_SETUP.md with bidirectional setup instructions
+  - Added "Option 1: Respond from Your Phone" section
+  - test_mobile_response.py script for end-to-end testing
+
+### Changed
+
+- NTFY setup now requires two topics (escalation + response)
+- Coordinator can receive responses from phone without SSH access
+- Auto-continue loop displays green message when responses received
+
+### Benefits
+
+- **Fully Mobile**: Respond to agent questions from anywhere
+- **Zero SSH**: No need for terminal access when on the go
+- **Async**: Responses are polled and processed automatically
+- **Simple Format**: Plain text messages parsed automatically
+
 ## [0.6.0] - 2025-12-30
 
 ### Added

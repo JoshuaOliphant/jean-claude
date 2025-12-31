@@ -34,6 +34,7 @@ from jean_claude.core.state import Feature, WorkflowPhase, WorkflowState
 from jean_claude.core.task_validator import TaskValidator, ValidationResult
 from jean_claude.core.test_runner_validator import TestRunnerValidator
 from jean_claude.core.validation_output_formatter import ValidationOutputFormatter
+from jean_claude.core.workflow_event import WorkflowEvent
 
 __all__ = [
     "BeadsTask",
@@ -66,6 +67,7 @@ __all__ = [
     "TestRunnerValidator",
     "ValidationOutputFormatter",
     "ValidationResult",
+    "WorkflowEvent",
     "WorkflowPhase",
     "WorkflowState",
     "execute_prompt",

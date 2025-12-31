@@ -48,6 +48,8 @@ except ImportError:
         return {"name": name, "version": version, "tools": tools}
 
 from jean_claude.core.inbox_writer import InboxWriter
+from jean_claude.core.mailbox_paths import MailboxPaths
+from jean_claude.core.message_writer import MessageBox, write_message
 from jean_claude.core.outbox_monitor import OutboxMonitor
 from jean_claude.core.workflow_pause_handler import WorkflowPauseHandler
 from jean_claude.core.message import Message, MessagePriority
@@ -207,6 +209,138 @@ def escalate_to_human(
         tags=tags or ["robot", "warning"],
         debug=False
     )
+
+
+def poll_ntfy_responses(since_timestamp: Optional[str] = None) -> list[dict[str, str]]:
+    """Poll ntfy.sh response topic for human responses.
+
+    This function checks the response topic for messages from the human.
+    Messages should be in format: "{workflow_id}: {response_text}"
+
+    Args:
+        since_timestamp: Optional timestamp to fetch messages since (RFC3339 format)
+                        If None, fetches all recent messages
+
+    Returns:
+        List of dicts with keys:
+            - workflow_id: The workflow this response is for
+            - response: The response text
+            - timestamp: When the message was sent
+
+    Environment Variables:
+        JEAN_CLAUDE_NTFY_RESPONSE_TOPIC: Your private response topic name
+
+    Example:
+        >>> responses = poll_ntfy_responses()
+        >>> for resp in responses:
+        ...     print(f"Workflow {resp['workflow_id']}: {resp['response']}")
+    """
+    try:
+        # Get response topic from environment
+        topic = os.environ.get("JEAN_CLAUDE_NTFY_RESPONSE_TOPIC")
+        if not topic:
+            # No response topic configured
+            return []
+
+        # Build URL for JSON polling
+        url = f"https://ntfy.sh/{topic}/json?poll=1"
+        if since_timestamp:
+            url += f"&since={since_timestamp}"
+        else:
+            # Get messages from last hour
+            url += "&since=1h"
+
+        # Create request
+        req = urllib.request.Request(url, method="GET")
+
+        # Fetch messages (with timeout)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            content = response.read().decode('utf-8')
+
+        # Parse NDJSON (newline-delimited JSON)
+        responses = []
+        for line in content.strip().split('\n'):
+            if not line:
+                continue
+
+            try:
+                msg = json.loads(line)
+                # Extract message text
+                message_text = msg.get('message', '')
+
+                # Parse format: "{workflow_id}: {response}"
+                if ':' in message_text:
+                    workflow_id, response = message_text.split(':', 1)
+                    responses.append({
+                        'workflow_id': workflow_id.strip(),
+                        'response': response.strip(),
+                        'timestamp': msg.get('time', 0)
+                    })
+            except (json.JSONDecodeError, ValueError):
+                # Skip malformed messages
+                continue
+
+        return responses
+
+    except Exception:
+        # Silently fail - response polling is nice-to-have
+        return []
+
+
+def process_ntfy_responses(project_root: Path) -> int:
+    """Poll ntfy response topic and write responses to workflow OUTBOX directories.
+
+    This function:
+    1. Polls the JEAN_CLAUDE_NTFY_RESPONSE_TOPIC for new messages
+    2. Parses each message to extract workflow_id and response text
+    3. Writes response messages to the appropriate workflow's OUTBOX
+    4. Returns count of responses processed
+
+    Args:
+        project_root: Project root directory containing agents/
+
+    Returns:
+        Number of responses processed
+
+    Example:
+        >>> count = process_ntfy_responses(Path.cwd())
+        >>> print(f"Processed {count} responses from ntfy")
+    """
+    responses = poll_ntfy_responses()
+
+    if not responses:
+        return 0
+
+    processed = 0
+
+    for resp in responses:
+        try:
+            workflow_id = resp['workflow_id']
+            response_text = resp['response']
+
+            # Create response message
+            message = Message(
+                from_agent="user",
+                to_agent="coder-agent",
+                type="response",
+                subject="Response from mobile",
+                body=response_text,
+                priority=MessagePriority.NORMAL,
+                awaiting_response=False
+            )
+
+            # Write to workflow's OUTBOX
+            mailbox_paths = MailboxPaths(workflow_id=workflow_id, base_dir=project_root / "agents")
+            mailbox_paths.ensure_mailbox_dir()
+            write_message(message, MessageBox.OUTBOX, mailbox_paths)
+
+            processed += 1
+
+        except Exception:
+            # Skip responses that can't be processed
+            continue
+
+    return processed
 
 
 @tool(

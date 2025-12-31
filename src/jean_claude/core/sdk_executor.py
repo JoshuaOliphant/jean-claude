@@ -96,6 +96,8 @@ async def _execute_prompt_async(
         permission_mode="acceptEdits" if request.dangerously_skip_permissions else None,
         hooks=hooks,
         agents=agents,  # Subagent definitions for Task tool delegation
+        mcp_servers=request.mcp_servers,  # Agent SDK MCP servers (like mailbox tools)
+        allowed_tools=request.allowed_tools,  # Allowed tool names
     )
 
     messages: list[dict[str, Any]] = []
@@ -412,6 +414,8 @@ async def execute_prompt_streaming(
         permission_mode="acceptEdits" if request.dangerously_skip_permissions else None,
         hooks=hooks,
         agents=agents,  # Subagent definitions for Task tool delegation
+        mcp_servers=request.mcp_servers,  # Agent SDK MCP servers (like mailbox tools)
+        allowed_tools=request.allowed_tools,  # Allowed tool names
     )
 
     # Stream messages directly to caller

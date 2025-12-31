@@ -20,44 +20,52 @@ This means you only get pinged for critical decisions, not routine agent questio
 **Android:** https://play.google.com/store/apps/details?id=io.heckel.ntfy
 **Web:** https://ntfy.sh/app
 
-### 2. Choose a Unique Topic Name
+### 2. Choose Unique Topic Names (Two Topics)
 
-Your topic is like a private channel. Make it unique and hard to guess:
+You need **two topics** for bidirectional communication:
+1. **Escalation topic**: Jean Claude sends critical questions to you
+2. **Response topic**: You send answers back to Jean Claude
 
-✅ Good: `jean-claude-laboeuf-secret-x9k2p`
-✅ Good: `jc-notifications-8f4a3b2e`
+Your topics are like private channels. Make them unique and hard to guess:
+
+✅ Good: `jean-claude-laboeuf-escalations-x9k2p` and `jean-claude-laboeuf-responses-a8f3e`
+✅ Good: `jc-to-human-8f4a3b2e` and `human-to-jc-9d5b2c1f`
 ❌ Bad: `jean-claude` (too common, others might use it)
 ❌ Bad: `test` (definitely taken)
 
-**Pro tip:** Generate a random one:
+**Pro tip:** Generate random ones:
 ```bash
-echo "jean-claude-$(openssl rand -hex 6)"
+echo "Escalation: jean-claude-escalate-$(openssl rand -hex 6)"
+echo "Response:   jean-claude-respond-$(openssl rand -hex 6)"
 ```
 
 ### 3. Subscribe in the ntfy App
 
 1. Open the ntfy app on your phone
 2. Tap the **"+"** button
-3. Enter your topic name (e.g., `jean-claude-laboeuf-secret-x9k2p`)
+3. Enter your **escalation topic** (e.g., `jean-claude-escalate-x9k2p`)
 4. Tap "Subscribe"
+5. Repeat for your **response topic** (e.g., `jean-claude-respond-a8f3e`)
 
-You're now listening for notifications on this channel!
+You're now listening for escalations AND able to send responses!
 
 ### 4. Configure Jean Claude
 
-Set the environment variable in your shell:
+Set **both** environment variables in your shell:
 
 ```bash
 # Add to your ~/.zshrc or ~/.bashrc
-export JEAN_CLAUDE_NTFY_TOPIC="your-topic-name-here"
+export JEAN_CLAUDE_NTFY_TOPIC="your-escalation-topic"
+export JEAN_CLAUDE_NTFY_RESPONSE_TOPIC="your-response-topic"
 
 # Then reload your shell
 source ~/.zshrc  # or source ~/.bashrc
 ```
 
-**OR** set it just for the current session:
+**OR** set them just for the current session:
 ```bash
-export JEAN_CLAUDE_NTFY_TOPIC="jean-claude-laboeuf-secret-x9k2p"
+export JEAN_CLAUDE_NTFY_TOPIC="jean-claude-escalate-x9k2p"
+export JEAN_CLAUDE_NTFY_RESPONSE_TOPIC="jean-claude-respond-a8f3e"
 ```
 
 ### 5. Test It!
@@ -90,7 +98,34 @@ You should get TWO push notifications on your phone within ~10 seconds! 🎉
 
 ## How to Respond to Escalated Questions
 
+### Option 1: Respond from Your Phone 📱 (NEW!)
+
 When you get a "🤖 Coordinator Escalation" notification:
+
+1. **Open the ntfy app** on your phone
+2. **Find the response topic** (e.g., `jean-claude-respond-a8f3e`)
+3. **Tap to send a message** in this format:
+   ```
+   {workflow-id}: Your response here
+   ```
+
+   Example:
+   ```
+   coordinator-test-001: Use Redis for caching - we have it in production
+   ```
+
+4. **Send the message**
+5. **Jean Claude polls the topic** every 2 seconds and writes your response to OUTBOX
+6. **Agent receives it** and continues!
+
+**Format details:**
+- Must include workflow ID (shown in escalation message)
+- Colon separates workflow ID from response
+- Response can be multiple sentences
+
+### Option 2: Respond from Terminal (Classic)
+
+If you prefer terminal or have complex responses:
 
 1. **SSH to your machine** or open a terminal
 2. **Navigate to your project directory**

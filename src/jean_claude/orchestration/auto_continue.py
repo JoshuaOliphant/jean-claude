@@ -52,7 +52,12 @@ from jean_claude.core.sdk_executor import execute_prompt_async
 from jean_claude.core.state import Feature, WorkflowState
 from jean_claude.core.verification import run_verification
 from jean_claude.core.workflow_resume_handler import WorkflowResumeHandler
-from jean_claude.tools.mailbox_tools import jean_claude_mailbox_tools, set_workflow_context, escalate_to_human
+from jean_claude.tools.mailbox_tools import (
+    jean_claude_mailbox_tools,
+    set_workflow_context,
+    escalate_to_human,
+    process_ntfy_responses,
+)
 
 console = Console()
 
@@ -264,6 +269,11 @@ async def run_auto_continue(
         )
 
         while state.iteration_count < max_iter and not interrupted:
+            # Check ntfy response topic for human responses (mobile coordinator pattern)
+            response_count = process_ntfy_responses(project_root)
+            if response_count > 0:
+                console.print(f"[green]📱 Received {response_count} response(s) from ntfy[/green]")
+
             # Check INBOX for agent messages (coordinator pattern)
             workflow_dir = project_root / "agents" / state.workflow_id
             mailbox_paths = MailboxPaths(workflow_id=state.workflow_id)

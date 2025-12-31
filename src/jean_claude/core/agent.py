@@ -60,6 +60,8 @@ class PromptRequest(BaseModel):
     dangerously_skip_permissions: bool = False
     workflow_type: Literal["readonly", "development", "testing"] = "development"
     enable_security_hooks: bool = True
+    mcp_servers: Optional[dict] = None  # MCP servers to provide to the agent
+    allowed_tools: Optional[list[str]] = None  # List of allowed tool names
 
 
 class TemplateRequest(BaseModel):
