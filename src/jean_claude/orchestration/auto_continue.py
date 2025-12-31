@@ -42,12 +42,17 @@ from rich.progress import (
 from jean_claude.core.agent import ExecutionResult, PromptRequest
 from jean_claude.core.events import EventLogger, EventType
 from jean_claude.core.feature_commit_orchestrator import FeatureCommitOrchestrator
+from jean_claude.core.inbox_writer import InboxWriter
+from jean_claude.core.mailbox_paths import MailboxPaths
+from jean_claude.core.message_reader import read_messages
+from jean_claude.core.message_writer import MessageBox
 from jean_claude.core.outbox_monitor import OutboxMonitor
 from jean_claude.core.response_parser import ResponseParser
 from jean_claude.core.sdk_executor import execute_prompt_async
 from jean_claude.core.state import Feature, WorkflowState
 from jean_claude.core.verification import run_verification
 from jean_claude.core.workflow_resume_handler import WorkflowResumeHandler
+from jean_claude.tools.mailbox_tools import jean_claude_mailbox_tools, set_workflow_context, escalate_to_human
 
 console = Console()
 
@@ -129,6 +134,43 @@ After completing the feature:
 3. Increment current_feature_index
 4. Save the state file
 
+## GETTING HELP (IMPORTANT)
+
+If you encounter problems or need guidance, use the mailbox tools to communicate:
+
+**ask_user** - When you need help or clarification:
+```python
+# Use this tool when you're stuck or uncertain
+ask_user({{
+    "question": "Clear, specific question about the problem",
+    "context": "What you were trying to do and what went wrong",
+    "priority": "normal"  # or "urgent" for blocking issues
+}})
+```
+
+**When to use ask_user:**
+- Test failures you can't diagnose (after reasonable debugging)
+- Ambiguous requirements or multiple valid approaches
+- Uncertain about architectural decisions
+- Implementation blocked by missing information
+- Need approval for significant changes
+
+**notify_user** - For progress updates (optional):
+```python
+# Keep coordinator informed of major milestones
+notify_user({{
+    "message": "Completed authentication module, starting tests",
+    "priority": "low"
+}})
+```
+
+**DON'T ask for help with:**
+- Normal debugging (try to solve it first)
+- Questions answered in CLAUDE.md or codebase
+- Minor implementation details you can infer from patterns
+
+The coordinator will either answer immediately or escalate to the human if needed.
+
 ## CRITICAL CONSTRAINTS
 
 ⚠️ NEVER skip the verification step
@@ -137,6 +179,7 @@ After completing the feature:
 ⚠️ NEVER add duplicate test coverage
 ⚠️ ALWAYS use existing fixtures and patterns
 ⚠️ ALWAYS save state after completion
+⚠️ USE ask_user when truly stuck (don't spin your wheels)
 
 Work on EXACTLY ONE feature this session. Do not proceed to the next feature.
 """
@@ -221,6 +264,46 @@ async def run_auto_continue(
         )
 
         while state.iteration_count < max_iter and not interrupted:
+            # Check INBOX for agent messages (coordinator pattern)
+            workflow_dir = project_root / "agents" / state.workflow_id
+            mailbox_paths = MailboxPaths(workflow_id=state.workflow_id)
+            inbox_messages = read_messages(MessageBox.INBOX, mailbox_paths)
+
+            # Surface agent questions to coordinator (me)
+            unanswered_messages = [
+                msg for msg in inbox_messages
+                if msg.awaiting_response and msg.type in ("help_request", "question")
+            ]
+
+            if unanswered_messages:
+                console.print()
+                console.print(
+                    Panel(
+                        f"[bold yellow]🤖 Agent Needs Help[/bold yellow]\n\n"
+                        f"The agent has {len(unanswered_messages)} question(s) that need your attention.\n"
+                        f"Use `/mailbox respond` to answer, or I can escalate to La Boeuf via ntfy.",
+                        border_style="yellow",
+                        title="[bold]Coordinator Alert[/bold]"
+                    )
+                )
+
+                for i, msg in enumerate(unanswered_messages, 1):
+                    console.print()
+                    console.print(f"[bold cyan]Question {i}:[/bold cyan]")
+                    console.print(f"[dim]From:[/dim] {msg.from_agent}")
+                    console.print(f"[dim]Subject:[/dim] {msg.subject}")
+                    console.print(f"[yellow]{msg.body}[/yellow]")
+                    console.print()
+
+                # Pause here - coordinator needs to respond via /mailbox command
+                console.print(
+                    "[dim]Workflow paused. The agent is waiting for your response in OUTBOX.[/dim]"
+                )
+                console.print(
+                    "[dim]To respond: Use the /mailbox slash command or write directly to OUTBOX[/dim]"
+                )
+                break  # Exit loop and return to main REPL
+
             # Check if workflow is waiting for response (mailbox integration)
             if state.waiting_for_response:
                 console.print("[yellow]Workflow is paused, waiting for user response...[/yellow]")
@@ -320,12 +403,21 @@ async def run_auto_continue(
             iteration_dir = output_dir / f"iteration_{state.iteration_count:03d}"
             iteration_dir.mkdir(parents=True, exist_ok=True)
 
+            # Set up mailbox tools for agent communication
+            workflow_dir = project_root / "agents" / state.workflow_id
+            set_workflow_context(workflow_dir, state, project_root)
+
             request = PromptRequest(
                 prompt=prompt,
                 model=model,
                 working_dir=project_root,
                 output_dir=iteration_dir,
                 dangerously_skip_permissions=True,
+                mcp_servers={"jean-claude-mailbox": jean_claude_mailbox_tools},
+                allowed_tools=[
+                    "mcp__jean-claude-mailbox__ask_user",
+                    "mcp__jean-claude-mailbox__notify_user",
+                ],
             )
 
             try:
@@ -333,22 +425,8 @@ async def run_auto_continue(
                     request, max_retries=3
                 )
 
-                # Check for blockers and handle with mailbox integration
-                if result.success:
-                    # Import here to avoid circular imports
-                    from jean_claude.orchestration.two_agent import _check_for_blockers_and_handle
-
-                    # Check for blockers in the agent response
-                    should_pause = _check_for_blockers_and_handle(
-                        agent_result=result,
-                        workflow_state=state,
-                        project_root=project_root
-                    )
-
-                    # If blockers detected, break out of the loop to pause workflow
-                    if should_pause:
-                        console.print("[yellow]Workflow paused due to detected blockers[/yellow]")
-                        break
+                # Agent will use ask_user tool directly if it needs help
+                # No need for passive blocker detection anymore
 
                 # Update state based on result
                 if result.success:

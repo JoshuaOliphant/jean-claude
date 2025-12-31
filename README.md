@@ -8,12 +8,14 @@ Jean Claude (`jc`) is a CLI tool that enables programmatic AI agent orchestratio
 
 - **Universal CLI**: Single `jc` command for all operations
 - **Two-Agent Workflow**: Opus plans features, Sonnet implements them
+- **Coordinator Pattern**: Intelligent agent-to-human communication with smart escalation
 - **Beads Integration**: Execute workflows directly from Beads tasks with `jc work`
 - **Real-Time Streaming**: Watch agent output as it works with `--stream` mode
 - **SDK-Based Execution**: Claude Agent SDK with Bedrock authentication
 - **Workflow Composition**: Multi-phase SDLC workflows (plan → implement → verify → complete)
 - **Git Worktree Isolation**: Safe parallel development without conflicts
 - **Real-Time Telemetry**: SQLite event store with live monitoring UI
+- **Push Notifications**: ntfy.sh integration for critical decision escalations
 
 ## Installation
 
@@ -75,6 +77,40 @@ jc workflow "Complex feature" -i opus -c opus
 jc initialize "Task description" -w my-workflow
 jc implement my-workflow
 ```
+
+### Coordinator Pattern (Agent-to-Human Communication)
+
+Jean Claude implements a **coordinator pattern** where the main Claude Code instance intelligently triages agent questions, only escalating to you when truly needed.
+
+**How it works:**
+1. Sub-agents can call `ask_user` or `notify_user` tools when they need help
+2. Messages appear in the workflow's INBOX directory
+3. Coordinator (main Claude Code instance) sees questions and decides:
+   - **Answer directly** (90% of cases) - Technical questions, test failures, code conventions
+   - **Escalate to human** (10% of cases) - Business decisions, security, architecture choices
+4. You only get ntfy push notifications for critical decisions
+
+**Setting up ntfy notifications:**
+
+```bash
+# 1. Install ntfy app on your phone (iOS/Android/Web)
+# 2. Choose a unique topic name
+echo "jean-claude-$(openssl rand -hex 6)"
+
+# 3. Subscribe to the topic in the ntfy app
+# 4. Configure Jean Claude
+export JEAN_CLAUDE_NTFY_TOPIC="your-topic-name"
+```
+
+See `NTFY_SETUP.md` and `docs/coordinator-pattern.md` for details.
+
+**When you get escalated:**
+- SSH to your machine
+- Write response to `agents/{workflow-id}/OUTBOX/response.json`
+- Agent receives your decision and continues
+
+**Slash commands:**
+- `/mailbox` - View and respond to agent messages (coordinator use)
 
 ### Beads Integration
 

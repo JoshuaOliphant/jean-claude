@@ -1,0 +1,411 @@
+# ABOUTME: Mailbox Agent SDK tools for agent-user communication
+# ABOUTME: Provides ask_user tool for agents to request help and clarification
+
+"""Mailbox Agent SDK tools for agent-user communication.
+
+This module provides MCP tools that agents can use to communicate with users
+through the mailbox system (INBOX/OUTBOX). Agents can request help, ask questions,
+and receive guidance when they encounter problems or need clarification.
+
+Tools provided:
+- ask_user: Ask the user a question and wait for their response
+- notify_user: Send an informational message (no response needed)
+
+Example usage in agent execution:
+    from jean_claude.tools.mailbox_tools import jean_claude_mailbox_tools
+
+    result = await execute_agent(
+        prompt="Implement feature...",
+        options=ClaudeAgentOptions(
+            mcp_servers={"mailbox": jean_claude_mailbox_tools},
+            allowed_tools=["mcp__jean-claude-mailbox__ask_user"]
+        )
+    )
+"""
+
+import os
+import platform
+import subprocess
+import urllib.request
+import json
+from pathlib import Path
+from typing import Any, Optional
+from datetime import datetime
+
+try:
+    from claude_agent_sdk import tool, create_sdk_mcp_server
+except ImportError:
+    # Fallback for testing without Agent SDK installed
+    def tool(name, description, schema):
+        def decorator(func):
+            func.__tool_name__ = name
+            func.__tool_description__ = description
+            func.__tool_schema__ = schema
+            return func
+        return decorator
+
+    def create_sdk_mcp_server(name, version, tools):
+        return {"name": name, "version": version, "tools": tools}
+
+from jean_claude.core.inbox_writer import InboxWriter
+from jean_claude.core.outbox_monitor import OutboxMonitor
+from jean_claude.core.workflow_pause_handler import WorkflowPauseHandler
+from jean_claude.core.message import Message, MessagePriority
+
+
+# Global state (will be injected by workflow)
+_workflow_context = {
+    "workflow_dir": None,
+    "workflow_state": None,
+    "project_root": None
+}
+
+
+def set_workflow_context(workflow_dir: Path, workflow_state: Any, project_root: Path):
+    """Set the current workflow context for mailbox tools.
+
+    This must be called before agents can use mailbox tools.
+
+    Args:
+        workflow_dir: Path to the workflow directory (e.g., agents/workflow-123)
+        workflow_state: Current WorkflowState object
+        project_root: Path to the project root directory
+    """
+    _workflow_context["workflow_dir"] = workflow_dir
+    _workflow_context["workflow_state"] = workflow_state
+    _workflow_context["project_root"] = project_root
+
+
+def _send_ntfy_notification(
+    title: str,
+    message: str,
+    priority: int = 3,
+    tags: Optional[list[str]] = None,
+    debug: bool = False
+) -> None:
+    """Send push notification via ntfy.sh.
+
+    NOTE: This is for COORDINATOR ESCALATION only, not for agent-initiated notifications.
+    The coordinator (main Claude Code instance) should call this when human input is
+    truly needed, after triaging agent requests.
+
+    Publishes to ntfy.sh topic configured via JEAN_CLAUDE_NTFY_TOPIC env var.
+    Works on any device with ntfy.sh app installed (iOS, Android, Web).
+
+    Args:
+        title: Notification title
+        message: Notification message body
+        priority: Priority level 1-5 (1=min, 3=default, 5=max)
+        tags: Optional list of tags (e.g., ["warning", "robot"])
+        debug: If True, print debug info (default: False)
+
+    Environment Variables:
+        JEAN_CLAUDE_NTFY_TOPIC: Your private ntfy.sh topic name
+                                (e.g., "jean-claude-la-boeuf-secret-123")
+    """
+    try:
+        # Get topic from environment variable
+        topic = os.environ.get("JEAN_CLAUDE_NTFY_TOPIC")
+        if not topic:
+            # No topic configured, skip silently
+            if debug:
+                print(f"[ntfy] No JEAN_CLAUDE_NTFY_TOPIC configured, skipping")
+            return
+
+        # Prepare headers
+        headers = {
+            "Title": title,
+            "Priority": str(priority),
+        }
+
+        if tags:
+            headers["Tags"] = ",".join(tags)
+
+        # Create request
+        url = f"https://ntfy.sh/{topic}"
+        data = message.encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+
+        if debug:
+            print(f"[ntfy] Sending to {url}")
+            print(f"[ntfy] Headers: {headers}")
+            print(f"[ntfy] Message: {message[:100]}...")
+
+        # Send notification (with timeout)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            response_data = response.read().decode('utf-8')
+            if debug:
+                print(f"[ntfy] Response: {response_data}")
+
+    except Exception as e:
+        # Silently fail - notifications are nice-to-have, not critical
+        if debug:
+            print(f"[ntfy] Error: {e}")
+        pass
+
+
+def _send_desktop_notification(title: str, message: str, sound: bool = True) -> None:
+    """Send a desktop notification to alert the user (macOS only).
+
+    NOTE: This is for COORDINATOR ESCALATION only, not for agent-initiated notifications.
+
+    Uses osascript to trigger native macOS notifications with sound.
+    Silently fails if not on macOS or if notification fails.
+
+    Args:
+        title: Notification title
+        message: Notification message body
+        sound: Whether to play notification sound (default: True)
+    """
+    try:
+        system = platform.system()
+
+        if system == "Darwin":  # macOS
+            # Use osascript to trigger macOS notification with sound
+            # Sound name can be: "default", "Glass", "Funk", "Blow", etc.
+            sound_param = ' sound name "Glass"' if sound else ""
+            script = f'display notification "{message}" with title "{title}"{sound_param}'
+            subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True,
+                timeout=5,
+                check=False
+            )
+        # Non-macOS systems: silently skip
+        # Future contributors can add Linux/Windows support
+
+    except Exception:
+        # Silently fail - notifications are nice-to-have, not critical
+        pass
+
+
+def escalate_to_human(
+    title: str,
+    message: str,
+    priority: int = 5,
+    tags: Optional[list[str]] = None
+) -> None:
+    """Escalate a message to the human via ntfy.sh and desktop notifications.
+
+    This function should be called by the coordinator (main Claude Code instance)
+    when human input is truly needed. It sends both desktop and push notifications.
+
+    Args:
+        title: Notification title (no emojis - they break latin-1 encoding)
+        message: The message to send to the human
+        priority: Priority level 1-5 (default: 5 for max urgency)
+        tags: Optional list of emoji shortcodes for ntfy (e.g., ["robot", "warning"])
+    """
+    # Send desktop notification (macOS)
+    _send_desktop_notification(title=title, message=message[:80])
+
+    # Send push notification (ntfy.sh)
+    _send_ntfy_notification(
+        title=title,
+        message=message,
+        priority=priority,
+        tags=tags or ["robot", "warning"],
+        debug=False
+    )
+
+
+@tool(
+    "ask_user",
+    "Ask the user a question and wait for their response. Use this when you need help, clarification, approval, or guidance on how to proceed. The workflow will pause until the user responds.",
+    {
+        "question": str,
+        "context": str,
+        "priority": str  # "low", "normal", "urgent"
+    }
+)
+async def ask_user(args: dict[str, Any]) -> dict[str, Any]:
+    """Ask the user a question and wait for their response.
+
+    This tool allows agents to request help from the user when they encounter
+    problems, need clarification, or require approval. The workflow will pause
+    until the user provides a response in the OUTBOX.
+
+    Args:
+        args: Dictionary containing:
+            - question: The question to ask the user
+            - context: Additional context about why you're asking
+            - priority: Message priority ("low", "normal", "urgent")
+
+    Returns:
+        Dictionary with user's response text in content field
+
+    Example:
+        Agent encounters test failure:
+        >>> result = await ask_user({
+        ...     "question": "Test test_auth fails expecting status 401 but gets 403. Should I update the test or fix the auth code?",
+        ...     "context": "Implementing JWT authentication feature. Test was written before implementation.",
+        ...     "priority": "normal"
+        ... })
+        >>> print(result)
+        {"content": [{"type": "text", "text": "Update the auth code - 403 is wrong..."}]}
+    """
+    # Get workflow context
+    workflow_dir = _workflow_context.get("workflow_dir")
+    workflow_state = _workflow_context.get("workflow_state")
+    project_root = _workflow_context.get("project_root")
+
+    if not all([workflow_dir, workflow_state, project_root]):
+        return {
+            "content": [{
+                "type": "text",
+                "text": "Error: Mailbox tools not initialized. set_workflow_context() must be called first."
+            }]
+        }
+
+    try:
+        # Parse priority
+        priority_map = {
+            "low": MessagePriority.LOW,
+            "normal": MessagePriority.NORMAL,
+            "urgent": MessagePriority.URGENT
+        }
+        priority = priority_map.get(args.get("priority", "normal").lower(), MessagePriority.NORMAL)
+
+        # Build message content
+        message_body = f"{args['question']}\n\n**Context**: {args['context']}"
+
+        # Create message directly
+        message = Message(
+            from_agent="coder-agent",
+            to_agent="user",
+            type="help_request",
+            subject=f"Agent needs help: {args['question'][:50]}...",
+            body=message_body,
+            priority=priority,
+            awaiting_response=True  # Agent is waiting for user response
+        )
+
+        # Write to INBOX (coordinator will be notified via monitoring)
+        inbox_writer = InboxWriter(workflow_dir)
+        inbox_writer.write_to_inbox(message)
+
+        # Pause workflow
+        pause_handler = WorkflowPauseHandler(project_root)
+        pause_handler.pause_workflow(
+            workflow_state,
+            reason=f"Agent asked user: {args['question'][:50]}..."
+        )
+
+        # Wait for response in OUTBOX
+        outbox_monitor = OutboxMonitor(workflow_dir)
+        response_message = await outbox_monitor.wait_for_response(timeout_seconds=1800)  # 30 min
+
+        if response_message:
+            # Return user's response to agent
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": response_message.body
+                }]
+            }
+        else:
+            # Timeout - no response received
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": "No response received from user within 30 minutes. Please proceed with your best judgment."
+                }]
+            }
+
+    except Exception as e:
+        # Handle errors gracefully
+        return {
+            "content": [{
+                "type": "text",
+                "text": f"Error communicating with user: {str(e)}. Please proceed with your best judgment."
+            }]
+        }
+
+
+@tool(
+    "notify_user",
+    "Send an informational message to the user without waiting for a response. Use this to keep the user informed of progress, decisions, or interesting findings.",
+    {
+        "message": str,
+        "priority": str  # "low", "normal", "urgent"
+    }
+)
+async def notify_user(args: dict[str, Any]) -> dict[str, Any]:
+    """Send an informational message to the user (no response needed).
+
+    This tool allows agents to keep users informed without pausing the workflow.
+    Use this for progress updates, decisions made, or interesting findings.
+
+    Args:
+        args: Dictionary containing:
+            - message: The informational message
+            - priority: Message priority ("low", "normal", "urgent")
+
+    Returns:
+        Dictionary with confirmation message
+
+    Example:
+        >>> result = await notify_user({
+        ...     "message": "Successfully implemented 3 of 5 features. Next: database migration.",
+        ...     "priority": "low"
+        ... })
+        >>> print(result)
+        {"content": [{"type": "text", "text": "Message sent to user"}]}
+    """
+    # Get workflow context
+    workflow_dir = _workflow_context.get("workflow_dir")
+
+    if not workflow_dir:
+        return {
+            "content": [{
+                "type": "text",
+                "text": "Error: Mailbox tools not initialized."
+            }]
+        }
+
+    try:
+        # Parse priority
+        priority_map = {
+            "low": MessagePriority.LOW,
+            "normal": MessagePriority.NORMAL,
+            "urgent": MessagePriority.URGENT
+        }
+        priority = priority_map.get(args.get("priority", "low").lower(), MessagePriority.LOW)
+
+        # Create message directly (no response needed)
+        message = Message(
+            from_agent="coder-agent",
+            to_agent="user",
+            type="notification",
+            subject=f"Agent notification: {args['message'][:50]}...",
+            body=args["message"],
+            priority=priority,
+            awaiting_response=False  # FYI only, no response needed
+        )
+
+        # Write to INBOX (coordinator will be notified via monitoring)
+        inbox_writer = InboxWriter(workflow_dir)
+        inbox_writer.write_to_inbox(message)
+
+        return {
+            "content": [{
+                "type": "text",
+                "text": "Message sent to user successfully."
+            }]
+        }
+
+    except Exception as e:
+        return {
+            "content": [{
+                "type": "text",
+                "text": f"Error sending message: {str(e)}"
+            }]
+        }
+
+
+# Create MCP server with mailbox tools
+jean_claude_mailbox_tools = create_sdk_mcp_server(
+    name="jean-claude-mailbox",
+    version="1.0.0",
+    tools=[ask_user, notify_user]
+)

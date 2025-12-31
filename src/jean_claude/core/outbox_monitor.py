@@ -13,9 +13,10 @@ file as a Message object, and returns a list of successfully parsed messages.
 It handles errors gracefully by skipping invalid or corrupted files.
 """
 
+import asyncio
 import json
 from pathlib import Path
-from typing import List, Union
+from typing import List, Optional, Union
 
 from pydantic import ValidationError
 
@@ -162,3 +163,49 @@ class OutboxMonitor:
             A string that could be used to recreate the object
         """
         return f"OutboxMonitor(workflow_dir={self.workflow_dir!r})"
+
+    async def wait_for_response(
+        self,
+        timeout_seconds: int = 1800,
+        poll_interval_seconds: float = 2.0
+    ) -> Optional[Message]:
+        """Wait for a user response message in the OUTBOX directory.
+
+        This method polls the OUTBOX directory at regular intervals waiting for
+        a new message to appear. It's typically used by agents that have asked
+        the user a question and need to wait for a response.
+
+        The method will return the first message found in the OUTBOX, or None
+        if the timeout is reached without finding any messages.
+
+        Args:
+            timeout_seconds: Maximum time to wait for a response (default: 1800 = 30 minutes)
+            poll_interval_seconds: Time to wait between polls (default: 2.0 seconds)
+
+        Returns:
+            The first Message found in the OUTBOX, or None if timeout occurs
+
+        Example:
+            >>> monitor = OutboxMonitor("/path/to/workflow")
+            >>> response = await monitor.wait_for_response(timeout_seconds=300)
+            >>> if response:
+            ...     print(f"User responded: {response.body}")
+            ... else:
+            ...     print("Timeout - no response received")
+        """
+        start_time = asyncio.get_event_loop().time()
+        end_time = start_time + timeout_seconds
+
+        while asyncio.get_event_loop().time() < end_time:
+            # Poll for new messages
+            messages = self.poll_for_new_messages()
+
+            # If any messages found, return the first one
+            if messages:
+                return messages[0]
+
+            # Wait before next poll
+            await asyncio.sleep(poll_interval_seconds)
+
+        # Timeout reached, no messages found
+        return None
