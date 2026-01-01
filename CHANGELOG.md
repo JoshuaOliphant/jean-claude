@@ -5,6 +5,30 @@ All notable changes to Jean Claude will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2025-12-31
+
+### Changed
+
+- **`jc migrate` Enhancement**: Now installs missing skill and updates CLAUDE.md
+  - Checks for `.claude/skills/jean-claude-cli/` and installs if missing
+  - Checks for CLAUDE.md Jean Claude section and adds if missing
+  - Updated success message to reflect v0.7.0 features
+  - Dry-run mode shows all pending changes including skill/CLAUDE.md
+
+### Documentation
+
+- **README Updates**: Comprehensive documentation of new features
+  - Added "One-Command Setup" and "Jean Claude CLI Skill" to Features
+  - Expanded Quick Start with detailed `jc init` output
+  - New Project Management section explaining `jc init` vs `jc migrate`
+  - Clarified `jc migrate` safety (doesn't overwrite existing files)
+
+### Benefits
+
+- Existing projects can now get the skill and CLAUDE.md with `jc migrate`
+- README provides clear onboarding path for new users
+- Migration process is fully documented and transparent
+
 ## [0.7.0] - 2025-12-31
 
 ### Added

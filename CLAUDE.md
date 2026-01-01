@@ -359,3 +359,37 @@ For deeper architectural understanding:
 4. **Testing External Tools**: Don't test Beads/SDK - mock them and test our integration
 5. **Nested Mocking**: Use @patch decorators, not nested `with patch()` blocks
 6. **Test File Location**: Follow the established directory structure (core/, orchestration/, etc.)
+
+## Jean Claude AI Workflows
+
+This project uses [Jean Claude](https://github.com/JoshuaOliphant/jean-claude) for AI-powered development workflows.
+
+### Quick Start
+
+```bash
+bd ready                      # Find available Beads tasks
+jc work <task-id>            # Execute a Beads task
+jc workflow "description"    # Ad-hoc workflow without Beads
+jc status                    # Check workflow status
+```
+
+### Workflow Artifacts
+
+Jean Claude stores workflow data in:
+- `specs/` - Workflow specifications and feature plans
+- `agents/{workflow-id}/state.json` - Workflow state and progress
+- `.jc/events.db` - Event history for monitoring
+
+### Getting Help
+
+For comprehensive Jean Claude documentation, ask me (Claude):
+- "How do I use jc workflow?"
+- "What's the two-agent pattern?"
+- "How does Beads integration work?"
+
+The `jean-claude-cli` skill (installed by `jc init`) provides detailed command guides.
+
+### Configuration
+
+Project settings: `.jc-project.yaml`
+
