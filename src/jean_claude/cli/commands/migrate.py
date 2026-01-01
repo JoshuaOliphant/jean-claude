@@ -14,6 +14,8 @@ from jean_claude.cli.commands.init import (
     INIT_DIRECTORIES,
     SLASH_COMMANDS,
     create_slash_commands,
+    install_skill,
+    update_claude_md,
 )
 
 console = Console()
@@ -31,6 +33,8 @@ def migrate(dry_run: bool) -> None:
     Updates an already-initialized project with new features:
     - Creates any missing directories
     - Adds new slash command templates
+    - Installs jean-claude-cli skill (if missing)
+    - Updates CLAUDE.md with Jean Claude section (if missing)
     - Does NOT overwrite existing files
 
     \b
@@ -63,6 +67,8 @@ def migrate(dry_run: bool) -> None:
     # Track what would be / was created
     would_create_dirs: list[str] = []
     would_create_commands: list[str] = []
+    would_install_skill = False
+    would_update_claude_md = False
 
     # Check for missing directories
     for dir_name in INIT_DIRECTORIES:
@@ -83,8 +89,38 @@ def migrate(dry_run: bool) -> None:
     if not dry_run and would_create_commands:
         create_slash_commands(project_root)
 
+    # Check for jean-claude-cli skill
+    skill_path = project_root / ".claude" / "skills" / "jean-claude-cli" / "SKILL.md"
+    if not skill_path.exists():
+        would_install_skill = True
+        if not dry_run:
+            install_skill(project_root)
+
+    # Check for CLAUDE.md section
+    claude_md_locations = [
+        project_root / "CLAUDE.md",
+        project_root / ".claude" / "CLAUDE.md",
+    ]
+    has_jc_section = False
+    for location in claude_md_locations:
+        if location.exists() and "## Jean Claude AI Workflows" in location.read_text():
+            has_jc_section = True
+            break
+
+    if not has_jc_section:
+        would_update_claude_md = True
+        if not dry_run:
+            update_claude_md(project_root)
+
     # Display results
-    if not would_create_dirs and not would_create_commands:
+    has_changes = (
+        would_create_dirs
+        or would_create_commands
+        or would_install_skill
+        or would_update_claude_md
+    )
+
+    if not has_changes:
         console.print(
             Panel(
                 "[green]Project is up to date![/green]\n\n"
@@ -100,6 +136,8 @@ def migrate(dry_run: bool) -> None:
     results_table.add_column()
 
     action_prefix = "Would create" if dry_run else "Created"
+    update_prefix = "Would update" if dry_run else "Updated"
+    install_prefix = "Would install" if dry_run else "Installed"
     symbol = "○" if dry_run else "✓"
 
     for dir_name in would_create_dirs:
@@ -110,14 +148,30 @@ def migrate(dry_run: bool) -> None:
             symbol, f"{action_prefix} [cyan].claude/commands/{cmd_name}[/cyan]"
         )
 
+    if would_install_skill:
+        results_table.add_row(
+            symbol, f"{install_prefix} [cyan].claude/skills/jean-claude-cli/[/cyan] skill"
+        )
+
+    if would_update_claude_md:
+        results_table.add_row(
+            symbol, f"{update_prefix} [cyan]CLAUDE.md[/cyan] with Jean Claude section"
+        )
+
     console.print(results_table)
     console.print()
 
     if dry_run:
+        total_changes = (
+            len(would_create_dirs)
+            + len(would_create_commands)
+            + (1 if would_install_skill else 0)
+            + (1 if would_update_claude_md else 0)
+        )
         console.print(
             Panel(
-                f"[yellow]{len(would_create_dirs) + len(would_create_commands)} "
-                f"item(s) would be created.[/yellow]\n\n"
+                f"[yellow]{total_changes} "
+                f"item(s) would be created/updated.[/yellow]\n\n"
                 "Run [cyan]jc migrate[/cyan] without --dry-run to apply changes.",
                 title="[yellow]Dry Run Complete[/yellow]",
                 border_style="yellow",
@@ -127,11 +181,12 @@ def migrate(dry_run: bool) -> None:
         console.print(
             Panel(
                 "[bold green]Migration complete![/bold green]\n\n"
-                "New features:\n"
-                "  • [cyan]jc work <beads-id>[/cyan] - Execute workflow from Beads task\n"
-                "  • [cyan]jc workflow[/cyan] - Two-agent pattern (Opus plans, Sonnet implements)\n"
-                "  • [cyan]jc initialize / jc implement[/cyan] - Modular workflow execution\n"
-                "  • [cyan]jc prime[/cyan] - Context-efficient project exploration",
+                "Latest features:\n"
+                "  • [cyan]jean-claude-cli skill[/cyan] - Comprehensive CLI documentation\n"
+                "  • [cyan]CLAUDE.md integration[/cyan] - Project-specific guidance\n"
+                "  • [cyan]Coordinator pattern[/cyan] - Mobile ntfy.sh notifications\n"
+                "  • [cyan]Two-agent workflows[/cyan] - Opus plans, Sonnet implements\n"
+                "  • [cyan]Beads integration[/cyan] - Seamless issue tracking",
                 title="[bold green]Success[/bold green]",
                 border_style="green",
             )
