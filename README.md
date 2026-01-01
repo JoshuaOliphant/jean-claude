@@ -6,7 +6,8 @@ Jean Claude (`jc`) is a CLI tool that enables programmatic AI agent orchestratio
 
 ## Features
 
-- **Universal CLI**: Single `jc` command for all operations
+- **One-Command Setup**: `jc init` installs skill, updates CLAUDE.md, configures everything
+- **Jean Claude CLI Skill**: 358-line comprehensive guide auto-installed to `.claude/skills/`
 - **Two-Agent Workflow**: Opus plans features, Sonnet implements them
 - **Coordinator Pattern**: Intelligent agent-to-human communication with smart escalation
 - **Beads Integration**: Execute workflows directly from Beads tasks with `jc work`
@@ -16,6 +17,7 @@ Jean Claude (`jc`) is a CLI tool that enables programmatic AI agent orchestratio
 - **Git Worktree Isolation**: Safe parallel development without conflicts
 - **Real-Time Telemetry**: SQLite event store with live monitoring UI
 - **Push Notifications**: ntfy.sh integration for critical decision escalations
+- **Multi-Project Support**: Project names in notifications when running multiple instances
 
 ## Installation
 
@@ -33,9 +35,16 @@ jc --version
 ## Quick Start
 
 ```bash
-# Initialize ADW in your project
+# Initialize Jean Claude in your project (one-time setup)
 cd my-project/
 jc init
+
+# This creates:
+# - .jc-project.yaml (configuration)
+# - .claude/skills/jean-claude-cli/ (comprehensive CLI documentation skill)
+# - .claude/commands/ (slash commands like /prime)
+# - CLAUDE.md section (project-specific quick reference)
+# - specs/, agents/, .jc/ directories
 
 # Run an adhoc prompt
 jc prompt "Analyze the codebase structure"
@@ -142,12 +151,25 @@ jc version                           # Display version information
 ### Project Management
 
 ```bash
+jc init                              # Initialize new project (skill + CLAUDE.md + config)
+jc migrate                           # Update existing project to latest version
 jc prime                             # Gather project context
-jc migrate                           # Update project to latest version
-jc onboard                           # Show CLAUDE.md content
 jc upgrade                           # Upgrade jc to latest version
 jc upgrade --check                   # Check for updates only
 ```
+
+**What `jc init` creates:**
+- `.claude/skills/jean-claude-cli/` - Comprehensive CLI documentation skill
+- `CLAUDE.md` section - Project-specific quick reference
+- `.claude/commands/` - Slash commands (/prime, etc.)
+- Configuration and directories
+
+**What `jc migrate` does:**
+- Installs missing skill
+- Updates CLAUDE.md if needed
+- Adds new slash commands
+- Creates missing directories
+- Safe for existing projects (doesn't overwrite)
 
 ### Cleanup
 
