@@ -182,6 +182,122 @@ def update_gitignore(project_root: Path) -> bool:
     return True
 
 
+def update_claude_md(project_root: Path) -> bool:
+    """Update or create CLAUDE.md with Jean Claude section.
+
+    Checks both root CLAUDE.md and .claude/CLAUDE.md locations.
+
+    Returns:
+        True if CLAUDE.md was created or updated, False if section already exists
+    """
+    # Check both possible locations
+    claude_md_locations = [
+        project_root / "CLAUDE.md",
+        project_root / ".claude" / "CLAUDE.md",
+    ]
+
+    # Find existing CLAUDE.md or use default location
+    claude_md_path = None
+    for location in claude_md_locations:
+        if location.exists():
+            claude_md_path = location
+            break
+
+    if claude_md_path is None:
+        # Create at root if neither exists
+        claude_md_path = claude_md_locations[0]
+
+    # Read existing content
+    existing_content = ""
+    if claude_md_path.exists():
+        existing_content = claude_md_path.read_text()
+
+    # Check if already initialized
+    if "## Jean Claude AI Workflows" in existing_content:
+        return False
+
+    # Prepare section content
+    section = f"""
+## Jean Claude AI Workflows
+
+This project uses [Jean Claude](https://github.com/JoshuaOliphant/jean-claude) for AI-powered development workflows.
+
+### Quick Start
+
+```bash
+bd ready                      # Find available Beads tasks
+jc work <task-id>            # Execute a Beads task
+jc workflow "description"    # Ad-hoc workflow without Beads
+jc status                    # Check workflow status
+```
+
+### Workflow Artifacts
+
+Jean Claude stores workflow data in:
+- `specs/` - Workflow specifications and feature plans
+- `agents/{{workflow-id}}/state.json` - Workflow state and progress
+- `.jc/events.db` - Event history for monitoring
+
+### Getting Help
+
+For comprehensive Jean Claude documentation, ask me (Claude):
+- "How do I use jc workflow?"
+- "What's the two-agent pattern?"
+- "How does Beads integration work?"
+
+The `jean-claude-cli` skill (installed by `jc init`) provides detailed command guides.
+
+### Configuration
+
+Project settings: `.jc-project.yaml`
+"""
+
+    # Append or create
+    if existing_content:
+        new_content = existing_content.rstrip() + "\n" + section + "\n"
+    else:
+        new_content = section.lstrip() + "\n"
+
+    claude_md_path.write_text(new_content)
+    return True
+
+
+def install_skill(project_root: Path) -> bool:
+    """Install jean-claude-cli skill to .claude/skills/.
+
+    Returns:
+        True if skill was installed, False if already exists
+    """
+    skills_dir = project_root / ".claude" / "skills" / "jean-claude-cli"
+    skill_md_path = skills_dir / "SKILL.md"
+
+    if skill_md_path.exists():
+        return False
+
+    # Create skills directory
+    skills_dir.mkdir(parents=True, exist_ok=True)
+
+    # Get skill content from package
+    import importlib.resources
+    try:
+        # Python 3.9+
+        skill_content = (
+            importlib.resources.files("jean_claude")
+            .joinpath("skills/jean-claude-cli/SKILL.md")
+            .read_text()
+        )
+    except AttributeError:
+        # Fallback for older Python
+        import pkg_resources
+        skill_content = pkg_resources.resource_string(
+            "jean_claude", "skills/jean-claude-cli/SKILL.md"
+        ).decode("utf-8")
+
+    # Write skill file
+    skill_md_path.write_text(skill_content)
+    return True
+
+
 def create_slash_commands(project_root: Path) -> list[str]:
     """Create slash command templates in .claude/commands/.
 
@@ -281,6 +397,12 @@ def init(force: bool, minimal: bool) -> None:
     # Create slash commands
     created_commands = create_slash_commands(project_root)
 
+    # Install jean-claude-cli skill
+    skill_installed = install_skill(project_root)
+
+    # Update or create CLAUDE.md
+    claude_md_updated = update_claude_md(project_root)
+
     # Display results
     results_table = Table(show_header=False, box=None, padding=(0, 2))
     results_table.add_column(style="green")
@@ -294,8 +416,14 @@ def init(force: bool, minimal: bool) -> None:
     for cmd_name in created_commands:
         results_table.add_row("✓", f"Created [cyan].claude/commands/{cmd_name}[/cyan]")
 
+    if skill_installed:
+        results_table.add_row("✓", "Installed [cyan].claude/skills/jean-claude-cli/[/cyan] skill")
+
     if gitignore_updated:
         results_table.add_row("✓", "Updated [cyan].gitignore[/cyan]")
+
+    if claude_md_updated:
+        results_table.add_row("✓", "Updated [cyan]CLAUDE.md[/cyan] with Jean Claude section")
 
     console.print(results_table)
     console.print()
