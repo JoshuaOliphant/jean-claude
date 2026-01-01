@@ -269,12 +269,14 @@ When escalating questions to La Boeuf via ntfy.sh, **always use sleep intervals 
 from jean_claude.tools.mailbox_tools import escalate_to_human, poll_ntfy_responses
 import time
 
-# 1. Send escalation
+# 1. Send escalation (project name auto-detected from current directory)
 escalate_to_human(
     title="Question from Coordinator",
     message=f"Workflow: {workflow_id}\n\nQuestion: {question}",
-    priority=5
+    priority=5,
+    project_name="my-project"  # Optional: defaults to Path.cwd().name
 )
+# Notification appears as: "[my-project] Question from Coordinator"
 
 # 2. Poll with sleep intervals (not blocking wait)
 max_attempts = 30  # 30 attempts × 10 seconds = 5 minutes
@@ -304,6 +306,36 @@ else:
 ```
 
 Example: `mobile-test-001: Yes, proceed with migration`
+
+### Multi-Project Support
+
+When running Jean Claude across multiple projects simultaneously:
+
+1. **All projects share the same ntfy topics** (escalation + response)
+2. **Each workflow gets a unique 8-character UUID** (e.g., `a3b4c5d6`)
+3. **Project names appear in notification titles** for easy identification
+4. **Each coordinator filters responses by workflow_id**
+
+**Example scenario** - 3 projects running:
+```
+Project A (jean-claude):      Workflow a3b4c5d6
+Project B (my-api-server):    Workflow f8e2a1b9
+Project C (website):          Workflow 2c7d9e4a
+```
+
+**You receive 3 notifications:**
+- `[jean-claude] Architecture Decision Needed`
+- `[my-api-server] Should I add rate limiting?`
+- `[website] Use SQLite or Postgres?`
+
+**Respond to each:**
+```
+a3b4c5d6: Use the pattern from existing code
+f8e2a1b9: Yes, add rate limiting
+2c7d9e4a: Use Postgres
+```
+
+**What happens:** All 3 responses go to shared `oliphantjc_responses` topic, but each coordinator only processes messages matching its workflow_id.
 
 ## Documentation
 

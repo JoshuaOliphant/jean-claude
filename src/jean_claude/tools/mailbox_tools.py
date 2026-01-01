@@ -185,7 +185,8 @@ def escalate_to_human(
     title: str,
     message: str,
     priority: int = 5,
-    tags: Optional[list[str]] = None
+    tags: Optional[list[str]] = None,
+    project_name: Optional[str] = None
 ) -> None:
     """Escalate a message to the human via ntfy.sh and desktop notifications.
 
@@ -197,13 +198,31 @@ def escalate_to_human(
         message: The message to send to the human
         priority: Priority level 1-5 (default: 5 for max urgency)
         tags: Optional list of emoji shortcodes for ntfy (e.g., ["robot", "warning"])
+        project_name: Optional project name to identify which project is asking
+                     (auto-detected from current directory if not provided)
+
+    Example:
+        >>> escalate_to_human(
+        ...     title="Architecture Decision Needed",
+        ...     message="Should we use Redis or in-memory cache?",
+        ...     project_name="my-api-server"
+        ... )
+        # Sends notification with title: "[my-api-server] Architecture Decision Needed"
     """
+    # Auto-detect project name from current directory if not provided
+    if not project_name:
+        from pathlib import Path
+        project_name = Path.cwd().name
+
+    # Prepend project name to title for multi-project clarity
+    full_title = f"[{project_name}] {title}"
+
     # Send desktop notification (macOS)
-    _send_desktop_notification(title=title, message=message[:80])
+    _send_desktop_notification(title=full_title, message=message[:80])
 
     # Send push notification (ntfy.sh)
     _send_ntfy_notification(
-        title=title,
+        title=full_title,
         message=message,
         priority=priority,
         tags=tags or ["robot", "warning"],

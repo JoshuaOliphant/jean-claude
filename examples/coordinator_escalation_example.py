@@ -31,13 +31,19 @@ Replace "Use JWT tokens" with your actual response.
 ---
 """
 
-# Send escalation
+# Send escalation (project name auto-detected from current directory)
 escalate_to_human(
     title="Coordinator: Architecture Decision Needed",
     message=escalation_message,
     priority=5,
     tags=["robot", "warning", "thinking"]
+    # project_name will be auto-detected from Path.cwd().name
+    # Or explicitly set: project_name="my-api-server"
 )
+
+# Notification will appear as:
+# Title: "[jean-claude] Coordinator: Architecture Decision Needed"
+# (or whatever your project directory name is)
 
 print("Escalation sent!")
 print("Polling for response...")
