@@ -94,6 +94,17 @@ WorkflowState (state.py):
 - `Message` model with priority levels and response tracking
 - Enables async agent-to-agent messaging
 
+## Context Management & Delegation
+
+**Role**: You are the coordinator, not the implementer. Preserve context for strategic oversight.
+
+**Delegate to agents when**: Implementation requires >500 tokens (file exploration, testing iterations, multi-file changes)
+**Implement directly when**: Simple 1-2 file changes (<200 tokens), architectural decisions, agent coordination
+
+Use `jc work <beads-task-id>` for Beads tasks. Use Task tool for ad-hoc delegation with clear specs/architecture references.
+
+Reference: [Effective Context Engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
+
 ## Development Standards
 
 ### Code Organization
