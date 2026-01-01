@@ -5,6 +5,39 @@ All notable changes to Jean Claude will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2025-12-31
+
+### Added
+
+- **Jean Claude CLI Skill**: Comprehensive Claude Code skill installed by `jc init`
+  - 358-line guide covering all jc commands, Beads integration, two-agent pattern
+  - Automatically triggers when users ask "How do I use jc workflow?" or similar
+  - Reduces CLAUDE.md bloat by moving generic docs to semantically-triggered skill
+
+- **CLAUDE.md Auto-Generation**: `jc init` now creates/updates CLAUDE.md
+  - Brief project-specific section (30 lines) added to CLAUDE.md
+  - References skill for detailed documentation
+  - Workflow artifacts locations and configuration pointers
+  - No need to run separate `jc onboard` command
+
+- **Multi-Project Support**: Project names in escalation notifications
+  - Auto-detected from `Path.cwd().name` or explicitly set
+  - Notification titles: `[project-name] Question from Coordinator`
+  - Makes it clear which project is asking when running multiple Jean Claude instances
+
+### Changed
+
+- `jc init` is now a complete onboarding solution (skill + CLAUDE.md + slash commands)
+- Skill provides comprehensive docs without bloating every conversation
+- Project-specific knowledge stays in CLAUDE.md, generic knowledge in skill
+
+### Benefits
+
+- **One Command Setup**: `jc init` does everything - no manual CLAUDE.md editing
+- **Context Efficiency**: Skill only loads when relevant, not every conversation
+- **Better Documentation**: 358 lines of comprehensive guides vs 30 lines in CLAUDE.md
+- **Multi-Project Clarity**: Immediately see which project sent an escalation
+
 ## [0.6.1] - 2025-12-30
 
 ### Added
