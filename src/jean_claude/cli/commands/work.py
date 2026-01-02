@@ -13,19 +13,104 @@ from rich.panel import Panel
 from rich.prompt import Confirm
 
 from jean_claude.core.beads import (
+    close_beads_task,
     fetch_beads_task,
     generate_spec_from_beads,
     update_beads_status,
-    close_beads_task,
 )
-from jean_claude.core.events import EventLogger
+from jean_claude.core.edit_and_revalidate import edit_and_revalidate
+from jean_claude.core.evaluation import evaluate_workflow, save_evaluation
+from jean_claude.core.events import EventLogger, EventType
+from jean_claude.core.interactive_prompt_handler import (
+    InteractivePromptHandler,
+    PromptAction,
+)
 from jean_claude.core.state import WorkflowState
 from jean_claude.core.task_validator import TaskValidator
-from jean_claude.core.interactive_prompt_handler import InteractivePromptHandler, PromptAction
-from jean_claude.core.edit_and_revalidate import edit_and_revalidate
 from jean_claude.orchestration.two_agent import run_two_agent_workflow
 
 console = Console()
+
+
+def _run_evaluation(
+    state: WorkflowState,
+    project_root: Path,
+    event_logger: EventLogger,
+    console: Console
+) -> None:
+    """Run post-workflow evaluation and display results.
+
+    Args:
+        state: The workflow state to evaluate
+        project_root: Project root path
+        event_logger: Event logger for emitting evaluation events
+        console: Rich console for output
+    """
+    console.print()
+    console.print("[bold blue]Running post-workflow evaluation...[/bold blue]")
+
+    try:
+        # Run evaluation
+        evaluation = evaluate_workflow(state)
+
+        # Save evaluation to disk
+        eval_path = save_evaluation(evaluation, project_root)
+
+        # Emit evaluation event
+        event_logger.emit(
+            workflow_id=state.workflow_id,
+            event_type=EventType.WORKFLOW_EVALUATED,
+            data={
+                "quality_score": evaluation.quality_score,
+                "grade": evaluation.grade,
+                "completion_rate": evaluation.metrics.completion_rate,
+                "test_pass_rate": evaluation.metrics.test_pass_rate,
+                "summary": evaluation.summary,
+            }
+        )
+
+        # Display evaluation results
+        grade_colors = {
+            "A": "green",
+            "B": "cyan",
+            "C": "yellow",
+            "D": "orange1",
+            "F": "red",
+        }
+        grade_color = grade_colors.get(evaluation.grade, "white")
+
+        # Build metrics display
+        metrics_lines = [
+            f"[bold]Quality Score:[/bold] [{grade_color}]{evaluation.quality_score:.0%}[/{grade_color}] (Grade: [{grade_color}]{evaluation.grade}[/{grade_color}])",
+            "",
+            "[dim]Metrics:[/dim]",
+            f"  Completion Rate: {evaluation.metrics.completion_rate:.0%}",
+            f"  Test Pass Rate: {evaluation.metrics.test_pass_rate:.0%}",
+            f"  Iteration Efficiency: {evaluation.metrics.iteration_efficiency:.0%}",
+            f"  Cost Efficiency: {evaluation.metrics.cost_efficiency:.0%}",
+            f"  Time Efficiency: {evaluation.metrics.time_efficiency:.0%}",
+        ]
+
+        # Add recommendations if any
+        if evaluation.recommendations:
+            metrics_lines.append("")
+            metrics_lines.append("[dim]Recommendations:[/dim]")
+            for rec in evaluation.recommendations:
+                metrics_lines.append(f"  • {rec}")
+
+        console.print(Panel(
+            "\n".join(metrics_lines),
+            title="[bold]Workflow Evaluation[/bold]",
+            border_style=grade_color,
+        ))
+
+        console.print(f"[green]✓[/green] Evaluation saved to: [cyan]{eval_path}[/cyan]")
+        console.print()
+
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Evaluation failed: {e}")
+        console.print("[dim]Workflow completed but evaluation could not be generated[/dim]")
+        console.print()
 
 
 @click.command()
@@ -370,6 +455,9 @@ def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm
                 console.print("[bold green]Workflow completed successfully![/bold green]")
                 console.print()
 
+                # Run post-workflow evaluation
+                _run_evaluation(final_state, project_root, event_logger, console)
+
                 # Close Beads task on successful completion
                 console.print("[bold blue]Closing Beads task...[/bold blue]")
                 try:
@@ -383,11 +471,18 @@ def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm
                 console.print()
                 console.print("[bold red]Workflow failed[/bold red]")
                 console.print(f"[dim]Check state: agents/{final_state.workflow_id}/state.json[/dim]")
+
+                # Run post-workflow evaluation even for failed workflows
+                _run_evaluation(final_state, project_root, event_logger, console)
+
                 raise click.Abort()
             else:
                 console.print()
                 console.print("[bold yellow]Workflow incomplete[/bold yellow]")
                 console.print(f"[dim]Resume with: jc implement {final_state.workflow_id}[/dim]")
+
+                # Run post-workflow evaluation for incomplete workflows
+                _run_evaluation(final_state, project_root, event_logger, console)
 
         except KeyboardInterrupt:
             console.print()
