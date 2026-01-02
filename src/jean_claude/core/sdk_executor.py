@@ -53,9 +53,13 @@ async def _string_to_async_generator(prompt: str) -> AsyncIterator[dict[str, Any
         prompt: The prompt string to convert
 
     Yields:
-        Dict containing user message with role and content fields
+        Dict with structure: {type: "user", message: {role: "user", content: "..."}}
     """
-    yield {"role": "user", "content": prompt}
+    yield {
+        "type": "user",
+        "message": {"role": "user", "content": prompt},
+        "parent_tool_use_id": None,
+    }
 
 
 def _extract_error_message(exception: Exception) -> str:
