@@ -39,6 +39,7 @@ from jean_claude.cli.commands import (
     initialize,
     logs,
     migrate,
+    note,
     onboard,
     prime,
     prompt,
@@ -56,6 +57,7 @@ cli.add_command(init.init)
 cli.add_command(initialize.initialize)
 cli.add_command(logs.logs)
 cli.add_command(migrate.migrate)
+cli.add_command(note.note)
 cli.add_command(onboard.onboard)
 cli.add_command(prime.prime)
 cli.add_command(prompt.prompt)
