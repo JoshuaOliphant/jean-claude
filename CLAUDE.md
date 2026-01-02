@@ -13,6 +13,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Format code | `uv run ruff format .` |
 | Type check | `uv run mypy src/` |
 | Run CLI locally | `uv run jc <command>` |
+| Initialize project | `jc init` |
+| Update existing project | `jc migrate` |
 
 ## Architecture Overview
 
@@ -22,28 +24,37 @@ Jean Claude is a **two-layer orchestration framework** that transforms any Pytho
 `.claude/commands/` - Slash commands for Claude Code that orchestrate workflows
 
 ### Layer 2: Application Layer
-`src/jean_claude/` - The CLI tool itself with four subsystems:
+`src/jean_claude/` - The CLI tool itself with five subsystems:
 
 ```
 src/jean_claude/
 ├── cli/                 # Click-based command interface
 │   ├── main.py          # Root @click.group() at line 14
-│   ├── commands/        # 14 command modules (work, workflow, prompt, etc.)
+│   ├── commands/        # 16 command modules (work, workflow, prompt, init, migrate, etc.)
 │   └── streaming.py     # SSE-based real-time output
 │
-├── core/                # Core business logic (33 modules)
+├── core/                # Core business logic (46 modules)
 │   ├── agent.py         # ExecutionResult, PromptRequest models
 │   ├── sdk_executor.py  # Claude Agent SDK wrapper
 │   ├── state.py         # WorkflowState persistence (JSON files)
 │   ├── beads.py         # Beads task model + integration
 │   ├── security.py      # Bash command validation hooks
 │   ├── events.py        # Event logging to SQLite
-│   └── message.py       # Agent-to-agent mailbox communication
+│   ├── message.py       # Agent-to-agent mailbox communication
+│   └── mailbox_*.py     # Mailbox infrastructure (paths, api, storage, etc.)
 │
 ├── orchestration/       # Multi-agent workflow engine
 │   ├── two_agent.py     # Opus plans → Sonnet implements pattern
 │   ├── auto_continue.py # Autonomous continuation loops
-│   └── post_tool_use_hook.py  # Agent SDK hook integration
+│   ├── post_tool_use_hook.py      # Agent SDK tool hook integration
+│   ├── subagent_stop_hook.py      # Subagent completion handling
+│   └── user_prompt_submit_hook.py # User prompt preprocessing
+│
+├── tools/               # MCP tool implementations
+│   └── mailbox_tools.py # ask_user, notify_user, escalate_to_human
+│
+├── skills/              # Claude Code skills (installed by jc init)
+│   └── jean-claude-cli/ # Comprehensive CLI documentation skill
 │
 └── dashboard/           # FastAPI monitoring UI
     ├── app.py           # Web server with SSE streaming
@@ -218,11 +229,14 @@ def test_read_urgent_priority(): pass
 | Purpose | Location |
 |---------|----------|
 | CLI root command | `src/jean_claude/cli/main.py:14` |
+| Project initialization | `src/jean_claude/cli/commands/init.py` |
 | Two-agent workflow | `src/jean_claude/orchestration/two_agent.py` |
 | SDK execution | `src/jean_claude/core/sdk_executor.py` |
 | State persistence | `src/jean_claude/core/state.py` |
 | Event logging | `src/jean_claude/core/events.py` |
 | Beads integration | `src/jean_claude/core/beads.py` |
+| Mailbox tools | `src/jean_claude/tools/mailbox_tools.py` |
+| CLI skill content | `src/jean_claude/skills/jean-claude-cli/SKILL.md` |
 
 ## Configuration
 
@@ -257,6 +271,34 @@ vcs:
 - **Reports**: `.jc/reports/` - Status and completion reports
 - **Specs**: `specs/` and `specs/plans/` - Workflow specifications
 - **Worktrees**: `trees/` (gitignored) - Isolated git worktrees
+- **Skills**: `.claude/skills/jean-claude-cli/` - Bundled CLI documentation skill
+- **Slash commands**: `.claude/commands/` - Custom slash commands (/prime, /cleanup)
+
+## Project Initialization
+
+### `jc init` (New Projects)
+One-command setup that creates:
+- `.jc-project.yaml` - Project configuration with auto-detected settings
+- `.claude/skills/jean-claude-cli/` - 358-line comprehensive CLI skill
+- `.claude/commands/` - Slash commands (/prime, /cleanup)
+- `specs/`, `agents/`, `.jc/` directories
+- `CLAUDE.md` section (appends to existing file)
+- `.gitignore` entries for generated directories
+
+### `jc migrate` (Existing Projects)
+Updates existing Jean Claude installations to the latest version:
+- Installs missing skill (`.claude/skills/jean-claude-cli/`)
+- Updates CLAUDE.md if section is missing
+- Adds new slash commands
+- Creates missing directories
+- Safe operation: never overwrites existing files
+
+### Skill Architecture
+The `jean-claude-cli` skill provides comprehensive documentation that:
+- Loads only when relevant (semantic triggering)
+- Reduces context bloat vs putting everything in CLAUDE.md
+- Contains 358 lines covering all commands and workflows
+- Source: `src/jean_claude/skills/jean-claude-cli/SKILL.md`
 
 ## Coordinator Communication Patterns
 
@@ -341,15 +383,19 @@ f8e2a1b9: Yes, add rate limiting
 
 For deeper architectural understanding:
 
+- [Architecture Overview](docs/ARCHITECTURE.md) - Complete system architecture
 - [Testing Patterns](docs/testing.md) - Fixtures, TDD, async mocks
 - [Two-Agent Workflow](docs/two-agent-workflow.md) - Opus/Sonnet orchestration pattern
 - [Auto-Continue](docs/auto-continue-workflow.md) - Autonomous continuation loops
-- [Security Hooks](docs/security-hooks-implementation.md) - Bash command validation
-- [Streaming](docs/streaming-implementation-summary.md) - Real-time SSE output
+- [Coordinator Pattern](docs/coordinator-pattern.md) - Agent-to-human communication with ntfy.sh
 - [Beads Workflow](docs/beads-workflow.md) - External issue tracker integration
 - [Event Store Architecture](docs/event-store-architecture.md) - SQLite event logging
-- [Architecture Overview](docs/ARCHITECTURE.md) - Complete system architecture
-- [Coordinator Pattern](docs/coordinator-pattern.md) - Agent-to-human communication with ntfy.sh
+- [Security Hooks](docs/security-hooks-implementation.md) - Bash command validation
+- [Streaming](docs/streaming-implementation-summary.md) - Real-time SSE output
+- [Agent SDK Hooks](docs/agent_sdk_hooks.md) - Claude Agent SDK hook integration
+- [Claude Code Hooks](docs/claude_code_hooks.md) - Claude Code configuration hooks
+- [Claude Code Skills](docs/claude_code_skills.md) - How skills work in Claude Code
+- [Autonomous Agent Patterns](docs/autonomous-agent-patterns.md) - Agent autonomy design
 
 ## Common Pitfalls
 
@@ -359,6 +405,8 @@ For deeper architectural understanding:
 4. **Testing External Tools**: Don't test Beads/SDK - mock them and test our integration
 5. **Nested Mocking**: Use @patch decorators, not nested `with patch()` blocks
 6. **Test File Location**: Follow the established directory structure (core/, orchestration/, etc.)
+7. **Skill vs CLAUDE.md**: Generic Jean Claude docs go in the skill; project-specific docs in CLAUDE.md
+8. **Parallel Test Execution**: Tests run with `-n 4` (4 workers); avoid shared state between tests
 
 ## Jean Claude AI Workflows
 
