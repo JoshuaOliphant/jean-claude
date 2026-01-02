@@ -414,10 +414,10 @@ async def run_auto_continue(
             iteration_dir.mkdir(parents=True, exist_ok=True)
 
             # Set up mailbox tools for agent communication
-            # TEMPORARILY DISABLED: SDK bug with MCP servers + string prompts
+            # SDK bug fixed with async generator prompt workaround
             # See: https://github.com/anthropics/claude-agent-sdk-python/issues/386
-            # workflow_dir = project_root / "agents" / state.workflow_id
-            # set_workflow_context(workflow_dir, state, project_root)
+            workflow_dir = project_root / "agents" / state.workflow_id
+            set_workflow_context(workflow_dir, state, project_root)
 
             request = PromptRequest(
                 prompt=prompt,
@@ -425,12 +425,11 @@ async def run_auto_continue(
                 working_dir=project_root,
                 output_dir=iteration_dir,
                 dangerously_skip_permissions=True,
-                # TEMPORARILY DISABLED: MCP servers cause ProcessTransport errors
-                # mcp_servers={"jean-claude-mailbox": jean_claude_mailbox_tools},
-                # allowed_tools=[
-                #     "mcp__jean-claude-mailbox__ask_user",
-                #     "mcp__jean-claude-mailbox__notify_user",
-                # ],
+                mcp_servers={"jean-claude-mailbox": jean_claude_mailbox_tools},
+                allowed_tools=[
+                    "mcp__jean-claude-mailbox__ask_user",
+                    "mcp__jean-claude-mailbox__notify_user",
+                ],
             )
 
             try:
