@@ -27,6 +27,7 @@ from jean_claude.core.interactive_prompt_handler import (
 )
 from jean_claude.core.state import WorkflowState
 from jean_claude.core.task_validator import TaskValidator
+from jean_claude.orchestration.evaluator_agent import run_evaluator_agent
 from jean_claude.orchestration.two_agent import run_two_agent_workflow
 
 console = Console()
@@ -36,7 +37,8 @@ def _run_evaluation(
     state: WorkflowState,
     project_root: Path,
     event_logger: EventLogger,
-    console: Console
+    console: Console,
+    ai_eval: bool = False,
 ) -> None:
     """Run post-workflow evaluation and display results.
 
@@ -45,12 +47,13 @@ def _run_evaluation(
         project_root: Project root path
         event_logger: Event logger for emitting evaluation events
         console: Rich console for output
+        ai_eval: Whether to run AI agent evaluation (adds qualitative analysis)
     """
     console.print()
     console.print("[bold blue]Running post-workflow evaluation...[/bold blue]")
 
     try:
-        # Run evaluation
+        # Run metric-based evaluation
         evaluation = evaluate_workflow(state)
 
         # Save evaluation to disk
@@ -107,6 +110,60 @@ def _run_evaluation(
         console.print(f"[green]✓[/green] Evaluation saved to: [cyan]{eval_path}[/cyan]")
         console.print()
 
+        # Run AI agent evaluation if requested
+        if ai_eval:
+            console.print("[bold blue]Running AI evaluator agent...[/bold blue]")
+            try:
+                agent_eval = anyio.run(run_evaluator_agent, state, project_root, "haiku")
+
+                # Display AI evaluation results
+                rating_colors = {
+                    "excellent": "green",
+                    "good": "cyan",
+                    "acceptable": "yellow",
+                    "needs_improvement": "orange1",
+                    "poor": "red",
+                }
+                rating_color = rating_colors.get(agent_eval.quality_rating, "white")
+
+                ai_lines = [
+                    f"[bold]AI Assessment:[/bold] [{rating_color}]{agent_eval.quality_rating.upper()}[/{rating_color}]",
+                    "",
+                    f"[italic]{agent_eval.overall_assessment}[/italic]",
+                ]
+
+                if agent_eval.strengths:
+                    ai_lines.append("")
+                    ai_lines.append("[green]Strengths:[/green]")
+                    for s in agent_eval.strengths[:5]:
+                        ai_lines.append(f"  ✓ {s}")
+
+                if agent_eval.improvements:
+                    ai_lines.append("")
+                    ai_lines.append("[yellow]Improvements:[/yellow]")
+                    for i in agent_eval.improvements[:5]:
+                        ai_lines.append(f"  → {i}")
+
+                if agent_eval.potential_issues:
+                    ai_lines.append("")
+                    ai_lines.append("[red]Potential Issues:[/red]")
+                    for p in agent_eval.potential_issues[:3]:
+                        ai_lines.append(f"  ⚠ {p}")
+
+                console.print(Panel(
+                    "\n".join(ai_lines),
+                    title="[bold]AI Code Review[/bold]",
+                    border_style=rating_color,
+                ))
+
+                console.print("[green]✓[/green] AI evaluation complete")
+                console.print()
+
+            except Exception as agent_error:
+                console.print(f"[yellow]⚠[/yellow] AI evaluation failed: {agent_error}")
+                console.print("[dim]Metric-based evaluation was still successful[/dim]")
+                console.print()
+
     except Exception as e:
         console.print(f"[yellow]⚠[/yellow] Evaluation failed: {e}")
         console.print("[dim]Workflow completed but evaluation could not be generated[/dim]")
@@ -146,7 +203,13 @@ def _run_evaluation(
     default=False,
     help="Enable strict validation mode (converts warnings to errors)",
 )
-def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm: bool, strict: bool) -> None:
+@click.option(
+    "--ai-eval",
+    is_flag=True,
+    default=False,
+    help="Enable AI evaluator agent for qualitative code review",
+)
+def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm: bool, strict: bool, ai_eval: bool) -> None:
     """Execute a workflow from a Beads task.
 
     Fetches task details from Beads, generates a specification,
@@ -456,7 +519,7 @@ def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm
                 console.print()
 
                 # Run post-workflow evaluation
-                _run_evaluation(final_state, project_root, event_logger, console)
+                _run_evaluation(final_state, project_root, event_logger, console, ai_eval)
 
                 # Close Beads task on successful completion
                 console.print("[bold blue]Closing Beads task...[/bold blue]")
@@ -473,7 +536,7 @@ def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm
                 console.print(f"[dim]Check state: agents/{final_state.workflow_id}/state.json[/dim]")
 
                 # Run post-workflow evaluation even for failed workflows
-                _run_evaluation(final_state, project_root, event_logger, console)
+                _run_evaluation(final_state, project_root, event_logger, console, ai_eval)
 
                 raise click.Abort()
             else:
@@ -482,7 +545,7 @@ def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm
                 console.print(f"[dim]Resume with: jc implement {final_state.workflow_id}[/dim]")
 
                 # Run post-workflow evaluation for incomplete workflows
-                _run_evaluation(final_state, project_root, event_logger, console)
+                _run_evaluation(final_state, project_root, event_logger, console, ai_eval)
 
         except KeyboardInterrupt:
             console.print()

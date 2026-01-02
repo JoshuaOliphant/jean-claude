@@ -4,7 +4,6 @@
 """Workflow command for two-agent orchestration."""
 
 from pathlib import Path
-from typing import Optional
 
 import anyio
 import click
@@ -14,6 +13,7 @@ from rich.panel import Panel
 from jean_claude.core.evaluation import evaluate_workflow, save_evaluation
 from jean_claude.core.events import EventLogger, EventType
 from jean_claude.core.state import WorkflowState
+from jean_claude.orchestration.evaluator_agent import run_evaluator_agent
 from jean_claude.orchestration.two_agent import run_two_agent_workflow
 
 console = Console()
@@ -23,6 +23,7 @@ def _run_evaluation(
     state: WorkflowState,
     project_root: Path,
     event_logger: EventLogger,
+    ai_eval: bool = False,
 ) -> None:
     """Run post-workflow evaluation and display results.
 
@@ -30,12 +31,13 @@ def _run_evaluation(
         state: The workflow state to evaluate
         project_root: Project root path
         event_logger: Event logger for emitting evaluation events
+        ai_eval: Whether to run AI agent evaluation (adds qualitative analysis)
     """
     console.print()
     console.print("[bold blue]Running post-workflow evaluation...[/bold blue]")
 
     try:
-        # Run evaluation
+        # Run metric-based evaluation
         evaluation = evaluate_workflow(state)
 
         # Save evaluation to disk
@@ -91,6 +93,60 @@ def _run_evaluation(
 
         console.print(f"[green]✓[/green] Evaluation saved to: [cyan]{eval_path}[/cyan]")
         console.print()
+
+        # Run AI agent evaluation if requested
+        if ai_eval:
+            console.print("[bold blue]Running AI evaluator agent...[/bold blue]")
+            try:
+                agent_eval = anyio.run(run_evaluator_agent, state, project_root, "haiku")
+
+                # Display AI evaluation results
+                rating_colors = {
+                    "excellent": "green",
+                    "good": "cyan",
+                    "acceptable": "yellow",
+                    "needs_improvement": "orange1",
+                    "poor": "red",
+                }
+                rating_color = rating_colors.get(agent_eval.quality_rating, "white")
+
+                ai_lines = [
+                    f"[bold]AI Assessment:[/bold] [{rating_color}]{agent_eval.quality_rating.upper()}[/{rating_color}]",
+                    "",
+                    f"[italic]{agent_eval.overall_assessment}[/italic]",
+                ]
+
+                if agent_eval.strengths:
+                    ai_lines.append("")
+                    ai_lines.append("[green]Strengths:[/green]")
+                    for s in agent_eval.strengths[:5]:
+                        ai_lines.append(f"  ✓ {s}")
+
+                if agent_eval.improvements:
+                    ai_lines.append("")
+                    ai_lines.append("[yellow]Improvements:[/yellow]")
+                    for i in agent_eval.improvements[:5]:
+                        ai_lines.append(f"  → {i}")
+
+                if agent_eval.potential_issues:
+                    ai_lines.append("")
+                    ai_lines.append("[red]Potential Issues:[/red]")
+                    for p in agent_eval.potential_issues[:3]:
+                        ai_lines.append(f"  ⚠ {p}")
+
+                console.print(Panel(
+                    "\n".join(ai_lines),
+                    title="[bold]AI Code Review[/bold]",
+                    border_style=rating_color,
+                ))
+
+                console.print("[green]✓[/green] AI evaluation complete")
+                console.print()
+
+            except Exception as agent_error:
+                console.print(f"[yellow]⚠[/yellow] AI evaluation failed: {agent_error}")
+                console.print("[dim]Metric-based evaluation was still successful[/dim]")
+                console.print()
 
     except Exception as e:
         console.print(f"[yellow]⚠[/yellow] Evaluation failed: {e}")
@@ -148,15 +204,22 @@ def _run_evaluation(
     default=None,
     help="Working directory (default: current directory)",
 )
+@click.option(
+    "--ai-eval",
+    is_flag=True,
+    default=False,
+    help="Enable AI evaluator agent for qualitative code review",
+)
 def workflow(
-    description: Optional[str],
-    spec_file: Optional[Path],
-    workflow_id: Optional[str],
+    description: str | None,
+    spec_file: Path | None,
+    workflow_id: str | None,
     initializer_model: str,
     coder_model: str,
-    max_iterations: Optional[int],
+    max_iterations: int | None,
     auto_confirm: bool,
-    working_dir: Optional[Path],
+    working_dir: Path | None,
+    ai_eval: bool,
 ) -> None:
     """Run two-agent workflow (initializer + coder).
 
@@ -202,6 +265,10 @@ def workflow(
     \b
         # Auto-confirm (no prompt)
         jc workflow "Simple task" --auto-confirm
+
+    \b
+        # With AI evaluation
+        jc workflow "Add feature" --ai-eval
 
     \b
         # Custom working directory
@@ -270,13 +337,13 @@ def workflow(
                 f"[dim]State saved to: agents/{final_state.workflow_id}/state.json[/dim]"
             )
             # Run post-workflow evaluation
-            _run_evaluation(final_state, project_root, event_logger)
+            _run_evaluation(final_state, project_root, event_logger, ai_eval)
         elif final_state.is_failed():
             console.print()
             console.print("[bold red]Workflow failed[/bold red]")
             console.print(f"[dim]Check state: agents/{final_state.workflow_id}/state.json[/dim]")
             # Run post-workflow evaluation for failed workflows
-            _run_evaluation(final_state, project_root, event_logger)
+            _run_evaluation(final_state, project_root, event_logger, ai_eval)
             raise SystemExit(1)
         else:
             console.print()
@@ -285,7 +352,7 @@ def workflow(
                 f"[dim]Resume with: jc implement {final_state.workflow_id}[/dim]"
             )
             # Run post-workflow evaluation for incomplete workflows
-            _run_evaluation(final_state, project_root, event_logger)
+            _run_evaluation(final_state, project_root, event_logger, ai_eval)
 
     except KeyboardInterrupt:
         console.print()
