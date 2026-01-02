@@ -99,7 +99,7 @@ class TestBashSecurityHook:
     async def test_allow_safe_block_unsafe(self):
         """Allow safe commands and block unsafe ones."""
         result = await bash_security_hook({"command": "ls -la"})
-        assert result["decision"] == "allow"
+        assert result["decision"] == "approve"
 
         result = await bash_security_hook({"command": "rm -rf /"})
         assert result["decision"] == "block"
@@ -116,7 +116,7 @@ class TestBashSecurityHook:
         custom = create_custom_allowlist("special-cmd")
         context = {"command_allowlist": custom}
         result = await bash_security_hook({"command": "special-cmd"}, context=context)
-        assert result["decision"] == "allow"
+        assert result["decision"] == "approve"
 
         result = await bash_security_hook({"command": "ls"}, context=context)
         assert result["decision"] == "block"
@@ -124,7 +124,7 @@ class TestBashSecurityHook:
     async def test_works_with_tool_use_id(self):
         """Hook works with tool_use_id for logging."""
         result = await bash_security_hook({"command": "git status"}, tool_use_id="tool_123")
-        assert result["decision"] == "allow"
+        assert result["decision"] == "approve"
 
 
 class TestWorkflowAllowlists:
