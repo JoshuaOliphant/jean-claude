@@ -42,7 +42,6 @@ from rich.progress import (
 from jean_claude.core.agent import ExecutionResult, PromptRequest
 from jean_claude.core.events import EventLogger, EventType
 from jean_claude.core.feature_commit_orchestrator import FeatureCommitOrchestrator
-from jean_claude.core.inbox_writer import InboxWriter
 from jean_claude.core.mailbox_paths import MailboxPaths
 from jean_claude.core.message_reader import read_messages
 from jean_claude.core.message_writer import MessageBox
@@ -54,9 +53,8 @@ from jean_claude.core.verification import run_verification
 from jean_claude.core.workflow_resume_handler import WorkflowResumeHandler
 from jean_claude.tools.mailbox_tools import (
     jean_claude_mailbox_tools,
-    set_workflow_context,
-    escalate_to_human,
     process_ntfy_responses,
+    set_workflow_context,
 )
 
 console = Console()
@@ -272,7 +270,9 @@ async def run_auto_continue(
             # Check ntfy response topic for human responses (mobile coordinator pattern)
             response_count = process_ntfy_responses(project_root)
             if response_count > 0:
-                console.print(f"[green]📱 Received {response_count} response(s) from ntfy[/green]")
+                console.print(
+                    f"[green]📱 Received {response_count} response(s) from ntfy[/green]"
+                )
 
             # Check INBOX for agent messages (coordinator pattern)
             workflow_dir = project_root / "agents" / state.workflow_id
@@ -281,7 +281,8 @@ async def run_auto_continue(
 
             # Surface agent questions to coordinator (me)
             unanswered_messages = [
-                msg for msg in inbox_messages
+                msg
+                for msg in inbox_messages
                 if msg.awaiting_response and msg.type in ("help_request", "question")
             ]
 
@@ -293,7 +294,7 @@ async def run_auto_continue(
                         f"The agent has {len(unanswered_messages)} question(s) that need your attention.\n"
                         f"Use `/mailbox respond` to answer, or I can escalate to La Boeuf via ntfy.",
                         border_style="yellow",
-                        title="[bold]Coordinator Alert[/bold]"
+                        title="[bold]Coordinator Alert[/bold]",
                     )
                 )
 
@@ -316,7 +317,9 @@ async def run_auto_continue(
 
             # Check if workflow is waiting for response (mailbox integration)
             if state.waiting_for_response:
-                console.print("[yellow]Workflow is paused, waiting for user response...[/yellow]")
+                console.print(
+                    "[yellow]Workflow is paused, waiting for user response...[/yellow]"
+                )
 
                 # Monitor outbox for user responses
                 workflow_dir = project_root / "agents" / state.workflow_id
@@ -324,14 +327,20 @@ async def run_auto_continue(
                 messages = outbox_monitor.poll_for_new_messages()
 
                 if messages:
-                    console.print(f"[blue]Found {len(messages)} response message(s) in outbox[/blue]")
+                    console.print(
+                        f"[blue]Found {len(messages)} response message(s) in outbox[/blue]"
+                    )
 
                     # Process the first (oldest) message
                     response_message = messages[0]
                     response_parser = ResponseParser()
-                    user_decision = response_parser.parse_response(response_message.body)
+                    user_decision = response_parser.parse_response(
+                        response_message.body
+                    )
 
-                    console.print(f"[green]User decision: {user_decision.decision_type}[/green]")
+                    console.print(
+                        f"[green]User decision: {user_decision.decision_type}[/green]"
+                    )
 
                     # Resume workflow based on user decision
                     resume_handler = WorkflowResumeHandler(project_root)
@@ -340,7 +349,9 @@ async def run_auto_continue(
                     console.print("[green]Workflow resumed[/green]")
                 else:
                     # No response yet, break out of loop and wait
-                    console.print("[dim]No response messages found, workflow remains paused[/dim]")
+                    console.print(
+                        "[dim]No response messages found, workflow remains paused[/dim]"
+                    )
                     break
 
             # Get next feature

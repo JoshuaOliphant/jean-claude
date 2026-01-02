@@ -300,13 +300,16 @@ class TestGetAllWorkflowsEdgeCases:
 
             base_time = datetime.now()
 
+            # Use timedelta for reliable date offsets (avoids month-boundary issues)
+            from datetime import timedelta
+
             # Mix of different scenarios
             scenarios = [
-                ("valid-newest", base_time, True),           # Valid, newest
-                ("corrupted", None, False),                   # Corrupted JSON
-                ("no-state", None, None),                     # No state.json file
-                ("valid-oldest", base_time.replace(year=base_time.year-1), True),  # Valid, oldest
-                ("valid-middle", base_time.replace(month=base_time.month-1 if base_time.month > 1 else 12), True),  # Valid, middle
+                ("valid-newest", base_time, True),                              # Valid, newest
+                ("corrupted", None, False),                                      # Corrupted JSON
+                ("no-state", None, None),                                        # No state.json file
+                ("valid-oldest", base_time - timedelta(days=365), True),        # Valid, oldest (1 year ago)
+                ("valid-middle", base_time - timedelta(days=30), True),         # Valid, middle (30 days ago)
             ]
 
             for workflow_id, updated_at, scenario_type in scenarios:

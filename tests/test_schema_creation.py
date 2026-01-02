@@ -13,6 +13,7 @@ Tests the database schema creation functionality including:
 import sqlite3
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -184,17 +185,19 @@ class TestEventStoreSchemaCreation:
         create_event_store_schema(db_path_str)
         assert Path(db_path_str).exists()
 
-    def test_handles_invalid_path_gracefully(self):
+    def test_handles_invalid_path_gracefully(self, tmp_path):
         """Test that schema creation handles invalid paths with clear error messages."""
-        # Test with invalid path
-        invalid_path = "/root/impossible/path/database.db"
+        # Test with mock to simulate permission error (filesystem behavior varies by environment)
+        invalid_path = tmp_path / "invalid" / "path" / "database.db"
 
-        with pytest.raises((OSError, sqlite3.Error)) as excinfo:
-            create_event_store_schema(invalid_path)
+        # Mock mkdir to raise PermissionError
+        with patch.object(Path, 'mkdir', side_effect=PermissionError("Permission denied")):
+            with pytest.raises((OSError, PermissionError, sqlite3.Error)) as excinfo:
+                create_event_store_schema(invalid_path)
 
-        # Should get a meaningful error about the path or file system
-        error_msg = str(excinfo.value).lower()
-        assert any(keyword in error_msg for keyword in ["database", "path", "permission", "file", "system", "read-only"])
+            # Should get a meaningful error about the path or permission
+            error_msg = str(excinfo.value).lower()
+            assert any(keyword in error_msg for keyword in ["permission", "denied"])
 
 
 @pytest.mark.skipif(create_event_store_schema is None, reason="schema creation not implemented yet")
