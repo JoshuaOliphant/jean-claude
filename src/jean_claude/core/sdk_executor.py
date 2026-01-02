@@ -42,6 +42,41 @@ from jean_claude.core.agent import (
 from jean_claude.core.security import bash_security_hook
 
 
+def _extract_error_message(exception: Exception) -> str:
+    """Extract meaningful error message from exception, handling ExceptionGroups.
+
+    Python 3.11+ uses ExceptionGroup for concurrent operations. When an ExceptionGroup
+    is raised, str(e) only shows "unhandled errors in a TaskGroup (N sub-exceptions)"
+    without the actual error details. This function extracts the real errors.
+
+    Args:
+        exception: The exception to extract message from
+
+    Returns:
+        Human-readable error message with actual exception details
+    """
+    # Check if it's an ExceptionGroup (Python 3.11+)
+    if hasattr(exception, 'exceptions'):
+        # Extract all underlying exceptions
+        underlying_errors = []
+        for exc in exception.exceptions:
+            # Recursively handle nested ExceptionGroups
+            if hasattr(exc, 'exceptions'):
+                underlying_errors.append(_extract_error_message(exc))
+            else:
+                # Include exception type and message
+                exc_type = type(exc).__name__
+                exc_msg = str(exc)
+                underlying_errors.append(f"{exc_type}: {exc_msg}")
+
+        return " | ".join(underlying_errors)
+    else:
+        # Regular exception - include type and message
+        exc_type = type(exception).__name__
+        exc_msg = str(exception)
+        return f"{exc_type}: {exc_msg}"
+
+
 async def _execute_prompt_async(
     request: PromptRequest,
     agents: Optional[dict[str, AgentDefinition]] = None,
@@ -180,8 +215,10 @@ async def _execute_prompt_async(
         )
 
     except Exception as e:
+        # Extract actual errors from ExceptionGroups (Python 3.11+)
+        error_message = _extract_error_message(e)
         return ExecutionResult(
-            output=f"Execution error: {e}",
+            output=f"Execution error: {error_message}",
             success=False,
             retry_code=RetryCode.EXECUTION_ERROR,
         )
