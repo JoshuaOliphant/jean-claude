@@ -22,6 +22,10 @@ Key components:
 4. **EventLogger**: High-level interface that combines both writers, providing
    both sync (emit) and async (emit_async) methods, plus querying capabilities.
 
+5. **WorkflowEvent**: Immutable dataclass for event sourcing pattern, used by EventStore.
+
+6. **apply_event**: Pure projection builder function that applies events to state.
+
 Events are persisted to:
 - SQLite: {project_root}/.jc/events.db (queryable across workflows)
 - JSONL: {project_root}/agents/{workflow_id}/events.jsonl (per-workflow streaming)
@@ -32,6 +36,7 @@ streamable/tail-able (JSONL) for different use cases.
 
 import json
 import sqlite3
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path

@@ -105,6 +105,71 @@ Use `jc work <beads-task-id>` for Beads tasks. Use Task tool for ad-hoc delegati
 
 Reference: [Effective Context Engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
 
+## Knowledge Management System
+
+Jean Claude uses a two-tier knowledge system for persistent learning and context preservation.
+
+### Directory Structure
+
+```
+knowledge/
+├── doc/                      # Documentation and planning
+│   ├── plans/               # Implementation plans
+│   ├── research/            # Research and exploration
+│   └── implementation/      # Implementation notes
+├── sessions/                # Session management (gitignored)
+│   ├── active/              # Current session contexts
+│   └── archive/             # Historical sessions
+├── patterns/                # Reusable code patterns
+├── decisions/               # Technical decisions
+├── testing/                 # Test strategies
+└── context/                 # Active context tracking
+    ├── TODO.md              # Current tasks (gitignored)
+    └── CONTEXT.md           # Project state
+```
+
+### When to Use
+
+**During Workflows:**
+- Reference `patterns/` for proven solutions
+- Check `decisions/` for architectural choices
+- Update `context/TODO.md` and `context/CONTEXT.md` as work progresses
+
+**After Completing Work:**
+- Document learnings in `doc/implementation/`
+- Extract reusable patterns to `patterns/`
+- Record technical decisions in `decisions/`
+- Update test strategies in `testing/`
+
+**Before Starting Work:**
+- Review `context/CONTEXT.md` for current project state
+- Check `context/TODO.md` for active tasks
+- Reference relevant plans in `doc/plans/`
+
+### Knowledge vs Execution State
+
+- **Knowledge system** (`knowledge/`) - Insights, patterns, and learnings
+- **Jean Claude state** (`agents/`, `.jc/events.db`) - Workflow execution tracking
+
+These complement each other:
+- Execution state tracks *what* is being done
+- Knowledge captures *how* and *why* it was done
+
+### Privacy
+
+**Committed (shared with team):**
+- `patterns/` - Reusable solutions
+- `decisions/` - Technical choices
+- `doc/` - Documentation and plans
+- `testing/` - Test strategies
+- `context/CONTEXT.md` - Project state
+
+**Gitignored (private):**
+- `sessions/` - Session contexts
+- `context/TODO.md` - Personal tasks
+
+See `knowledge/README.md` for detailed usage instructions.
+
 ## Development Standards
 
 ### Code Organization

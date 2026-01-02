@@ -22,3 +22,8 @@ logs/
 htmlcov/
 .pytest_cache/
 .ruff_cache/
+
+# Knowledge management (sessions and personal context are private)
+knowledge/sessions/
+knowledge/context/TODO.md
+knowledge/*.log
