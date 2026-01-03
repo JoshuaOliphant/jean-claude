@@ -41,11 +41,19 @@ class ProjectionBuilder(ABC):
     - workflow.completed: Workflow completes successfully
     - workflow.failed: Workflow fails with error
     - worktree.created: Git worktree created for workflow
+    - worktree.active: Worktree heartbeat signal (monitoring)
+    - worktree.merged: Worktree branch merged back to main
+    - worktree.deleted: Worktree cleaned up and deleted
     - feature.planned: Feature planned for implementation
     - feature.started: Feature implementation begins
     - feature.completed: Feature implementation completes
     - feature.failed: Feature implementation fails
     - phase.changed: Workflow phase transition
+    - tests.started: Test execution begins
+    - tests.passed: Tests complete successfully
+    - tests.failed: Test execution fails
+    - commit.created: Git commit successfully created
+    - commit.failed: Git commit attempt fails
 
     Example:
         class DashboardProjectionBuilder(ProjectionBuilder):
@@ -115,11 +123,19 @@ class ProjectionBuilder(ABC):
             'workflow.completed': self.apply_workflow_completed,
             'workflow.failed': self.apply_workflow_failed,
             'worktree.created': self.apply_worktree_created,
+            'worktree.active': self.apply_worktree_active,
+            'worktree.merged': self.apply_worktree_merged,
+            'worktree.deleted': self.apply_worktree_deleted,
             'feature.planned': self.apply_feature_planned,
             'feature.started': self.apply_feature_started,
             'feature.completed': self.apply_feature_completed,
             'feature.failed': self.apply_feature_failed,
             'phase.changed': self.apply_phase_changed,
+            'tests.started': self.apply_tests_started,
+            'tests.passed': self.apply_tests_passed,
+            'tests.failed': self.apply_tests_failed,
+            'commit.created': self.apply_commit_created,
+            'commit.failed': self.apply_commit_failed,
         }
 
         # Get the appropriate handler for this event type
@@ -334,5 +350,167 @@ class ProjectionBuilder(ABC):
         Expected event.event_data fields:
         - from_phase: Previous phase (optional)
         - to_phase: New current phase (required)
+        """
+        pass
+
+    @abstractmethod
+    def apply_worktree_active(self, state: Dict[str, Any], event: Event) -> Dict[str, Any]:
+        """Apply WorktreeActive event to the state.
+
+        Called when a worktree sends a heartbeat signal indicating it's still
+        active. Used for monitoring worktree health and activity.
+
+        Args:
+            state: Current projection state.
+            event: WorktreeActive event with heartbeat information.
+
+        Returns:
+            Dict[str, Any]: New state with updated activity timestamp.
+
+        Expected event.event_data fields:
+        - path: Filesystem path to the active worktree
+        """
+        pass
+
+    @abstractmethod
+    def apply_worktree_merged(self, state: Dict[str, Any], event: Event) -> Dict[str, Any]:
+        """Apply WorktreeMerged event to the state.
+
+        Called when a worktree branch is successfully merged back to main.
+        Updates the state with merge information and final commit details.
+
+        Args:
+            state: Current projection state.
+            event: WorktreeMerged event with merge commit and conflict details.
+
+        Returns:
+            Dict[str, Any]: New state with merge information.
+
+        Expected event.event_data fields:
+        - commit_sha: SHA of the merge commit
+        - conflicts: List of files that had conflicts (empty if clean merge)
+        """
+        pass
+
+    @abstractmethod
+    def apply_worktree_deleted(self, state: Dict[str, Any], event: Event) -> Dict[str, Any]:
+        """Apply WorktreeDeleted event to the state.
+
+        Called when a worktree is cleaned up and deleted. Records the deletion
+        and the reason for cleanup.
+
+        Args:
+            state: Current projection state.
+            event: WorktreeDeleted event with deletion details.
+
+        Returns:
+            Dict[str, Any]: New state with deletion information.
+
+        Expected event.event_data fields:
+        - reason: Reason for deletion ("merged", "failed", "manual")
+        """
+        pass
+
+    @abstractmethod
+    def apply_tests_started(self, state: Dict[str, Any], event: Event) -> Dict[str, Any]:
+        """Apply TestsStarted event to the state.
+
+        Called when test execution begins for a feature or test file.
+        Records the start of test execution for tracking purposes.
+
+        Args:
+            state: Current projection state.
+            event: TestsStarted event with test execution details.
+
+        Returns:
+            Dict[str, Any]: New state with test execution tracking.
+
+        Expected event.event_data fields:
+        - test_file: Path to the test file being executed
+        - feature: Associated feature name (optional)
+        """
+        pass
+
+    @abstractmethod
+    def apply_tests_passed(self, state: Dict[str, Any], event: Event) -> Dict[str, Any]:
+        """Apply TestsPassed event to the state.
+
+        Called when tests complete successfully. Records test success metrics
+        and timing information.
+
+        Args:
+            state: Current projection state.
+            event: TestsPassed event with test results.
+
+        Returns:
+            Dict[str, Any]: New state with successful test results.
+
+        Expected event.event_data fields:
+        - test_file: Path to the test file that passed
+        - feature: Associated feature name (optional)
+        - count: Number of tests that passed (optional)
+        - duration_ms: Test execution time in milliseconds (optional)
+        """
+        pass
+
+    @abstractmethod
+    def apply_tests_failed(self, state: Dict[str, Any], event: Event) -> Dict[str, Any]:
+        """Apply TestsFailed event to the state.
+
+        Called when tests fail during execution. Records test failure details
+        and specific failure information for debugging.
+
+        Args:
+            state: Current projection state.
+            event: TestsFailed event with failure details.
+
+        Returns:
+            Dict[str, Any]: New state with test failure information.
+
+        Expected event.event_data fields:
+        - test_file: Path to the test file that failed
+        - feature: Associated feature name (optional)
+        - failures: List of specific test failures (optional)
+        """
+        pass
+
+    @abstractmethod
+    def apply_commit_created(self, state: Dict[str, Any], event: Event) -> Dict[str, Any]:
+        """Apply CommitCreated event to the state.
+
+        Called when a git commit is successfully created. Records commit
+        information including SHA, message, and affected files.
+
+        Args:
+            state: Current projection state.
+            event: CommitCreated event with commit details.
+
+        Returns:
+            Dict[str, Any]: New state with commit information.
+
+        Expected event.event_data fields:
+        - commit_sha: SHA hash of the created commit
+        - message: Commit message
+        - files: List of files included in the commit (optional)
+        """
+        pass
+
+    @abstractmethod
+    def apply_commit_failed(self, state: Dict[str, Any], event: Event) -> Dict[str, Any]:
+        """Apply CommitFailed event to the state.
+
+        Called when a git commit attempt fails. Records the failure reason
+        and context for debugging and retry logic.
+
+        Args:
+            state: Current projection state.
+            event: CommitFailed event with failure details.
+
+        Returns:
+            Dict[str, Any]: New state with commit failure information.
+
+        Expected event.event_data fields:
+        - error: Error message describing why the commit failed
+        - files: List of files that were being committed (optional)
         """
         pass
