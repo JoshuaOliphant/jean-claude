@@ -403,7 +403,105 @@ class EventStore:
             if connection:
                 self.close_connection(connection)
 
-    def get_events(self, workflow_id: str, event_type: str = None, order_by: str = "asc") -> list:
+    def append_batch(self, events: list) -> bool:
+        """Append multiple events in a single transaction for better performance.
+
+        Writes multiple events to the SQLite database within a single transaction.
+        This provides significant performance improvements over individual appends
+        when adding many events at once.
+
+        Args:
+            events: List of Event objects to append to the store.
+
+        Returns:
+            bool: True if all events were successfully appended and committed,
+                 False if there was any error during the operation.
+
+        Features:
+        - Batch ACID transaction handling
+        - All-or-nothing semantics (full rollback on any failure)
+        - Significant performance improvement for large batches
+        - Proper error handling and resource cleanup
+        """
+        # Import here to avoid circular imports
+        from .event_models import Event
+
+        # Validate input
+        if events is None or not isinstance(events, list):
+            return False
+
+        if len(events) == 0:
+            return True
+
+        connection = None
+        try:
+            # Get database connection
+            connection = self.get_connection()
+            cursor = connection.cursor()
+
+            # Prepare SQL insert statement
+            import uuid
+            insert_sql = """
+                INSERT INTO events (workflow_id, event_id, event_type, timestamp, data)
+                VALUES (?, ?, ?, ?, ?)
+            """
+
+            # Collect all inserts
+            batch_data = []
+            for event in events:
+                # Validate each event
+                if event is None or not isinstance(event, Event):
+                    # Invalid event in batch - rollback entire transaction
+                    if connection:
+                        try:
+                            connection.rollback()
+                        except sqlite3.Error:
+                            pass
+                    return False
+
+                import json
+                event_id = str(uuid.uuid4())
+                batch_data.append((
+                    event.workflow_id,
+                    event_id,
+                    event.event_type,
+                    event.timestamp.isoformat(),
+                    json.dumps(event.event_data)
+                ))
+
+            # Execute batch insert
+            cursor.executemany(insert_sql, batch_data)
+
+            # Commit the transaction
+            connection.commit()
+
+            # Check auto-snapshot for each workflow (collect unique workflow_ids)
+            workflow_ids = set(event.workflow_id for event in events if event)
+            for workflow_id in workflow_ids:
+                self._check_and_create_auto_snapshot(workflow_id)
+
+            # Notify subscribers for each event
+            for event in events:
+                if event:
+                    self._notify_subscribers(event)
+
+            return True
+
+        except (sqlite3.Error, TypeError, ValueError) as e:
+            # Handle errors with rollback
+            if connection:
+                try:
+                    connection.rollback()
+                except sqlite3.Error:
+                    pass
+            return False
+
+        finally:
+            # Always close the connection
+            if connection:
+                self.close_connection(connection)
+
+    def get_events(self, workflow_id: str, event_type: str = None, order_by: str = "asc", limit: int = None, offset: int = None) -> list:
         """Query events from the event store with workflow_id filtering.
 
         Retrieves events from the SQLite database with required workflow_id filtering
@@ -500,24 +598,43 @@ class EventStore:
             cursor = connection.cursor()
 
             # Build SQL query based on parameters
+            pagination_clause = ""
+            params = []
+
             if event_type is not None:
                 # Filter by both workflow_id and event_type
-                sql = """
+                sql_base = """
                     SELECT workflow_id, event_id, event_type, timestamp, data, sequence_number
                     FROM events
                     WHERE workflow_id = ? AND event_type = ?
                     ORDER BY timestamp {}
                 """.format("ASC" if order_by == "asc" else "DESC")
-                cursor.execute(sql, (workflow_id.strip(), event_type.strip()))
+                params = [workflow_id.strip(), event_type.strip()]
             else:
                 # Filter by workflow_id only
-                sql = """
+                sql_base = """
                     SELECT workflow_id, event_id, event_type, timestamp, data, sequence_number
                     FROM events
                     WHERE workflow_id = ?
                     ORDER BY timestamp {}
                 """.format("ASC" if order_by == "asc" else "DESC")
-                cursor.execute(sql, (workflow_id.strip(),))
+                params = [workflow_id.strip()]
+
+            # Add pagination if provided
+            # Note: SQLite requires LIMIT when using OFFSET
+            if limit is not None or offset is not None:
+                if limit is not None:
+                    sql_base += " LIMIT ?"
+                    params.append(limit)
+                else:
+                    # SQLite requires LIMIT with OFFSET, use -1 for unlimited
+                    sql_base += " LIMIT -1"
+
+                if offset is not None:
+                    sql_base += " OFFSET ?"
+                    params.append(offset)
+
+            cursor.execute(sql_base, tuple(params))
 
             # Fetch all matching rows
             rows = cursor.fetchall()

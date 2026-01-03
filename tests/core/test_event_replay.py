@@ -155,6 +155,46 @@ class TestEventReplayBasic:
                 })
                 return new_state
 
+            def apply_worktree_active(self, state, event):
+                new_state = state.copy()
+                new_state['event_count'] = state['event_count'] + 1
+                return new_state
+
+            def apply_worktree_merged(self, state, event):
+                new_state = state.copy()
+                new_state['event_count'] = state['event_count'] + 1
+                return new_state
+
+            def apply_worktree_deleted(self, state, event):
+                new_state = state.copy()
+                new_state['event_count'] = state['event_count'] + 1
+                return new_state
+
+            def apply_tests_started(self, state, event):
+                new_state = state.copy()
+                new_state['event_count'] = state['event_count'] + 1
+                return new_state
+
+            def apply_tests_passed(self, state, event):
+                new_state = state.copy()
+                new_state['event_count'] = state['event_count'] + 1
+                return new_state
+
+            def apply_tests_failed(self, state, event):
+                new_state = state.copy()
+                new_state['event_count'] = state['event_count'] + 1
+                return new_state
+
+            def apply_commit_created(self, state, event):
+                new_state = state.copy()
+                new_state['event_count'] = state['event_count'] + 1
+                return new_state
+
+            def apply_commit_failed(self, state, event):
+                new_state = state.copy()
+                new_state['event_count'] = state['event_count'] + 1
+                return new_state
+
         return TestProjectionBuilder()
 
     def test_rebuild_projection_no_snapshot_full_replay(self, tmp_path, concrete_builder):
@@ -415,6 +455,30 @@ class TestEventReplayEdgeCases:
             def apply_phase_changed(self, state, event):
                 return state
 
+            def apply_worktree_active(self, state, event):
+                return state
+
+            def apply_worktree_merged(self, state, event):
+                return state
+
+            def apply_worktree_deleted(self, state, event):
+                return state
+
+            def apply_tests_started(self, state, event):
+                return state
+
+            def apply_tests_passed(self, state, event):
+                return state
+
+            def apply_tests_failed(self, state, event):
+                return state
+
+            def apply_commit_created(self, state, event):
+                return state
+
+            def apply_commit_failed(self, state, event):
+                return state
+
         return MinimalProjectionBuilder()
 
     def test_rebuild_projection_invalid_workflow_id(self, tmp_path, concrete_builder):
@@ -422,10 +486,11 @@ class TestEventReplayEdgeCases:
         db_path = tmp_path / "test_events.db"
         event_store = EventStore(db_path)
 
-        # Should handle empty and None workflow IDs gracefully
-        state = event_store.rebuild_projection("", concrete_builder)
-        assert state == concrete_builder.get_initial_state()
+        # Should raise ValueError for empty workflow IDs
+        with pytest.raises(ValueError, match="workflow_id cannot be empty"):
+            event_store.rebuild_projection("", concrete_builder)
 
+        # Nonexistent workflows should return initial state
         state = event_store.rebuild_projection("nonexistent-workflow", concrete_builder)
         assert state == concrete_builder.get_initial_state()
 
@@ -436,12 +501,12 @@ class TestEventReplayEdgeCases:
 
         workflow_id = "immutability-test"
 
-        # Create snapshot
+        # Create snapshot at sequence 0 (no events processed yet)
         snapshot_state = {'status': 'original', 'features': [{'name': 'test'}]}
         snapshot = Snapshot(
             workflow_id=workflow_id,
             snapshot_data=snapshot_state,
-            event_sequence_number=1
+            event_sequence_number=0
         )
         event_store.save_snapshot(snapshot)
 
@@ -503,6 +568,30 @@ class TestEventReplayEdgeCases:
             def apply_phase_changed(self, state, event):
                 return state
 
+            def apply_worktree_active(self, state, event):
+                return state
+
+            def apply_worktree_merged(self, state, event):
+                return state
+
+            def apply_worktree_deleted(self, state, event):
+                return state
+
+            def apply_tests_started(self, state, event):
+                return state
+
+            def apply_tests_passed(self, state, event):
+                return state
+
+            def apply_tests_failed(self, state, event):
+                return state
+
+            def apply_commit_created(self, state, event):
+                return state
+
+            def apply_commit_failed(self, state, event):
+                return state
+
         faulty_builder = FaultyProjectionBuilder()
 
         # Add event that will cause error in projection builder
@@ -556,6 +645,30 @@ class TestEventReplayInputValidation:
             def apply_phase_changed(self, state, event):
                 return state
 
+            def apply_worktree_active(self, state, event):
+                return state
+
+            def apply_worktree_merged(self, state, event):
+                return state
+
+            def apply_worktree_deleted(self, state, event):
+                return state
+
+            def apply_tests_started(self, state, event):
+                return state
+
+            def apply_tests_passed(self, state, event):
+                return state
+
+            def apply_tests_failed(self, state, event):
+                return state
+
+            def apply_commit_created(self, state, event):
+                return state
+
+            def apply_commit_failed(self, state, event):
+                return state
+
         return MinimalProjectionBuilder()
 
     def test_rebuild_projection_requires_workflow_id(self, tmp_path, minimal_builder):
@@ -579,10 +692,12 @@ class TestEventReplayInputValidation:
         db_path = tmp_path / "test_events.db"
         event_store = EventStore(db_path)
 
+        # Non-string types should raise TypeError
         with pytest.raises(TypeError, match="workflow_id must be a string"):
             event_store.rebuild_projection(123, minimal_builder)
 
-        with pytest.raises(TypeError, match="workflow_id must be a string"):
+        # None is specifically checked and raises ValueError
+        with pytest.raises(ValueError, match="workflow_id cannot be None"):
             event_store.rebuild_projection(None, minimal_builder)
 
     def test_rebuild_projection_validates_projection_builder_type(self, tmp_path):

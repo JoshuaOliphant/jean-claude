@@ -36,9 +36,11 @@ class TestProjectionBuilderBase:
         # Check that the abstract methods are defined
         abstract_methods = ProjectionBuilder.__abstractmethods__
         expected_methods = {'get_initial_state', 'apply_workflow_started', 'apply_workflow_completed',
-                          'apply_workflow_failed', 'apply_worktree_created', 'apply_feature_planned',
+                          'apply_workflow_failed', 'apply_worktree_created', 'apply_worktree_active',
+                          'apply_worktree_merged', 'apply_worktree_deleted', 'apply_feature_planned',
                           'apply_feature_started', 'apply_feature_completed', 'apply_feature_failed',
-                          'apply_phase_changed'}
+                          'apply_phase_changed', 'apply_tests_started', 'apply_tests_passed',
+                          'apply_tests_failed', 'apply_commit_created', 'apply_commit_failed'}
 
         assert abstract_methods == expected_methods
 
@@ -61,6 +63,15 @@ class TestProjectionBuilderBase:
             def apply_worktree_created(self, state, event):
                 return state
 
+            def apply_worktree_active(self, state, event):
+                return state
+
+            def apply_worktree_merged(self, state, event):
+                return state
+
+            def apply_worktree_deleted(self, state, event):
+                return state
+
             def apply_feature_planned(self, state, event):
                 return state
 
@@ -74,6 +85,21 @@ class TestProjectionBuilderBase:
                 return state
 
             def apply_phase_changed(self, state, event):
+                return state
+
+            def apply_tests_started(self, state, event):
+                return state
+
+            def apply_tests_passed(self, state, event):
+                return state
+
+            def apply_tests_failed(self, state, event):
+                return state
+
+            def apply_commit_created(self, state, event):
+                return state
+
+            def apply_commit_failed(self, state, event):
                 return state
 
         builder = ConcreteProjectionBuilder()
@@ -195,6 +221,30 @@ class TestProjectionBuilderEventApplication:
                     'phase_changed_at': event.timestamp
                 })
                 return new_state
+
+            def apply_worktree_active(self, state, event):
+                return state
+
+            def apply_worktree_merged(self, state, event):
+                return state
+
+            def apply_worktree_deleted(self, state, event):
+                return state
+
+            def apply_tests_started(self, state, event):
+                return state
+
+            def apply_tests_passed(self, state, event):
+                return state
+
+            def apply_tests_failed(self, state, event):
+                return state
+
+            def apply_commit_created(self, state, event):
+                return state
+
+            def apply_commit_failed(self, state, event):
+                return state
 
         return TestProjectionBuilder()
 
@@ -501,6 +551,15 @@ class TestProjectionBuilderInputValidation:
             def apply_worktree_created(self, state, event):
                 return state
 
+            def apply_worktree_active(self, state, event):
+                return state
+
+            def apply_worktree_merged(self, state, event):
+                return state
+
+            def apply_worktree_deleted(self, state, event):
+                return state
+
             def apply_feature_planned(self, state, event):
                 return state
 
@@ -514,6 +573,21 @@ class TestProjectionBuilderInputValidation:
                 return state
 
             def apply_phase_changed(self, state, event):
+                return state
+
+            def apply_tests_started(self, state, event):
+                return state
+
+            def apply_tests_passed(self, state, event):
+                return state
+
+            def apply_tests_failed(self, state, event):
+                return state
+
+            def apply_commit_created(self, state, event):
+                return state
+
+            def apply_commit_failed(self, state, event):
                 return state
 
         return MinimalProjectionBuilder()
