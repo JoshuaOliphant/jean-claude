@@ -1,0 +1,45 @@
+# Retrospective
+
+Conduct a development retrospective to capture learnings and update the jean-claude-dev skill.
+
+## Process
+
+1. **Run retrospective helper script** to analyze recent commits:
+   ```bash
+   .claude/skills/jean-claude-dev/scripts/retrospective_helper.py
+   ```
+
+2. **Review the generated template** in `.claude/skills/jean-claude-dev/references/retrospectives/YYYY-MM-DD-session.md`
+
+3. **Guide reflection** by asking La Boeuf about:
+   - What technical insights were discovered?
+   - What patterns proved useful?
+   - What testing approaches worked well?
+   - What pitfalls were encountered?
+   - What should be documented in the skill?
+
+4. **Update the retrospective file** with La Boeuf's responses
+
+5. **Suggest skill updates** based on learnings:
+   - New sections for SKILL.md
+   - Additions to Common Pitfalls
+   - Updates to Active Experiments
+   - New testing patterns for references/testing_patterns.md
+
+6. **Update skill files** after getting approval
+
+7. **Commit changes** with descriptive message
+
+## Example Interaction
+
+**You:** Let's reflect on the dashboard memory leak work. What did you learn about SSE streaming?
+
+**La Boeuf:** [Provides insights about proper cleanup, background tasks, etc.]
+
+**You:** Great! I'll add that to the retrospective and suggest updating the Common Pitfalls section.
+
+## Output
+
+- Updated retrospective file with learnings
+- Proposed updates to SKILL.md (for approval)
+- Committed changes to skill repository
