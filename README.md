@@ -84,7 +84,7 @@ jc workflow "Complex feature" -i opus -c opus
 
 # Run initializer and coder separately (modular approach)
 jc initialize "Task description" -w my-workflow
-jc implement my-workflow
+jc resume my-workflow
 ```
 
 ### Coordinator Pattern (Agent-to-Human Communication)

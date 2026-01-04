@@ -266,16 +266,20 @@ Project settings: `.jc-project.yaml`
     return True
 
 
-def install_skill(project_root: Path) -> bool:
+def install_skill(project_root: Path, force: bool = False) -> bool:
     """Install jean-claude-cli skill to .claude/skills/.
 
+    Args:
+        project_root: Root directory of the project
+        force: If True, overwrite existing skill (useful for migrations)
+
     Returns:
-        True if skill was installed, False if already exists
+        True if skill was installed, False if already exists and not forced
     """
     skills_dir = project_root / ".claude" / "skills" / "jean-claude-cli"
     skill_md_path = skills_dir / "SKILL.md"
 
-    if skill_md_path.exists():
+    if skill_md_path.exists() and not force:
         return False
 
     # Create skills directory

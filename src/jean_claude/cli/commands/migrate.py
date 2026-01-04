@@ -89,12 +89,12 @@ def migrate(dry_run: bool) -> None:
     if not dry_run and would_create_commands:
         create_slash_commands(project_root)
 
-    # Check for jean-claude-cli skill
+    # Check for jean-claude-cli skill (always refresh to get latest features)
     skill_path = project_root / ".claude" / "skills" / "jean-claude-cli" / "SKILL.md"
-    if not skill_path.exists():
-        would_install_skill = True
-        if not dry_run:
-            install_skill(project_root)
+    skill_exists = skill_path.exists()
+    would_install_skill = True  # Always update skill during migration
+    if not dry_run:
+        install_skill(project_root, force=True)  # Force update to get latest features
 
     # Check for CLAUDE.md section
     claude_md_locations = [
@@ -149,8 +149,9 @@ def migrate(dry_run: bool) -> None:
         )
 
     if would_install_skill:
+        action = "Updated" if (skill_exists and not dry_run) else install_prefix
         results_table.add_row(
-            symbol, f"{install_prefix} [cyan].claude/skills/jean-claude-cli/[/cyan] skill"
+            symbol, f"{action} [cyan].claude/skills/jean-claude-cli/[/cyan] skill"
         )
 
     if would_update_claude_md:
@@ -181,12 +182,14 @@ def migrate(dry_run: bool) -> None:
         console.print(
             Panel(
                 "[bold green]Migration complete![/bold green]\n\n"
-                "Latest features:\n"
-                "  • [cyan]jean-claude-cli skill[/cyan] - Comprehensive CLI documentation\n"
-                "  • [cyan]CLAUDE.md integration[/cyan] - Project-specific guidance\n"
-                "  • [cyan]Coordinator pattern[/cyan] - Mobile ntfy.sh notifications\n"
+                "Latest features in updated skill:\n"
+                "  • [cyan]Agent note-taking system[/cyan] - Persistent knowledge capture\n"
+                "  • [cyan]Coordinator pattern[/cyan] - ntfy.sh mobile notifications\n"
+                "  • [cyan]Event sourcing[/cyan] - Complete workflow auditability\n"
+                "  • [cyan]Mailbox communication[/cyan] - Agent-to-agent messaging\n"
+                "  • [cyan]Dashboard monitoring[/cyan] - Real-time SSE streaming\n"
                 "  • [cyan]Two-agent workflows[/cyan] - Opus plans, Sonnet implements\n"
-                "  • [cyan]Beads integration[/cyan] - Seamless issue tracking",
+                "  • [cyan]Beads integration[/cyan] - Issue tracking automation",
                 title="[bold green]Success[/bold green]",
                 border_style="green",
             )

@@ -400,9 +400,9 @@ def work(beads_id: str, model: str, ...) -> None:
         raise click.Abort()
 ```
 
-### Phase 3: Integrate with `jc implement` Command
+### Phase 3: Integrate with `jc resume` Command
 
-Modify `src/jean_claude/cli/commands/implement.py`:
+Modify `src/jean_claude/cli/commands/resume.py`:
 
 ```python
 def implement(workflow_id: str, ...) -> None:
@@ -565,7 +565,7 @@ cli.add_command(worktrees)
 ### 5. Worktree Manually Deleted
 
 **Scenario**: User deletes `trees/beads-jean_claude-y97/` directory
-**Solution**: `jc implement` recreates it from branch
+**Solution**: `jc resume` recreates it from branch
 
 ### 6. Process Crash Mid-Workflow
 

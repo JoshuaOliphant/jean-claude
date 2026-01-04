@@ -1,0 +1,27 @@
+{
+  "session_id": "20260102_072027",
+  "created_at": "2026-01-02T07:20:27.695909",
+  "project_type": null,
+  "active_todos_count": 4,
+  "available_commands": [
+    "document",
+    "implement",
+    "mailbox",
+    "generate_branch_name",
+    "install_worktree",
+    "patch",
+    "bug",
+    "pull_request",
+    "cleanup_worktrees",
+    "chore",
+    "prime",
+    "review",
+    "start",
+    "cleanup",
+    "feature",
+    "test",
+    "plan-tdd",
+    "classify_issue"
+  ],
+  "agents_configured": false
+}

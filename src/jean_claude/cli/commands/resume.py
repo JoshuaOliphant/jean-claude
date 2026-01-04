@@ -1,7 +1,7 @@
-# ABOUTME: CLI command for running the coder agent on existing workflow state
-# ABOUTME: Implements features from WorkflowState using auto-continue loop
+# ABOUTME: CLI command for resuming paused or interrupted workflows
+# ABOUTME: Continues feature implementation from existing WorkflowState using auto-continue loop
 
-"""Implement command for executing features from workflow state."""
+"""Resume command for continuing paused or interrupted workflows."""
 
 from pathlib import Path
 from typing import Optional
@@ -59,7 +59,7 @@ console = Console()
     default=None,
     help="Working directory (default: current directory)",
 )
-def implement(
+def resume(
     workflow_id: Optional[str],
     state_file: Optional[Path],
     model: str,
@@ -68,30 +68,30 @@ def implement(
     skip_verify: bool,
     working_dir: Optional[Path],
 ) -> None:
-    """Run coder agent to implement features from workflow state.
+    """Resume a paused or interrupted workflow.
 
-    The coder agent reads the WorkflowState (created by `jc initialize`)
-    and implements features one at a time using the auto-continue loop.
+    The coder agent reads the WorkflowState and continues implementing
+    features from where it left off using the auto-continue loop.
 
     You must provide either WORKFLOW_ID or --state-file.
 
     \b
     Examples:
         # By workflow ID (looks in agents/{id}/state.json)
-        jc implement two-agent-abc123
+        jc resume two-agent-abc123
 
     \b
         # By state file path
-        jc implement --state-file agents/my-workflow/state.json
-        jc implement -s agents/my-workflow/state.json
+        jc resume --state-file agents/my-workflow/state.json
+        jc resume -s agents/my-workflow/state.json
 
     \b
         # Custom model and iterations
-        jc implement two-agent-abc123 -m opus -n 100
+        jc resume two-agent-abc123 -m opus -n 100
 
     \b
         # Skip verification tests (faster but less safe)
-        jc implement two-agent-abc123 --skip-verify
+        jc resume two-agent-abc123 --skip-verify
 
     \b
     Verification-First Mode:
@@ -187,7 +187,7 @@ def implement(
             console.print(
                 Panel(
                     "[bold yellow]Implementation incomplete[/bold yellow]\n\n"
-                    f"Resume with: [cyan]jc implement {final_state.workflow_id}[/cyan]",
+                    f"Resume with: [cyan]jc resume {final_state.workflow_id}[/cyan]",
                     border_style="yellow",
                 )
             )
@@ -199,5 +199,5 @@ def implement(
     except KeyboardInterrupt:
         console.print()
         console.print("[yellow]Cancelled by user[/yellow]")
-        console.print(f"[dim]Resume with: jc implement {state.workflow_id}[/dim]")
+        console.print(f"[dim]Resume with: jc resume {state.workflow_id}[/dim]")
         raise SystemExit(130)

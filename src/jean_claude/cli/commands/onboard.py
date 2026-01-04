@@ -28,7 +28,7 @@ This project uses **Jean Claude CLI (jc)** for AI-powered development workflows.
 
 - `jc workflow "description"` - Full workflow (Opus plans, Sonnet codes)
 - `jc initialize "description"` - Plan only (creates spec)
-- `jc implement <workflow-id>` - Resume implementation
+- `jc resume <workflow-id>` - Resume implementation
 
 ### Beads Integration
 

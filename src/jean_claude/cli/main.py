@@ -34,11 +34,12 @@ def version() -> None:
 from jean_claude.cli.commands import (
     cleanup,
     dashboard,
-    implement,
+    resume,
     init,
     initialize,
     logs,
     migrate,
+    note,
     onboard,
     prime,
     prompt,
@@ -51,11 +52,12 @@ from jean_claude.cli.commands import (
 
 cli.add_command(cleanup.cleanup)
 cli.add_command(dashboard.dashboard)
-cli.add_command(implement.implement)
+cli.add_command(resume.resume)
 cli.add_command(init.init)
 cli.add_command(initialize.initialize)
 cli.add_command(logs.logs)
 cli.add_command(migrate.migrate)
+cli.add_command(note.note)
 cli.add_command(onboard.onboard)
 cli.add_command(prime.prime)
 cli.add_command(prompt.prompt)
