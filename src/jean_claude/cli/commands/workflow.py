@@ -129,7 +129,7 @@ def workflow(
     Modular Alternative:
         # Run initializer and coder separately
         jc initialize "Task description" -w my-workflow
-        jc implement my-workflow
+        jc resume my-workflow
     """
     # Validate input: must have exactly one of description or spec_file
     if description and spec_file:
@@ -195,7 +195,7 @@ def workflow(
             console.print()
             console.print("[bold yellow]Workflow incomplete[/bold yellow]")
             console.print(
-                f"[dim]Resume with: jc implement {final_state.workflow_id}[/dim]"
+                f"[dim]Resume with: jc resume {final_state.workflow_id}[/dim]"
             )
 
     except KeyboardInterrupt:

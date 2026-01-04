@@ -429,7 +429,7 @@ Please investigate and fix the failing tests, then respond in the OUTBOX when re
                         "[yellow]Workflow paused. Check INBOX for details.[/yellow]"
                     )
                     console.print(
-                        "[dim]Resume with: jc implement {workflow_id}[/dim]".format(
+                        "[dim]Resume with: jc resume {workflow_id}[/dim]".format(
                             workflow_id=state.workflow_id
                         )
                     )
