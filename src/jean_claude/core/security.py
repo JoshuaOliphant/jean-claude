@@ -212,14 +212,14 @@ async def bash_security_hook(
 
     Returns:
         Dict with:
-        - decision: "allow" or "block"
+        - decision: "approve" or "block"
         - reason: (optional) explanation if blocked
 
     Example:
         >>> import asyncio
         >>> result = asyncio.run(bash_security_hook({"command": "ls"}))
         >>> result['decision']
-        'allow'
+        'approve'
     """
     command = tool_input.get("command", "")
 
@@ -240,7 +240,7 @@ async def bash_security_hook(
 
     if is_valid:
         logger.info(f"[SECURITY] Allowed command: {command[:100]}")
-        return {"decision": "allow"}
+        return {"decision": "approve"}
     else:
         logger.warning(f"[SECURITY] Blocked command: {command[:100]} - {reason}")
         return {"decision": "block", "reason": reason or "Command not allowed"}

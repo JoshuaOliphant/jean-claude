@@ -19,6 +19,7 @@ from jean_claude.core.blocker_detector import BlockerDetector, BlockerDetails, B
 from jean_claude.core.blocker_message_builder import BlockerMessageBuilder
 from jean_claude.core.commit_body_generator import CommitBodyGenerator
 from jean_claude.core.events import Event, EventLogger, EventType
+# event_models removed - not part of current architecture (uses raw SQL EventStore)
 from jean_claude.core.feature_commit_orchestrator import FeatureCommitOrchestrator
 from jean_claude.core.git_file_stager import GitFileStager
 from jean_claude.core.inbox_count import InboxCount

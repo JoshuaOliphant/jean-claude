@@ -5,7 +5,7 @@
 
 import json
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -306,7 +306,7 @@ class TestGetAllWorkflowsEdgeCases:
                 ("corrupted", None, False),                   # Corrupted JSON
                 ("no-state", None, None),                     # No state.json file
                 ("valid-oldest", base_time.replace(year=base_time.year-1), True),  # Valid, oldest
-                ("valid-middle", base_time.replace(month=base_time.month-1 if base_time.month > 1 else 12), True),  # Valid, middle
+                ("valid-middle", base_time - timedelta(days=30), True),  # Valid, middle (30 days ago)
             ]
 
             for workflow_id, updated_at, scenario_type in scenarios:

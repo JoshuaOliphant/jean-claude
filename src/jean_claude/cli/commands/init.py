@@ -247,6 +247,10 @@ For comprehensive Jean Claude documentation, ask me (Claude):
 
 The `jean-claude-cli` skill (installed by `jc init`) provides detailed command guides.
 
+### Working with Jean Claude
+
+**Context Management**: As coordinator, delegate implementation to agents (use `jc work <task-id>` or Task tool) when work requires >500 tokens. Reserve your context for strategic oversight, not implementation details.
+
 ### Configuration
 
 Project settings: `.jc-project.yaml`
