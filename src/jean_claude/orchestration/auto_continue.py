@@ -51,6 +51,7 @@ from jean_claude.core.response_parser import ResponseParser
 from jean_claude.core.sdk_executor import execute_prompt_async
 from jean_claude.core.state import Feature, WorkflowState
 from jean_claude.core.verification import run_verification
+from jean_claude.core.workflow_pause_handler import WorkflowPauseHandler
 from jean_claude.core.workflow_resume_handler import WorkflowResumeHandler
 from jean_claude.tools.mailbox_tools import (
     jean_claude_mailbox_tools,
@@ -380,8 +381,57 @@ async def run_auto_continue(
                     console.print("[yellow]Output:[/yellow]")
                     console.print(verification_result.test_output)
                     console.print()
+
+                    # Use mailbox system to request user help
                     console.print(
-                        "[yellow]Stopping workflow due to test failures[/yellow]"
+                        "[yellow]Requesting user assistance via mailbox...[/yellow]"
+                    )
+
+                    # Write message to inbox
+                    inbox_writer = InboxWriter(project_root)
+                    failed_tests_list = "\n".join(f"  • {test}" for test in verification_result.failed_tests)
+                    message_content = f"""Test verification failed in workflow {state.workflow_id}.
+
+Failed tests:
+{failed_tests_list}
+
+Test output:
+{verification_result.test_output}
+
+Please investigate and fix the failing tests, then respond in the OUTBOX when ready to continue."""
+
+                    inbox_writer.write_message(
+                        workflow_id=state.workflow_id,
+                        title="Test Verification Failed",
+                        content=message_content,
+                        priority="urgent",
+                        awaiting_response=True
+                    )
+
+                    # Escalate to human via ntfy
+                    try:
+                        escalate_to_human(
+                            title=f"Test Failures in {state.workflow_id}",
+                            message=f"{len(verification_result.failed_tests)} test(s) failing. Check INBOX for details.",
+                            priority=5
+                        )
+                    except Exception as e:
+                        console.print(f"[dim]Note: Could not send notification: {e}[/dim]")
+
+                    # Pause workflow
+                    pause_handler = WorkflowPauseHandler(project_root)
+                    pause_handler.pause_workflow(
+                        state,
+                        f"Test verification failed: {len(verification_result.failed_tests)} tests failing"
+                    )
+
+                    console.print(
+                        "[yellow]Workflow paused. Check INBOX for details.[/yellow]"
+                    )
+                    console.print(
+                        "[dim]Resume with: jc implement {workflow_id}[/dim]".format(
+                            workflow_id=state.workflow_id
+                        )
                     )
                     break
 
