@@ -50,6 +50,18 @@ class ProjectionBuilder(ABC):
         ...     # ... implement other abstract methods
     """
 
+    @abstractmethod
+    def create_initial_state(self) -> Dict[str, Any]:
+        """Create the initial state for a projection.
+
+        Returns:
+            Dict containing the initial state structure for this projection type
+
+        Raises:
+            NotImplementedError: If not implemented by concrete class
+        """
+        pass
+
     # Agent message event handlers (from jean_claude-di8)
 
     @abstractmethod
@@ -221,6 +233,60 @@ class ProjectionBuilder(ABC):
         self, event_data: Dict[str, Any], current_state: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Apply agent.note.todo event to update projection state.
+
+        Args:
+            event_data: Event data containing agent_id, title, content, tags, etc.
+            current_state: Current projection state
+
+        Returns:
+            Updated projection state
+
+        Raises:
+            NotImplementedError: If not implemented by concrete class
+        """
+        pass
+
+    @abstractmethod
+    def apply_agent_note_question(
+        self, event_data: Dict[str, Any], current_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Apply agent.note.question event to update projection state.
+
+        Args:
+            event_data: Event data containing agent_id, title, content, tags, etc.
+            current_state: Current projection state
+
+        Returns:
+            Updated projection state
+
+        Raises:
+            NotImplementedError: If not implemented by concrete class
+        """
+        pass
+
+    @abstractmethod
+    def apply_agent_note_idea(
+        self, event_data: Dict[str, Any], current_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Apply agent.note.idea event to update projection state.
+
+        Args:
+            event_data: Event data containing agent_id, title, content, tags, etc.
+            current_state: Current projection state
+
+        Returns:
+            Updated projection state
+
+        Raises:
+            NotImplementedError: If not implemented by concrete class
+        """
+        pass
+
+    @abstractmethod
+    def apply_agent_note_reflection(
+        self, event_data: Dict[str, Any], current_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Apply agent.note.reflection event to update projection state.
 
         Args:
             event_data: Event data containing agent_id, title, content, tags, etc.

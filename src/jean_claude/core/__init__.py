@@ -27,6 +27,7 @@ from jean_claude.core.inbox_writer import InboxWriter
 from jean_claude.core.mailbox_api import Mailbox
 from jean_claude.core.mailbox_directory_manager import MailboxDirectoryManager
 from jean_claude.core.mailbox_paths import MailboxPaths
+from jean_claude.core.mailbox_projection_builder import MailboxProjectionBuilder
 from jean_claude.core.message import Message, MessagePriority
 from jean_claude.core.message_reader import read_messages
 from jean_claude.core.message_writer import MessageBox, write_message
@@ -57,6 +58,7 @@ __all__ = [
     "Mailbox",
     "MailboxDirectoryManager",
     "MailboxPaths",
+    "MailboxProjectionBuilder",
     "Message",
     "MessageBox",
     "MessagePriority",
