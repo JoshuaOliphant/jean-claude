@@ -25,58 +25,72 @@ import psutil
 import os
 
 
-async def test_connection_limit():
+async def test_connection_limit(workflow_id: str = "beads-jean_claude-61z"):
     """Test that connection limit (5) is enforced."""
-    print("Testing connection limit enforcement...")
+    print(f"Testing connection limit enforcement (workflow: {workflow_id})...")
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        # Try to open 6 connections
-        connections = []
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0)) as client:
+        # Try to open 6 connections (use context managers for SSE streams)
+        open_streams = []
 
         try:
             # Open first 5 connections (should succeed)
             for i in range(5):
-                print(f"  Opening connection {i+1}/5...")
-                response = await client.get(
-                    "http://localhost:8000/api/events/test-workflow/stream",
-                    headers={"Accept": "text/event-stream"}
-                )
-                if response.status_code == 200:
-                    connections.append(response)
-                    print(f"    ✓ Connection {i+1} opened successfully")
-                else:
-                    print(f"    ✗ Connection {i+1} failed: {response.status_code}")
+                print(f"  Opening SSE stream {i+1}/5...")
+                try:
+                    # Use stream() to open SSE connection without blocking
+                    stream = client.stream(
+                        "GET",
+                        f"http://localhost:8000/api/events/{workflow_id}/stream",
+                        headers={"Accept": "text/event-stream"}
+                    )
+                    response = await stream.__aenter__()
+
+                    if response.status_code == 200:
+                        open_streams.append(stream)
+                        print(f"    ✓ Stream {i+1} opened successfully")
+                    else:
+                        print(f"    ✗ Stream {i+1} failed: {response.status_code}")
+                        await stream.__aexit__(None, None, None)
+                except Exception as e:
+                    print(f"    ✗ Stream {i+1} error: {e}")
 
             # Try to open 6th connection (should fail with 429)
-            print("  Attempting 6th connection (should fail)...")
+            print("  Attempting 6th stream (should fail with 429)...")
             try:
-                response = await client.get(
-                    "http://localhost:8000/api/events/test-workflow/stream",
+                stream = client.stream(
+                    "GET",
+                    f"http://localhost:8000/api/events/{workflow_id}/stream",
                     headers={"Accept": "text/event-stream"}
                 )
+                response = await stream.__aenter__()
+
                 if response.status_code == 429:
-                    print("    ✓ 6th connection correctly rejected with 429 (Too Many Requests)")
+                    print("    ✓ 6th stream correctly rejected with 429 (Too Many Requests)")
+                    await stream.__aexit__(None, None, None)
                     return True
                 else:
                     print(f"    ✗ Expected 429, got {response.status_code}")
+                    await stream.__aexit__(None, None, None)
                     return False
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
-                    print("    ✓ 6th connection correctly rejected with 429")
-                    return True
+            except Exception as e:
                 print(f"    ✗ Unexpected error: {e}")
                 return False
 
         finally:
-            # Close all connections
-            for conn in connections:
-                await conn.aclose()
-            print("  Closed all test connections")
+            # Close all open streams
+            print(f"  Closing {len(open_streams)} open streams...")
+            for stream in open_streams:
+                try:
+                    await stream.__aexit__(None, None, None)
+                except:
+                    pass
+            print("  All streams closed")
 
 
-async def test_memory_usage():
+async def test_memory_usage(workflow_id: str = "beads-jean_claude-61z"):
     """Monitor memory usage during connection lifetime."""
-    print("\nTesting memory usage stability...")
+    print(f"\nTesting memory usage stability (workflow: {workflow_id})...")
 
     # Get current process
     process = psutil.Process(os.getpid())
@@ -89,7 +103,7 @@ async def test_memory_usage():
             # Open connection
             async with client.stream(
                 "GET",
-                "http://localhost:8000/api/events/test-workflow/stream",
+                f"http://localhost:8000/api/events/{workflow_id}/stream",
                 headers={"Accept": "text/event-stream"}
             ) as response:
                 # Monitor memory for 10 seconds
@@ -130,9 +144,9 @@ async def test_memory_usage():
         return False
 
 
-async def test_event_loading():
+async def test_event_loading(workflow_id: str = "beads-jean_claude-61z"):
     """Test that only recent events are loaded (not entire file)."""
-    print("\nTesting memory-efficient event loading...")
+    print(f"\nTesting memory-efficient event loading (workflow: {workflow_id})...")
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
@@ -141,7 +155,7 @@ async def test_event_loading():
 
             async with client.stream(
                 "GET",
-                "http://localhost:8000/api/events/test-workflow/stream",
+                f"http://localhost:8000/api/events/{workflow_id}/stream",
                 headers={"Accept": "text/event-stream"}
             ) as response:
                 # Count events received in first 2 seconds
@@ -177,7 +191,9 @@ async def main():
     print()
     print("Prerequisites:")
     print("  - Dashboard must be running: jc dashboard")
-    print("  - Test workflow directory: agents/test-workflow/")
+    print("  - Using workflow: beads-jean_claude-61z")
+    print()
+    print("Note: If dashboard is not running, start it in another terminal first.")
     print()
 
     results = []
