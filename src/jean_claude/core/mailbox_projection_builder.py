@@ -599,8 +599,8 @@ class MailboxProjectionBuilder(ProjectionBuilder):
         # Import here to avoid circular imports
         from .message import MessagePriority
 
-        # Handle missing inbox gracefully
-        inbox_messages = current_state.get('inbox', [])
+        # Handle missing or None inbox gracefully
+        inbox_messages = current_state.get('inbox', []) or []
 
         # Filter for unacknowledged messages only
         unread_messages = [msg for msg in inbox_messages if not msg.acknowledged]

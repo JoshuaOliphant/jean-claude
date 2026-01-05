@@ -79,6 +79,12 @@ class InboxMessage(BaseModel):
         description="When message was acknowledged"
     )
 
+    # Thread tracking
+    correlation_id: Optional[str] = Field(
+        default=None,
+        description="Optional correlation ID to track related messages in a thread"
+    )
+
     @field_validator('event_id', 'message_id', 'from_agent', 'to_agent', 'subject', 'body')
     @classmethod
     def validate_required_strings(cls, v: str, info) -> str:
@@ -113,7 +119,8 @@ class InboxMessage(BaseModel):
             body=message.body,
             priority=message.priority,
             created_at=message.created_at,
-            received_at=received_at
+            received_at=received_at,
+            correlation_id=message.correlation_id
         )
 
     def acknowledge(self, acknowledged_at: datetime) -> None:
@@ -181,6 +188,12 @@ class OutboxMessage(BaseModel):
         description="Whether message was successfully processed"
     )
 
+    # Thread tracking
+    correlation_id: Optional[str] = Field(
+        default=None,
+        description="Optional correlation ID to track related messages in a thread"
+    )
+
     @field_validator('event_id', 'message_id', 'from_agent', 'to_agent', 'subject', 'body')
     @classmethod
     def validate_required_strings(cls, v: str, info) -> str:
@@ -215,7 +228,8 @@ class OutboxMessage(BaseModel):
             body=message.body,
             priority=message.priority,
             created_at=message.created_at,
-            sent_at=sent_at
+            sent_at=sent_at,
+            correlation_id=message.correlation_id
         )
 
     def complete(self, success: bool, completed_at: datetime) -> None:
@@ -294,13 +308,14 @@ class ConversationMessage(BaseModel):
     def from_outbox_message(
         cls,
         outbox_message: OutboxMessage,
-        correlation_id: str
+        correlation_id: str = None
     ) -> 'ConversationMessage':
         """Create ConversationMessage from a completed OutboxMessage.
 
         Args:
             outbox_message: Completed OutboxMessage to convert
-            correlation_id: Correlation ID for conversation tracking
+            correlation_id: Optional correlation ID override for conversation tracking.
+                          If not provided, uses outbox_message's correlation_id.
 
         Returns:
             ConversationMessage instance with complete message lifecycle
@@ -314,6 +329,11 @@ class ConversationMessage(BaseModel):
         if outbox_message.success is None:
             raise ValueError("OutboxMessage must have success status set")
 
+        # Use provided correlation_id or fall back to outbox_message's correlation_id
+        final_correlation_id = correlation_id or outbox_message.correlation_id
+        if not final_correlation_id:
+            raise ValueError("Correlation ID is required for ConversationMessage")
+
         return cls(
             event_id=outbox_message.event_id,
             message_id=outbox_message.message_id,
@@ -326,5 +346,5 @@ class ConversationMessage(BaseModel):
             sent_at=outbox_message.sent_at,
             completed_at=outbox_message.completed_at,
             success=outbox_message.success,
-            correlation_id=correlation_id
+            correlation_id=final_correlation_id
         )
