@@ -63,7 +63,7 @@ class TestNotesProjectionBuilderState:
     def test_creates_initial_state(self):
         """Test that NotesProjectionBuilder creates proper initial state."""
         builder = NotesProjectionBuilder()
-        initial_state = builder.create_initial_state()
+        initial_state = builder.get_initial_state()
 
         assert isinstance(initial_state, dict)
         assert 'notes' in initial_state
@@ -74,7 +74,7 @@ class TestNotesProjectionBuilderState:
     def test_initial_state_has_empty_structures(self):
         """Test that initial state contains empty structures for all collections."""
         builder = NotesProjectionBuilder()
-        initial_state = builder.create_initial_state()
+        initial_state = builder.get_initial_state()
 
         assert initial_state['notes'] == []
         assert initial_state['by_category'] == {}
@@ -84,7 +84,7 @@ class TestNotesProjectionBuilderState:
     def test_initial_state_structure_is_correct(self):
         """Test that initial state has exactly the expected structure."""
         builder = NotesProjectionBuilder()
-        initial_state = builder.create_initial_state()
+        initial_state = builder.get_initial_state()
 
         expected_keys = {'notes', 'by_category', 'by_agent', 'by_tag'}
         actual_keys = set(initial_state.keys())
@@ -92,10 +92,10 @@ class TestNotesProjectionBuilderState:
         assert actual_keys == expected_keys
 
     def test_multiple_calls_return_independent_states(self):
-        """Test that multiple calls to create_initial_state return independent copies."""
+        """Test that multiple calls to get_initial_state return independent copies."""
         builder = NotesProjectionBuilder()
-        state1 = builder.create_initial_state()
-        state2 = builder.create_initial_state()
+        state1 = builder.get_initial_state()
+        state2 = builder.get_initial_state()
 
         # States should be equal but not the same object
         assert state1 == state2
@@ -108,8 +108,8 @@ class TestNotesProjectionBuilderState:
     def test_indexes_are_independent_dicts(self):
         """Test that index dictionaries are independent objects."""
         builder = NotesProjectionBuilder()
-        state1 = builder.create_initial_state()
-        state2 = builder.create_initial_state()
+        state1 = builder.get_initial_state()
+        state2 = builder.get_initial_state()
 
         # Modifying indexes in one state shouldn't affect the other
         state1['by_category']['observation'] = []
@@ -120,13 +120,13 @@ class TestNotesProjectionBuilderMethods:
     """Test that NotesProjectionBuilder has all required method signatures."""
 
     def test_has_create_initial_state_method(self):
-        """Test that create_initial_state method exists and is callable."""
+        """Test that get_initial_state method exists and is callable."""
         builder = NotesProjectionBuilder()
-        assert hasattr(builder, 'create_initial_state')
-        assert callable(builder.create_initial_state)
+        assert hasattr(builder, 'get_initial_state')
+        assert callable(builder.get_initial_state)
 
     def test_abstract_methods_return_unchanged_state(self):
-        """Test that abstract method implementations return the current state unchanged."""
+        """Test that unimplemented abstract method implementations return the current state unchanged."""
         builder = NotesProjectionBuilder()
         test_state = {'notes': [], 'by_category': {}}
         test_event_data = {'agent_id': 'test-agent', 'title': 'Test Note'}
@@ -141,15 +141,13 @@ class TestNotesProjectionBuilderMethods:
         result = builder.apply_agent_message_completed(test_event_data, test_state)
         assert result == test_state
 
-        # Test note event handlers return state unchanged
-        result = builder.apply_agent_note_observation(test_event_data, test_state)
-        assert result == test_state
-
-        result = builder.apply_agent_note_learning(test_event_data, test_state)
-        assert result == test_state
-
-        result = builder.apply_agent_note_decision(test_event_data, test_state)
-        assert result == test_state
+        # Test note event handlers that are still unimplemented return state unchanged
+        # Note: apply_agent_note_observation is now implemented and will modify state
+        # Note: apply_agent_note_learning is now implemented and will modify state
+        # Note: apply_agent_note_decision is now implemented and will modify state
+        # Note: apply_agent_note_idea is now implemented and will modify state
+        # Note: apply_agent_note_question is now implemented and will modify state
+        # Note: apply_agent_note_reflection is now implemented and will modify state
 
         result = builder.apply_agent_note_warning(test_event_data, test_state)
         assert result == test_state
@@ -161,13 +159,4 @@ class TestNotesProjectionBuilderMethods:
         assert result == test_state
 
         result = builder.apply_agent_note_todo(test_event_data, test_state)
-        assert result == test_state
-
-        result = builder.apply_agent_note_question(test_event_data, test_state)
-        assert result == test_state
-
-        result = builder.apply_agent_note_idea(test_event_data, test_state)
-        assert result == test_state
-
-        result = builder.apply_agent_note_reflection(test_event_data, test_state)
         assert result == test_state
