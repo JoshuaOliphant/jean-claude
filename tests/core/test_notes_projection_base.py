@@ -148,6 +148,7 @@ class TestNotesProjectionBuilderMethods:
         # Note: apply_agent_note_idea is now implemented and will modify state
         # Note: apply_agent_note_question is now implemented and will modify state
         # Note: apply_agent_note_reflection is now implemented and will modify state
+        # Note: apply_agent_note_todo is now implemented and will modify state
 
         result = builder.apply_agent_note_warning(test_event_data, test_state)
         assert result == test_state
@@ -156,7 +157,4 @@ class TestNotesProjectionBuilderMethods:
         assert result == test_state
 
         result = builder.apply_agent_note_context(test_event_data, test_state)
-        assert result == test_state
-
-        result = builder.apply_agent_note_todo(test_event_data, test_state)
         assert result == test_state
