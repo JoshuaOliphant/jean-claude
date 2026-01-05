@@ -10,11 +10,15 @@ cohesive interface for sharing knowledge between agents.
 
 import builtins
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from jean_claude.core.note_reader import read_notes, search_notes
 from jean_claude.core.note_writer import write_note
 from jean_claude.core.notes import Note, NoteCategory
 from jean_claude.core.notes_paths import NotesPaths
+
+if TYPE_CHECKING:
+    from jean_claude.core.events import EventLogger, EventType
 
 
 class Notes:
@@ -84,11 +88,13 @@ class Notes:
         tags: list[str] | None = None,
         related_file: str | None = None,
         related_feature: str | None = None,
+        event_logger: "EventLogger | None" = None,
     ) -> Note:
         """Add a new note.
 
         This method creates a new Note with the provided information and
-        writes it to the shared notes file.
+        writes it to the shared notes file. If an event_logger is provided,
+        it will also emit an event for event sourcing.
 
         Args:
             agent_id: Identifier of the agent creating the note
@@ -98,6 +104,7 @@ class Notes:
             tags: Optional list of tags for categorization
             related_file: Optional file path related to this note
             related_feature: Optional feature name this note relates to
+            event_logger: Optional EventLogger for event emission
 
         Returns:
             The created Note object
@@ -128,6 +135,37 @@ class Notes:
         )
 
         write_note(note, self._paths)
+
+        # Emit event if logger provided
+        if event_logger:
+            from jean_claude.core.events import EventType
+
+            event_type_map = {
+                NoteCategory.OBSERVATION: EventType.AGENT_NOTE_OBSERVATION,
+                NoteCategory.QUESTION: EventType.AGENT_NOTE_QUESTION,
+                NoteCategory.IDEA: EventType.AGENT_NOTE_IDEA,
+                NoteCategory.DECISION: EventType.AGENT_NOTE_DECISION,
+                NoteCategory.LEARNING: EventType.AGENT_NOTE_LEARNING,
+                NoteCategory.REFLECTION: EventType.AGENT_NOTE_REFLECTION,
+                NoteCategory.WARNING: EventType.AGENT_NOTE_WARNING,
+                NoteCategory.ACCOMPLISHMENT: EventType.AGENT_NOTE_ACCOMPLISHMENT,
+                NoteCategory.CONTEXT: EventType.AGENT_NOTE_CONTEXT,
+                NoteCategory.TODO: EventType.AGENT_NOTE_TODO,
+            }
+
+            event_logger.emit(
+                workflow_id=self.workflow_id,
+                event_type=event_type_map[category],
+                data={
+                    "agent_id": agent_id,
+                    "title": title,
+                    "content": content,
+                    "tags": tags or [],
+                    "related_file": str(related_file) if related_file else None,
+                    "related_feature": related_feature,
+                },
+            )
+
         return note
 
     def add_observation(

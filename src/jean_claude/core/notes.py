@@ -20,8 +20,11 @@ class NoteCategory(str, Enum):
 
     Attributes:
         OBSERVATION: Something the agent observed during work
+        QUESTION: A question needing clarification or input
+        IDEA: A potential improvement or alternative approach
         DECISION: A decision made by the agent
         LEARNING: Something learned while debugging or exploring
+        REFLECTION: Analysis of process or performance
         WARNING: A warning or caution for other agents
         ACCOMPLISHMENT: A completed task or milestone
         CONTEXT: Background context or information
@@ -29,8 +32,11 @@ class NoteCategory(str, Enum):
     """
 
     OBSERVATION = "observation"
+    QUESTION = "question"
+    IDEA = "idea"
     DECISION = "decision"
     LEARNING = "learning"
+    REFLECTION = "reflection"
     WARNING = "warning"
     ACCOMPLISHMENT = "accomplishment"
     CONTEXT = "context"

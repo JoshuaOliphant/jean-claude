@@ -54,13 +54,15 @@ _notes_context: dict[str, Any] = {
     "workflow_id": None,
     "project_root": None,
     "agent_id": None,
+    "event_logger": None,
 }
 
 
 def set_notes_context(
     workflow_id: str,
     project_root: Path,
-    agent_id: str = "agent"
+    agent_id: str = "agent",
+    event_logger: Any = None,
 ) -> None:
     """Set the current notes context for notes tools.
 
@@ -70,10 +72,12 @@ def set_notes_context(
         workflow_id: The workflow ID for notes storage
         project_root: Path to the project root directory
         agent_id: Identifier for the agent taking notes
+        event_logger: Optional EventLogger for event emission
     """
     _notes_context["workflow_id"] = workflow_id
     _notes_context["project_root"] = project_root
     _notes_context["agent_id"] = agent_id
+    _notes_context["event_logger"] = event_logger
 
 
 def get_notes_api() -> Notes | None:
@@ -165,6 +169,7 @@ async def take_note(args: dict[str, Any]) -> dict[str, Any]:
             tags = [t.strip() for t in args["tags"].split(",") if t.strip()]
 
         # Create note
+        event_logger = _notes_context.get("event_logger")
         note = notes_api.add(
             agent_id=agent_id,
             title=args["title"],
@@ -172,6 +177,7 @@ async def take_note(args: dict[str, Any]) -> dict[str, Any]:
             category=category,
             tags=tags,
             related_file=args.get("related_file"),
+            event_logger=event_logger,
         )
 
         return {

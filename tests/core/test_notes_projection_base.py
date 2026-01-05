@@ -141,20 +141,7 @@ class TestNotesProjectionBuilderMethods:
         result = builder.apply_agent_message_completed(test_event_data, test_state)
         assert result == test_state
 
-        # Test note event handlers that are still unimplemented return state unchanged
-        # Note: apply_agent_note_observation is now implemented and will modify state
-        # Note: apply_agent_note_learning is now implemented and will modify state
-        # Note: apply_agent_note_decision is now implemented and will modify state
-        # Note: apply_agent_note_idea is now implemented and will modify state
-        # Note: apply_agent_note_question is now implemented and will modify state
-        # Note: apply_agent_note_reflection is now implemented and will modify state
-        # Note: apply_agent_note_todo is now implemented and will modify state
-
-        result = builder.apply_agent_note_warning(test_event_data, test_state)
-        assert result == test_state
-
-        result = builder.apply_agent_note_accomplishment(test_event_data, test_state)
-        assert result == test_state
-
-        result = builder.apply_agent_note_context(test_event_data, test_state)
-        assert result == test_state
+        # All note event handlers are now fully implemented and will modify state
+        # Note: All 10 note category handlers (observation, question, idea, decision,
+        # learning, reflection, warning, accomplishment, context, todo) now add notes
+        # to the projection and update indexes. They no longer return state unchanged.

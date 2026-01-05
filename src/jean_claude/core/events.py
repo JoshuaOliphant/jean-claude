@@ -86,8 +86,11 @@ class EventType(str, Enum):
 
     # Agent note events
     AGENT_NOTE_OBSERVATION = "agent.note.observation"
+    AGENT_NOTE_QUESTION = "agent.note.question"
+    AGENT_NOTE_IDEA = "agent.note.idea"
     AGENT_NOTE_LEARNING = "agent.note.learning"
     AGENT_NOTE_DECISION = "agent.note.decision"
+    AGENT_NOTE_REFLECTION = "agent.note.reflection"
     AGENT_NOTE_WARNING = "agent.note.warning"
     AGENT_NOTE_ACCOMPLISHMENT = "agent.note.accomplishment"
     AGENT_NOTE_CONTEXT = "agent.note.context"
