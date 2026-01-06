@@ -27,3 +27,25 @@ htmlcov/
 knowledge/sessions/
 knowledge/context/TODO.md
 knowledge/*.log
+
+# Mailbox directories (runtime)
+INBOX/
+OUTBOX/
+
+# Beads temporary merge files
+.beads/beads.base.jsonl
+.beads/beads.base.meta.json
+.beads/beads.left.jsonl
+.beads/beads.left.meta.json
+.beads/beads.right.jsonl
+.beads/beads.right.meta.json
+
+# Temporary validation and test scripts (root directory only)
+/simple_validation.py
+/test_notes_ui_playwright.py
+/test_runner.py
+/validation_test.py
+/verify_*.py
+/VALIDATION_*.md
+/VALIDATION_*.txt
+/QUICK_REFERENCE.md
