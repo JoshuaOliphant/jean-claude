@@ -33,15 +33,15 @@ class TestNotesFullIntegration:
         agent_id = "test-agent"
         project_root = tmp_path
 
-        # Create agents directory for notes storage
-        agents_dir = project_root / "agents"
-        agents_dir.mkdir(parents=True, exist_ok=True)
-
         # Initialize event logger and notes API
         event_logger = EventLogger(project_root)
-        notes = Notes(workflow_id=workflow_id, base_dir=agents_dir)
+        notes = Notes(
+            workflow_id=workflow_id,
+            project_root=project_root,
+            event_logger=event_logger
+        )
 
-        # Write note (triggers JSONL + event)
+        # Write note (emits event to SQLite)
         note = notes.add(
             agent_id=agent_id,
             title="Test Observation",
@@ -50,7 +50,6 @@ class TestNotesFullIntegration:
             tags=["integration-test", "full-flow"],
             related_file="test.py",
             related_feature="test-feature",
-            event_logger=event_logger,
         )
 
         # Verify event was emitted to SQLite
@@ -102,13 +101,13 @@ class TestNotesFullIntegration:
         workflow_id = "test-workflow"
         project_root = tmp_path
 
-        # Create agents directory
-        agents_dir = project_root / "agents"
-        agents_dir.mkdir(parents=True, exist_ok=True)
-
         # Initialize
         event_logger = EventLogger(project_root)
-        notes = Notes(workflow_id=workflow_id, base_dir=agents_dir)
+        notes = Notes(
+            workflow_id=workflow_id,
+            project_root=project_root,
+            event_logger=event_logger
+        )
 
         # Write note
         notes.add(
@@ -116,7 +115,6 @@ class TestNotesFullIntegration:
             title=f"Test {category.value}",
             content=f"Test content for {category.value}",
             category=category,
-            event_logger=event_logger,
         )
 
         # Verify event in database
@@ -142,13 +140,13 @@ class TestNotesFullIntegration:
         workflow_id = "test-workflow"
         project_root = tmp_path
 
-        # Create agents directory
-        agents_dir = project_root / "agents"
-        agents_dir.mkdir(parents=True, exist_ok=True)
-
         # Initialize
         event_logger = EventLogger(project_root)
-        notes = Notes(workflow_id=workflow_id, base_dir=agents_dir)
+        notes = Notes(
+            workflow_id=workflow_id,
+            project_root=project_root,
+            event_logger=event_logger
+        )
 
         # Write multiple notes
         notes.add(
@@ -157,7 +155,6 @@ class TestNotesFullIntegration:
             content="Content 1",
             category=NoteCategory.OBSERVATION,
             tags=["tag1"],
-            event_logger=event_logger,
         )
 
         notes.add(
@@ -166,7 +163,6 @@ class TestNotesFullIntegration:
             content="Content 2",
             category=NoteCategory.LEARNING,
             tags=["tag2"],
-            event_logger=event_logger,
         )
 
         notes.add(
@@ -175,7 +171,6 @@ class TestNotesFullIntegration:
             content="Content 3",
             category=NoteCategory.DECISION,
             tags=["tag1", "tag3"],
-            event_logger=event_logger,
         )
 
         # Verify all events in database
@@ -211,57 +206,28 @@ class TestNotesFullIntegration:
         assert event3_data["agent_id"] == "agent-1"
 
     def test_notes_without_event_logger_backward_compat(self, tmp_path):
-        """Test: Notes still work without event_logger (backward compatibility)."""
+        """Test: Notes API requires event_logger (no backward compatibility)."""
         workflow_id = "test-workflow"
         project_root = tmp_path
 
-        # Create agents directory
-        agents_dir = project_root / "agents"
-        agents_dir.mkdir(parents=True, exist_ok=True)
-
-        # Initialize notes WITHOUT event logger
-        notes = Notes(workflow_id=workflow_id, base_dir=agents_dir)
-
-        # Write note without event_logger
-        note = notes.add(
-            agent_id="test-agent",
-            title="Test Note",
-            content="Test content",
-            category=NoteCategory.OBSERVATION,
-        )
-
-        # Verify note was created successfully
-        assert note.agent_id == "test-agent"
-        assert note.title == "Test Note"
-
-        # Note: Without event_logger, the note is written to JSONL but no event
-        # is emitted, so events.db won't exist
-        events_db = project_root / ".jc" / "events.db"
-        # Database may or may not exist (depending on test order), but if it does,
-        # it should not have our workflow's events
-        if events_db.exists():
-            conn = sqlite3.connect(events_db)
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT COUNT(*) FROM events WHERE workflow_id = ?",
-                (workflow_id,)
-            )
-            count = cursor.fetchone()[0]
-            conn.close()
-            assert count == 0, "Should have no events for this workflow"
+        # Attempting to create Notes without event_logger should fail
+        # Note: This test documents that backward compatibility was removed
+        # in favor of pure event sourcing architecture
+        with pytest.raises(TypeError, match="event_logger cannot be None"):
+            Notes(workflow_id=workflow_id, project_root=project_root, event_logger=None)
 
     def test_event_data_completeness(self, tmp_path):
         """Test: Events contain all required note data."""
         workflow_id = "test-workflow"
         project_root = tmp_path
 
-        # Create agents directory
-        agents_dir = project_root / "agents"
-        agents_dir.mkdir(parents=True, exist_ok=True)
-
         # Initialize
         event_logger = EventLogger(project_root)
-        notes = Notes(workflow_id=workflow_id, base_dir=agents_dir)
+        notes = Notes(
+            workflow_id=workflow_id,
+            project_root=project_root,
+            event_logger=event_logger
+        )
 
         # Write note with all fields
         notes.add(
@@ -272,7 +238,6 @@ class TestNotesFullIntegration:
             tags=["tag1", "tag2"],
             related_file="path/to/file.py",
             related_feature="feature-name",
-            event_logger=event_logger,
         )
 
         # Verify event data in database
@@ -304,50 +269,44 @@ class TestConvenienceMethodsIntegration:
         workflow_id = "test-workflow"
         project_root = tmp_path
 
-        # Create agents directory
-        agents_dir = project_root / "agents"
-        agents_dir.mkdir(parents=True, exist_ok=True)
-
         # Initialize
         event_logger = EventLogger(project_root)
-        notes = Notes(workflow_id=workflow_id, base_dir=agents_dir)
+        notes = Notes(
+            workflow_id=workflow_id,
+            project_root=project_root,
+            event_logger=event_logger
+        )
 
         # Use each convenience method
         notes.add_observation(
             agent_id="agent",
             title="Obs",
             content="Content",
-            event_logger=event_logger,
         )
         notes.add_learning(
             agent_id="agent",
             title="Learn",
             content="Content",
-            event_logger=event_logger,
         )
         notes.add_decision(
             agent_id="agent",
             title="Dec",
             content="Content",
-            event_logger=event_logger,
         )
         notes.add_warning(
             agent_id="agent",
             title="Warn",
             content="Content",
-            event_logger=event_logger,
         )
         notes.add_accomplishment(
             agent_id="agent",
             title="Acc",
             content="Content",
-            event_logger=event_logger,
         )
         notes.add_todo(
             agent_id="agent",
             title="Todo",
             content="Content",
-            event_logger=event_logger,
         )
 
         # Verify all 6 events in database
