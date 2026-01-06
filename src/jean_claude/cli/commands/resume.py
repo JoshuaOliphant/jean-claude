@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from jean_claude.core.state import WorkflowState
+from jean_claude.core.events import EventLogger
 from jean_claude.orchestration import run_auto_continue, AutoContinueError
 
 
@@ -151,6 +152,9 @@ def resume(
 
     # Run auto-continue loop
     try:
+        # Initialize event logger for real-time event tracking
+        event_logger = EventLogger(project_root=project_root)
+
         async def _run():
             return await run_auto_continue(
                 state=state,
@@ -159,6 +163,7 @@ def resume(
                 delay_seconds=delay,
                 model=model,
                 verify_first=not skip_verify,
+                event_logger=event_logger,
             )
 
         final_state = anyio.run(_run)

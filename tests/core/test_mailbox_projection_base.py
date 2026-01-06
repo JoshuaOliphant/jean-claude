@@ -62,7 +62,7 @@ class TestMailboxProjectionBuilderState:
     def test_creates_initial_state(self):
         """Test that MailboxProjectionBuilder creates proper initial state."""
         builder = MailboxProjectionBuilder()
-        initial_state = builder.create_initial_state()
+        initial_state = builder.get_initial_state()
 
         assert isinstance(initial_state, dict)
         assert 'inbox' in initial_state
@@ -72,7 +72,7 @@ class TestMailboxProjectionBuilderState:
     def test_initial_state_has_empty_arrays(self):
         """Test that initial state contains empty arrays for all collections."""
         builder = MailboxProjectionBuilder()
-        initial_state = builder.create_initial_state()
+        initial_state = builder.get_initial_state()
 
         assert initial_state['inbox'] == []
         assert initial_state['outbox'] == []
@@ -81,7 +81,7 @@ class TestMailboxProjectionBuilderState:
     def test_initial_state_structure_is_correct(self):
         """Test that initial state has exactly the expected structure."""
         builder = MailboxProjectionBuilder()
-        initial_state = builder.create_initial_state()
+        initial_state = builder.get_initial_state()
 
         expected_keys = {'inbox', 'outbox', 'conversation_history'}
         actual_keys = set(initial_state.keys())
@@ -89,10 +89,10 @@ class TestMailboxProjectionBuilderState:
         assert actual_keys == expected_keys
 
     def test_multiple_calls_return_independent_states(self):
-        """Test that multiple calls to create_initial_state return independent copies."""
+        """Test that multiple calls to get_initial_state return independent copies."""
         builder = MailboxProjectionBuilder()
-        state1 = builder.create_initial_state()
-        state2 = builder.create_initial_state()
+        state1 = builder.get_initial_state()
+        state2 = builder.get_initial_state()
 
         # States should be equal but not the same object
         assert state1 == state2
