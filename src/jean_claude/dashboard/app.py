@@ -6,6 +6,7 @@
 import asyncio
 import json
 import logging
+import sqlite3
 import uuid
 from collections import deque
 from pathlib import Path
@@ -343,4 +344,115 @@ def create_app(project_root: Path | None = None) -> FastAPI:
             {"request": request, "events": events[-30:]}
         )
 
+    @app.get("/api/notes/{workflow_id}")
+    async def api_notes(workflow_id: str, category: str | None = None):
+        """Get notes with optional category filter from event store.
+
+        Args:
+            workflow_id: Workflow identifier
+            category: Optional category filter (observation, warning, etc.)
+
+        Returns:
+            List of note dictionaries from event data
+        """
+        events_db = project_root / ".jc" / "events.db"
+
+        if not events_db.exists():
+            return []
+
+        conn = sqlite3.connect(events_db)
+        cursor = conn.cursor()
+
+        # Build query with optional category filter
+        query = """
+            SELECT data, timestamp
+            FROM events
+            WHERE workflow_id = ?
+              AND event_type LIKE 'agent.note.%'
+        """
+        params = [workflow_id]
+
+        if category and category != "all":
+            query += " AND event_type = ?"
+            params.append(f"agent.note.{category}")
+
+        query += " ORDER BY timestamp DESC LIMIT 50"
+
+        cursor.execute(query, params)
+
+        notes = []
+        for row in cursor.fetchall():
+            note_data = json.loads(row[0])
+            note_data['timestamp'] = row[1]
+            notes.append(note_data)
+
+        conn.close()
+        return notes
+
+    @app.get("/partials/notes/{workflow_id}", response_class=HTMLResponse)
+    async def partial_notes(request: Request, workflow_id: str, category: str = "all"):
+        """HTMX partial for notes panel querying event store.
+
+        Args:
+            request: FastAPI request object
+            workflow_id: Workflow identifier
+            category: Category filter (default: "all")
+
+        Returns:
+            HTML response with notes panel
+        """
+        events_db = project_root / ".jc" / "events.db"
+
+        if not events_db.exists():
+            return HTMLResponse("<div class='text-gray-500'>No notes yet</div>")
+
+        conn = sqlite3.connect(events_db)
+        cursor = conn.cursor()
+
+        # Query all notes for grouping
+        cursor.execute("""
+            SELECT data, timestamp
+            FROM events
+            WHERE workflow_id = ?
+              AND event_type LIKE 'agent.note.%'
+            ORDER BY timestamp DESC
+            LIMIT 100
+        """, (workflow_id,))
+
+        notes = []
+        for row in cursor.fetchall():
+            note_data = json.loads(row[0])
+            note_data['timestamp'] = row[1]
+            notes.append(note_data)
+
+        conn.close()
+
+        if not notes:
+            return HTMLResponse("<div class='text-gray-500'>No notes yet</div>")
+
+        # Filter by category if specified
+        if category != "all":
+            notes = [n for n in notes if n.get("category") == category]
+
+        # Group by category for tabs
+        by_category = {}
+        for note in notes:
+            cat = note.get("category", "other")
+            by_category.setdefault(cat, []).append(note)
+
+        return templates.TemplateResponse(
+            "partials/notes.html",
+            {
+                "request": request,
+                "workflow_id": workflow_id,
+                "notes": notes[:30],  # Display first 30
+                "by_category": by_category,
+                "selected_category": category
+            }
+        )
+
     return app
+
+
+# Default app instance for uvicorn
+app = create_app()

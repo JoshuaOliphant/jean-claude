@@ -273,6 +273,23 @@ class SQLiteEventWriter:
             )
         """)
 
+        # Create indexes for efficient note queries (Phase 1: Event Sourcing)
+        # These indexes support O(log n) queries for agent note-taking context
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_notes_workflow_type
+            ON events(workflow_id, event_type)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_notes_timestamp
+            ON events(workflow_id, timestamp DESC)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_notes_composite
+            ON events(workflow_id, event_type, timestamp DESC)
+        """)
+
         conn.commit()
         conn.close()
         self._schema_initialized = True
