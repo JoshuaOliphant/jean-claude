@@ -16,11 +16,15 @@ Architecture:
 
 import builtins
 import json
+import logging
 import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from jean_claude.core.notes import Note, NoteCategory
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from jean_claude.core.events import EventLogger, EventType
@@ -362,8 +366,11 @@ class Notes:
                     related_feature=data.get("related_feature"),
                 )
                 notes.append(note)
-            except (json.JSONDecodeError, KeyError, ValueError):
-                # Skip malformed events
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                # Log malformed events for debugging
+                logger.warning(
+                    f"Skipping malformed note event in workflow {self._workflow_id}: {type(e).__name__}"
+                )
                 continue
 
         conn.close()

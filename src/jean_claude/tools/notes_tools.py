@@ -58,6 +58,32 @@ _notes_context: dict[str, Any] = {
 }
 
 
+def _sanitize_error(exception: Exception) -> str:
+    """Sanitize exception for agent-facing error messages.
+
+    Removes potentially sensitive information like file paths and
+    internal implementation details while preserving useful error context.
+
+    Args:
+        exception: The exception to sanitize
+
+    Returns:
+        Sanitized error message suitable for agent consumption
+    """
+    error_type = type(exception).__name__
+
+    # For known validation errors, preserve the message
+    if isinstance(exception, (ValueError, TypeError)):
+        return f"{error_type}: Invalid input"
+
+    # For permission/IO errors, provide generic message
+    if isinstance(exception, (PermissionError, OSError, IOError)):
+        return f"{error_type}: Unable to access notes storage"
+
+    # For other errors, provide error type only
+    return f"{error_type}: Operation failed"
+
+
 def set_notes_context(
     workflow_id: str,
     project_root: Path,
@@ -192,7 +218,7 @@ async def take_note(args: dict[str, Any]) -> dict[str, Any]:
         return {
             "content": [{
                 "type": "text",
-                "text": f"Error recording note: {str(e)}"
+                "text": f"Error recording note: {_sanitize_error(e)}"
             }]
         }
 
@@ -288,7 +314,7 @@ async def read_notes(args: dict[str, Any]) -> dict[str, Any]:
         return {
             "content": [{
                 "type": "text",
-                "text": f"Error reading notes: {str(e)}"
+                "text": f"Error reading notes: {_sanitize_error(e)}"
             }]
         }
 
@@ -370,7 +396,7 @@ async def search_notes(args: dict[str, Any]) -> dict[str, Any]:
         return {
             "content": [{
                 "type": "text",
-                "text": f"Error searching notes: {str(e)}"
+                "text": f"Error searching notes: {_sanitize_error(e)}"
             }]
         }
 
@@ -420,7 +446,7 @@ async def get_notes_summary(args: dict[str, Any]) -> dict[str, Any]:
         return {
             "content": [{
                 "type": "text",
-                "text": f"Error getting notes summary: {str(e)}"
+                "text": f"Error getting notes summary: {_sanitize_error(e)}"
             }]
         }
 
