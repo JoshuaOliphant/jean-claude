@@ -263,6 +263,14 @@ class SQLiteEventWriter:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # Enable WAL mode for better concurrency and crash recovery
+        # WAL (Write-Ahead Logging) provides:
+        # - Atomic commits with durability
+        # - Concurrent readers and writers
+        # - Automatic crash recovery
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")  # Good balance of safety and performance
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS events (
                 id TEXT PRIMARY KEY,

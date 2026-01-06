@@ -88,13 +88,15 @@ def get_notes_api() -> Notes | None:
     """
     workflow_id = _notes_context.get("workflow_id")
     project_root = _notes_context.get("project_root")
+    event_logger = _notes_context.get("event_logger")
 
-    if not workflow_id or not project_root:
+    if not workflow_id or not project_root or not event_logger:
         return None
 
     return Notes(
         workflow_id=workflow_id,
-        base_dir=project_root / "agents"
+        project_root=project_root,
+        event_logger=event_logger
     )
 
 
@@ -168,8 +170,7 @@ async def take_note(args: dict[str, Any]) -> dict[str, Any]:
         if args.get("tags"):
             tags = [t.strip() for t in args["tags"].split(",") if t.strip()]
 
-        # Create note
-        event_logger = _notes_context.get("event_logger")
+        # Create note (event_logger is already in Notes constructor)
         note = notes_api.add(
             agent_id=agent_id,
             title=args["title"],
@@ -177,7 +178,7 @@ async def take_note(args: dict[str, Any]) -> dict[str, Any]:
             category=category,
             tags=tags,
             related_file=args.get("related_file"),
-            event_logger=event_logger,
+            related_feature=args.get("related_feature"),  # Fixed: was missing
         )
 
         return {

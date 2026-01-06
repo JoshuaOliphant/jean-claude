@@ -9,6 +9,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from jean_claude.core.events import EventLogger
 from jean_claude.core.notes import NoteCategory
 from jean_claude.core.notes_api import Notes
 from jean_claude.core.workflow_utils import find_most_recent_workflow
@@ -131,8 +132,13 @@ def add_note(
     if tags:
         tag_list = [t.strip() for t in tags.split(",") if t.strip()]
 
-    # Create notes API and add note
-    notes = Notes(workflow_id=workflow_id, base_dir=project_root / "agents")
+    # Create event logger and notes API
+    event_logger = EventLogger(project_root)
+    notes = Notes(
+        workflow_id=workflow_id,
+        project_root=project_root,
+        event_logger=event_logger
+    )
 
     try:
         created_note = notes.add(
@@ -207,8 +213,13 @@ def list_notes(
             console.print("[yellow]No workflows found[/yellow]")
             return
 
-    # Create notes API
-    notes_api = Notes(workflow_id=workflow_id, base_dir=project_root / "agents")
+    # Create event logger and notes API
+    event_logger = EventLogger(project_root)
+    notes_api = Notes(
+        workflow_id=workflow_id,
+        project_root=project_root,
+        event_logger=event_logger
+    )
 
     # Parse category if provided
     category_filter = NoteCategory(category) if category else None
@@ -291,8 +302,13 @@ def search_notes(
             console.print("[yellow]No workflows found[/yellow]")
             return
 
-    # Create notes API and search
-    notes_api = Notes(workflow_id=workflow_id, base_dir=project_root / "agents")
+    # Create event logger and notes API
+    event_logger = EventLogger(project_root)
+    notes_api = Notes(
+        workflow_id=workflow_id,
+        project_root=project_root,
+        event_logger=event_logger
+    )
     results = notes_api.search(query)
 
     if not results:
@@ -348,8 +364,13 @@ def summary(workflow_id: str | None) -> None:
             console.print("[yellow]No workflows found[/yellow]")
             return
 
-    # Create notes API and get summary
-    notes_api = Notes(workflow_id=workflow_id, base_dir=project_root / "agents")
+    # Create event logger and notes API
+    event_logger = EventLogger(project_root)
+    notes_api = Notes(
+        workflow_id=workflow_id,
+        project_root=project_root,
+        event_logger=event_logger
+    )
     summary_text = notes_api.get_summary()
 
     console.print(f"\n[bold]Workflow: {workflow_id}[/bold]\n")
@@ -388,8 +409,13 @@ def context(workflow_id: str | None, limit: int) -> None:
             console.print("[yellow]No workflows found[/yellow]")
             return
 
-    # Create notes API and format for context
-    notes_api = Notes(workflow_id=workflow_id, base_dir=project_root / "agents")
+    # Create event logger and notes API
+    event_logger = EventLogger(project_root)
+    notes_api = Notes(
+        workflow_id=workflow_id,
+        project_root=project_root,
+        event_logger=event_logger
+    )
     context_text = notes_api.format_for_context(limit=limit)
 
     # Output raw text (for piping)
