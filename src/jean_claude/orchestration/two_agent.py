@@ -304,14 +304,14 @@ async def run_two_agent_workflow(
     initializer_model: str = "opus",
     coder_model: str = "sonnet",
     max_iterations: int | None = None,
-    auto_confirm: bool = False,
+    auto_confirm: bool = True,
     event_logger: Optional["EventLogger"] = None,
 ) -> WorkflowState:
     """Run complete two-agent workflow.
 
     This orchestrates both agents:
     1. Initializer creates feature list
-    2. User confirms (unless auto_confirm=True)
+    2. User confirms (unless auto_confirm=False)
     3. Coder implements features one by one
 
     Args:
@@ -321,7 +321,7 @@ async def run_two_agent_workflow(
         initializer_model: Model for planning (default: opus)
         coder_model: Model for coding (default: sonnet)
         max_iterations: Max iterations for coder (default: features * 3)
-        auto_confirm: Skip user confirmation (default: False)
+        auto_confirm: Skip user confirmation (default: True)
 
     Returns:
         Final WorkflowState

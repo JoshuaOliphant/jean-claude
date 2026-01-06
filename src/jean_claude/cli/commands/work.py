@@ -50,18 +50,12 @@ console = Console()
     help="Plan only, don't implement (dry run mode)",
 )
 @click.option(
-    "--auto-confirm",
-    is_flag=True,
-    default=False,
-    help="Skip confirmation prompts and proceed automatically",
-)
-@click.option(
     "--strict",
     is_flag=True,
     default=False,
     help="Enable strict validation mode (converts warnings to errors)",
 )
-def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm: bool, strict: bool) -> None:
+def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, strict: bool) -> None:
     """Execute a workflow from a Beads task.
 
     Fetches task details from Beads, generates a specification,
@@ -244,7 +238,6 @@ def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm
         console.print(f"[dim]  Model: {model}[/dim]")
         console.print(f"[dim]  Show plan: {show_plan}[/dim]")
         console.print(f"[dim]  Dry run: {dry_run}[/dim]")
-        console.print(f"[dim]  Auto confirm: {auto_confirm}[/dim]")
         console.print(f"[dim]  Strict validation: {strict}[/dim]")
         console.print()
 
@@ -319,7 +312,7 @@ def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm
                 model,  # initializer_model
                 model,  # coder_model (same as initializer when using --model flag)
                 None,  # max_iterations (let workflow decide)
-                auto_confirm,  # Pass auto_confirm flag through
+                True,  # auto_confirm: always skip prompts
                 event_logger,  # Pass event_logger for feature events
             )
 
@@ -387,7 +380,7 @@ def work(beads_id: str, model: str, show_plan: bool, dry_run: bool, auto_confirm
             else:
                 console.print()
                 console.print("[bold yellow]Workflow incomplete[/bold yellow]")
-                console.print(f"[dim]Resume with: jc implement {final_state.workflow_id}[/dim]")
+                console.print(f"[dim]Resume with: jc resume {final_state.workflow_id}[/dim]")
 
         except KeyboardInterrupt:
             console.print()

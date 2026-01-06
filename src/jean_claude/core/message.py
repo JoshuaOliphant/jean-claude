@@ -21,11 +21,13 @@ class MessagePriority(str, Enum):
 
     Attributes:
         URGENT: High-priority message requiring immediate attention
+        HIGH: High-priority message
         NORMAL: Standard priority message (default)
         LOW: Low-priority message that can be handled when convenient
     """
 
     URGENT = 'urgent'
+    HIGH = 'high'
     NORMAL = 'normal'
     LOW = 'low'
 
@@ -71,6 +73,10 @@ class Message(BaseModel):
     awaiting_response: bool = Field(
         default=False,
         description="Whether this message requires a response"
+    )
+    correlation_id: Optional[str] = Field(
+        default=None,
+        description="Optional correlation ID to track related messages in a thread"
     )
 
     @field_validator('from_agent', 'to_agent', 'type', 'subject', 'body')

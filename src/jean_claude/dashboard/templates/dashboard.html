@@ -90,36 +90,54 @@
             </header>
 
             <!-- Content Grid -->
-            <div class="flex-1 grid grid-cols-2 gap-4 p-4 overflow-hidden">
-                <!-- Features Panel -->
-                <div class="bg-gray-800 rounded-lg border border-gray-700 flex flex-col overflow-hidden">
-                    <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-                        <h3 class="font-semibold">Features</h3>
-                        <span class="text-sm text-gray-400">
-                            {% set completed = selected_workflow.features|selectattr('status', 'equalto', 'completed')|list|length %}
-                            {{ completed }}/{{ selected_workflow.features|length }}
-                        </span>
+            <div class="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+                <!-- Top Row: Features and Logs -->
+                <div class="grid grid-cols-2 gap-4 flex-1 overflow-hidden">
+                    <!-- Features Panel -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 flex flex-col overflow-hidden">
+                        <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+                            <h3 class="font-semibold">Features</h3>
+                            <span class="text-sm text-gray-400">
+                                {% set completed = selected_workflow.features|selectattr('status', 'equalto', 'completed')|list|length %}
+                                {{ completed }}/{{ selected_workflow.features|length }}
+                            </span>
+                        </div>
+                        <div id="features-container"
+                             class="flex-1 overflow-y-auto p-2"
+                             hx-get="/partials/features/{{ selected_workflow.workflow_id }}"
+                             hx-trigger="every 3s"
+                             hx-swap="innerHTML">
+                            {% include "partials/features.html" %}
+                        </div>
                     </div>
-                    <div id="features-container"
-                         class="flex-1 overflow-y-auto p-2"
-                         hx-get="/partials/features/{{ selected_workflow.workflow_id }}"
-                         hx-trigger="every 3s"
-                         hx-swap="innerHTML">
-                        {% include "partials/features.html" %}
+
+                    <!-- Logs Panel -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 flex flex-col overflow-hidden">
+                        <div class="px-4 py-3 border-b border-gray-700">
+                            <h3 class="font-semibold">Activity Log</h3>
+                        </div>
+                        <div id="logs-container"
+                             class="flex-1 overflow-y-auto p-2 log-panel font-mono text-sm"
+                             hx-get="/partials/logs/{{ selected_workflow.workflow_id }}"
+                             hx-trigger="every 2s"
+                             hx-swap="innerHTML">
+                            {% include "partials/logs.html" %}
+                        </div>
                     </div>
                 </div>
 
-                <!-- Logs Panel -->
-                <div class="bg-gray-800 rounded-lg border border-gray-700 flex flex-col overflow-hidden">
+                <!-- Bottom Row: Agent Notes Panel -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 flex flex-col overflow-hidden h-96">
                     <div class="px-4 py-3 border-b border-gray-700">
-                        <h3 class="font-semibold">Activity Log</h3>
+                        <h3 class="font-semibold">Agent Notes</h3>
+                        <p class="text-xs text-gray-500 mt-1">Insights and observations from workflow agents</p>
                     </div>
-                    <div id="logs-container"
-                         class="flex-1 overflow-y-auto p-2 log-panel font-mono text-sm"
-                         hx-get="/partials/logs/{{ selected_workflow.workflow_id }}"
-                         hx-trigger="every 2s"
+                    <div id="notes-panel"
+                         class="flex-1 overflow-y-auto p-4"
+                         hx-get="/partials/notes/{{ selected_workflow.workflow_id }}"
+                         hx-trigger="load, every 5s"
                          hx-swap="innerHTML">
-                        {% include "partials/logs.html" %}
+                        <div class="text-center py-8 text-gray-500">Loading notes...</div>
                     </div>
                 </div>
             </div>

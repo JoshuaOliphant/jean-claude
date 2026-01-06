@@ -420,6 +420,7 @@ def message_factory() -> Callable[..., Message]:
         priority: MessagePriority = MessagePriority.NORMAL,
         awaiting_response: bool = False,
         id: str | None = None,
+        correlation_id: str | None = None,
     ) -> Message:
         kwargs = {
             "from_agent": from_agent,
@@ -433,5 +434,8 @@ def message_factory() -> Callable[..., Message]:
         # Only add id if provided (otherwise let Message auto-generate)
         if id is not None:
             kwargs["id"] = id
+        # Only add correlation_id if provided
+        if correlation_id is not None:
+            kwargs["correlation_id"] = correlation_id
         return Message(**kwargs)
     return _create_message

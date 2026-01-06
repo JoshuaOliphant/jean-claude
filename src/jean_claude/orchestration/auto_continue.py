@@ -42,7 +42,9 @@ from rich.progress import (
 from jean_claude.core.agent import ExecutionResult, PromptRequest
 from jean_claude.core.events import EventLogger, EventType
 from jean_claude.core.feature_commit_orchestrator import FeatureCommitOrchestrator
+from jean_claude.core.inbox_writer import InboxWriter
 from jean_claude.core.mailbox_paths import MailboxPaths
+from jean_claude.core.message import Message, MessagePriority
 from jean_claude.core.message_reader import read_messages
 from jean_claude.core.message_writer import MessageBox
 from jean_claude.core.outbox_monitor import OutboxMonitor
@@ -50,8 +52,10 @@ from jean_claude.core.response_parser import ResponseParser
 from jean_claude.core.sdk_executor import execute_prompt_async
 from jean_claude.core.state import Feature, WorkflowState
 from jean_claude.core.verification import run_verification
+from jean_claude.core.workflow_pause_handler import WorkflowPauseHandler
 from jean_claude.core.workflow_resume_handler import WorkflowResumeHandler
 from jean_claude.tools.mailbox_tools import (
+    escalate_to_human,
     jean_claude_mailbox_tools,
     process_ntfy_responses,
     set_workflow_context,
@@ -86,6 +90,9 @@ def build_feature_prompt(
     """
     state_file = project_root / "agents" / state.workflow_id / "state.json"
 
+    # Build notes context from event store
+    notes_context = _build_notes_context(state.workflow_id, project_root, feature)
+
     prompt = f"""## TASK: {feature.name}
 
 You are working on feature {state.current_feature_index + 1} of {len(state.features)} in workflow {state.workflow_id}.
@@ -98,6 +105,8 @@ Before doing ANYTHING:
 2. Run ALL existing tests to verify nothing is broken
 3. If any test fails → FIX IT FIRST (don't move to new features)
 4. Only after all tests pass → proceed to feature implementation
+
+{notes_context}
 
 ## STEP 2: IMPLEMENT FEATURE
 
@@ -188,6 +197,107 @@ Work on EXACTLY ONE feature this session. Do not proceed to the next feature.
 """
 
     return prompt
+
+
+def _build_notes_context(
+    workflow_id: str, project_root: Path, feature: Feature
+) -> str:
+    """Build notes context section for agent prompt.
+
+    Queries notes from event store and formats them for agent context.
+    Uses priority-based filtering to show most relevant notes first.
+
+    Returns formatted notes section with:
+    - Last 15 most relevant notes
+    - Priority: warnings > decisions > learnings > observations
+    - Content truncated to 200 chars
+    - Empty string if no notes exist
+
+    Args:
+        workflow_id: Workflow identifier
+        project_root: Project root directory
+        feature: Current feature being implemented
+
+    Returns:
+        Formatted markdown notes context or empty string
+    """
+    import sqlite3
+    import json
+
+    # Query notes from event store
+    events_db = project_root / ".jc" / "events.db"
+    if not events_db.exists():
+        return ""
+
+    conn = sqlite3.connect(events_db)
+    cursor = conn.cursor()
+
+    # Get all note events for this workflow
+    cursor.execute("""
+        SELECT data, timestamp
+        FROM events
+        WHERE workflow_id = ?
+          AND event_type LIKE 'agent.note.%'
+        ORDER BY timestamp DESC
+    """, (workflow_id,))
+
+    all_notes = []
+    for row in cursor.fetchall():
+        note_data = json.loads(row[0])
+        note_data['timestamp'] = row[1]
+        all_notes.append(note_data)
+
+    conn.close()
+
+    if not all_notes:
+        return ""
+
+    # Filter to most relevant (last 5 per priority category)
+    priority_categories = ["warning", "decision", "learning", "observation"]
+    relevant_notes = []
+
+    for category in priority_categories:
+        category_notes = [n for n in all_notes if n.get("category") == category]
+        relevant_notes.extend(category_notes[-5:])
+
+    # Limit to 15 most recent
+    relevant_notes = relevant_notes[-15:]
+
+    if not relevant_notes:
+        return ""
+
+    # Format as markdown
+    lines = [
+        "",
+        "## PREVIOUS NOTES FROM OTHER AGENTS",
+        "",
+        "Review these notes from agents who worked on earlier features:",
+        "",
+    ]
+
+    for note in relevant_notes:
+        emoji = {
+            "warning": "⚠️",
+            "decision": "🎯",
+            "learning": "💡",
+            "observation": "👁️",
+            "accomplishment": "✅",
+        }.get(note.get("category"), "📝")
+
+        lines.append(f"**{emoji} {note.get('category', 'unknown').upper()}**: {note['title']}")
+        if note.get("content"):
+            content = note["content"][:200]
+            if len(note["content"]) > 200:
+                content += "..."
+            lines.append(f"  {content}")
+        if note.get("related_file"):
+            lines.append(f"  📄 {note['related_file']}")
+        lines.append("")
+
+    lines.append("Use these insights to inform your implementation.")
+    lines.append("")
+
+    return "\n".join(lines)
 
 
 async def run_auto_continue(
@@ -391,8 +501,77 @@ async def run_auto_continue(
                     console.print("[yellow]Output:[/yellow]")
                     console.print(verification_result.test_output)
                     console.print()
+
+                # Emit note event for verification result (Phase 1: Event Sourcing)
+                if event_logger and not verification_result.skipped:
+                    event_logger.emit(
+                        workflow_id=state.workflow_id,
+                        event_type="agent.note.observation" if verification_result.passed else "agent.note.warning",
+                        data={
+                            "agent_id": "verification-agent",
+                            "title": "Verification passed" if verification_result.passed else "Verification failed",
+                            "content": f"{verification_result.tests_run} test files, {verification_result.duration_ms}ms",
+                            "tags": ["verification", "tests"],
+                            "category": "observation" if verification_result.passed else "warning",
+                        }
+                    )
+
+                if not verification_result.passed:
+                    # Use mailbox system to request user help
                     console.print(
-                        "[yellow]Stopping workflow due to test failures[/yellow]"
+                        "[yellow]Requesting user assistance via mailbox...[/yellow]"
+                    )
+
+                    # Write message to inbox
+                    inbox_writer = InboxWriter(project_root)
+                    failed_tests_list = "\n".join(
+                        f"  • {test}" for test in verification_result.failed_tests
+                    )
+                    message_content = f"""Test verification failed in workflow {state.workflow_id}.
+
+Failed tests:
+{failed_tests_list}
+
+Test output:
+{verification_result.test_output}
+
+Please investigate and fix the failing tests, then respond in the OUTBOX when ready to continue."""
+
+                    message = Message(
+                        from_agent=state.workflow_id,
+                        to_agent="human",
+                        type="test_failure",
+                        subject="Test Verification Failed",
+                        body=message_content,
+                        priority=MessagePriority.URGENT,
+                        awaiting_response=True,
+                    )
+                    inbox_writer.write_to_inbox(message)
+
+                    # Escalate to human via ntfy
+                    try:
+                        escalate_to_human(
+                            title=f"Test Failures in {state.workflow_id}",
+                            message=f"{len(verification_result.failed_tests)} test(s) failing. Check INBOX for details.",
+                            priority=5,
+                        )
+                    except Exception as e:
+                        console.print(
+                            f"[dim]Note: Could not send notification: {e}[/dim]"
+                        )
+
+                    # Pause workflow
+                    pause_handler = WorkflowPauseHandler(project_root)
+                    pause_handler.pause_workflow(
+                        state,
+                        f"Test verification failed: {len(verification_result.failed_tests)} tests failing",
+                    )
+
+                    console.print(
+                        "[yellow]Workflow paused. Check INBOX for details.[/yellow]"
+                    )
+                    console.print(
+                        f"[dim]Resume with: jc resume {state.workflow_id}[/dim]"
                     )
                     break
 
@@ -471,6 +650,21 @@ async def run_auto_continue(
                         f"({state.progress_percentage:.1f}% done)"
                     )
 
+                    # Emit note event for feature completion (Phase 1: Event Sourcing)
+                    if event_logger:
+                        event_logger.emit(
+                            workflow_id=state.workflow_id,
+                            event_type="agent.note.accomplishment",
+                            data={
+                                "agent_id": "coder-agent",
+                                "title": f"Completed: {feature.name}",
+                                "content": feature.description[:200],
+                                "tags": ["feature-complete", feature.name.lower().replace(" ", "-")],
+                                "category": "accomplishment",
+                                "related_feature": feature.name,
+                            }
+                        )
+
                     # Trigger commit workflow for completed feature
                     try:
                         console.print(
@@ -493,12 +687,29 @@ async def run_auto_continue(
                             feature_number=feature_number,
                             total_features=len(state.features),
                             feature_context=feature.name,
+                            workflow_id=state.workflow_id,
+                            event_logger=event_logger,
                         )
 
                         if commit_result["success"]:
                             console.print(
                                 f"[green]✓ Commit created: {commit_result['commit_sha']}[/green]"
                             )
+
+                            # Emit note event for successful commit (Phase 1: Event Sourcing)
+                            if event_logger:
+                                event_logger.emit(
+                                    workflow_id=state.workflow_id,
+                                    event_type="agent.note.accomplishment",
+                                    data={
+                                        "agent_id": "commit-orchestrator",
+                                        "title": "Commit created",
+                                        "content": f"SHA: {commit_result['commit_sha']}",
+                                        "tags": ["commit", "git"],
+                                        "category": "accomplishment",
+                                        "related_feature": feature.name,
+                                    }
+                                )
                         else:
                             # Log commit failure but don't block workflow
                             console.print(
@@ -535,6 +746,21 @@ async def run_auto_continue(
                     state.mark_feature_failed(result.output)
                     console.print(f"[red]✗ Failed: {feature.name}[/red]")
                     console.print(f"[red]Error: {result.output}[/red]")
+
+                    # Emit warning note for feature failure (Phase 1: Event Sourcing)
+                    if event_logger:
+                        event_logger.emit(
+                            workflow_id=state.workflow_id,
+                            event_type="agent.note.warning",
+                            data={
+                                "agent_id": "coder-agent",
+                                "title": f"Failed: {feature.name}",
+                                "content": result.output[:500] if result.output else "Unknown error",
+                                "tags": ["feature-failed", "error"],
+                                "category": "warning",
+                                "related_feature": feature.name,
+                            }
+                        )
 
                     # Emit feature.failed event
                     if event_logger:

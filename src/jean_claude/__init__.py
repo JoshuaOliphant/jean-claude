@@ -3,5 +3,5 @@
 
 """Jean Claude CLI - AI-powered development workflows."""
 
-__version__ = "0.3.3"
+__version__ = "0.9.0"
 __author__ = "Joshua Oliphant"

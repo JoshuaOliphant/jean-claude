@@ -1,0 +1,74 @@
+<div class="space-y-3">
+    <!-- Category Tabs -->
+    <div class="flex gap-2 border-b border-gray-700 pb-2">
+        <button
+            class="px-3 py-1 text-sm rounded {% if selected_category == 'all' %}bg-blue-600 text-white{% else %}text-gray-400 hover:text-gray-200{% endif %}"
+            hx-get="/partials/notes/{{ workflow_id }}?category=all"
+            hx-target="#notes-container"
+            hx-swap="innerHTML"
+        >
+            All ({{ notes|length }})
+        </button>
+        {% for cat in ['observation', 'learning', 'decision', 'warning', 'accomplishment'] %}
+        <button
+            class="px-3 py-1 text-sm rounded {% if selected_category == cat %}bg-blue-600 text-white{% else %}text-gray-400 hover:text-gray-200{% endif %}"
+            hx-get="/partials/notes/{{ workflow_id }}?category={{ cat }}"
+            hx-target="#notes-container"
+            hx-swap="innerHTML"
+        >
+            {{ cat|title }} ({{ by_category.get(cat, [])|length }})
+        </button>
+        {% endfor %}
+    </div>
+
+    <!-- Notes Content -->
+    <div id="notes-container" class="space-y-2 max-h-96 overflow-y-auto">
+        {% if not notes %}
+        <div class="text-gray-500 text-center py-8">No notes yet</div>
+        {% else %}
+        {% for note in notes %}
+        <div class="note-card p-3 rounded border {% if note.category == 'warning' %}bg-red-900/20 border-red-700{% elif note.category == 'accomplishment' %}bg-green-900/20 border-green-700{% elif note.category == 'decision' %}bg-purple-900/20 border-purple-700{% else %}bg-gray-800 border-gray-700{% endif %}">
+            <div class="flex justify-between items-start mb-1">
+                <div class="flex-1">
+                    <span class="text-lg">
+                        {% if note.category == "warning" %}⚠️{% endif %}
+                        {% if note.category == "decision" %}🎯{% endif %}
+                        {% if note.category == "learning" %}💡{% endif %}
+                        {% if note.category == "observation" %}👁️{% endif %}
+                        {% if note.category == "accomplishment" %}✅{% endif %}
+                        {% if note.category == "question" %}❓{% endif %}
+                        {% if note.category == "idea" %}💭{% endif %}
+                        {% if note.category == "reflection" %}🤔{% endif %}
+                        {% if note.category == "context" %}📋{% endif %}
+                        {% if note.category == "todo" %}📝{% endif %}
+                    </span>
+                    <span class="font-semibold {% if note.category == 'warning' %}text-red-400{% elif note.category == 'accomplishment' %}text-green-400{% elif note.category == 'decision' %}text-purple-400{% else %}text-gray-200{% endif %}">
+                        {{ note.title }}
+                    </span>
+                    <span class="text-sm text-gray-500 ml-2">{{ note.agent_id }}</span>
+                </div>
+                <span class="text-xs text-gray-500">{{ note.timestamp[:19]|replace('T', ' ') if note.timestamp else '' }}</span>
+            </div>
+
+            {% if note.content %}
+            <p class="text-sm text-gray-300 mt-2">{{ note.content }}</p>
+            {% endif %}
+
+            {% if note.related_file %}
+            <div class="text-xs text-gray-500 mt-2">
+                📄 {{ note.related_file }}
+            </div>
+            {% endif %}
+
+            {% if note.tags %}
+            <div class="flex gap-1 mt-2 flex-wrap">
+                {% for tag in note.tags %}
+                <span class="bg-gray-700 px-2 py-0.5 rounded text-xs text-gray-400">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+</div>

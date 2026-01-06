@@ -70,8 +70,16 @@ class FeatureCommitOrchestrator:
         self.test_command = test_command
         self.timeout = timeout
 
-    def run_tests(self) -> Dict[str, Any]:
+    def run_tests(
+        self,
+        workflow_id: Optional[str] = None,
+        event_logger: Optional["EventLogger"] = None
+    ) -> Dict[str, Any]:
         """Run tests before allowing commit.
+
+        Args:
+            workflow_id: Optional workflow identifier for event logging
+            event_logger: Optional event logger for emitting note events
 
         Returns:
             Dictionary containing:
@@ -95,6 +103,21 @@ class FeatureCommitOrchestrator:
         )
 
         result = validator.validate()
+
+        # Emit note event for test results (Phase 1: Event Sourcing)
+        if event_logger and workflow_id and result["passed"]:
+            event_logger.emit(
+                workflow_id=workflow_id,
+                event_type="agent.note.observation",
+                data={
+                    "agent_id": "commit-orchestrator",
+                    "title": "Tests passed before commit",
+                    "content": f"{result.get('total_tests', 0)} tests passed",
+                    "tags": ["tests", "commit"],
+                    "category": "observation",
+                }
+            )
+
         return result
 
     def stage_files(self, feature_context: str = "") -> Dict[str, Any]:
@@ -136,7 +159,8 @@ class FeatureCommitOrchestrator:
                     cwd=self.repo_path,
                     capture_output=True,
                     text=True,
-                    check=False
+                    check=False,
+                    stdin=subprocess.DEVNULL
                 )
 
                 if result.returncode != 0:
@@ -275,7 +299,8 @@ class FeatureCommitOrchestrator:
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
-                check=False
+                check=False,
+                stdin=subprocess.DEVNULL
             )
 
             if result.returncode != 0:
@@ -317,7 +342,8 @@ class FeatureCommitOrchestrator:
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
-                check=False
+                check=False,
+                stdin=subprocess.DEVNULL
             )
         except Exception:
             # Best effort rollback, don't raise if it fails
@@ -330,7 +356,9 @@ class FeatureCommitOrchestrator:
         beads_task_id: str,
         feature_number: int,
         total_features: int,
-        feature_context: str = ""
+        feature_context: str = "",
+        workflow_id: Optional[str] = None,
+        event_logger: Optional["EventLogger"] = None
     ) -> Dict[str, Any]:
         """Execute the complete commit workflow for a feature.
 
@@ -348,6 +376,8 @@ class FeatureCommitOrchestrator:
             feature_number: Current feature number
             total_features: Total number of features
             feature_context: Optional context about the feature
+            workflow_id: Optional workflow identifier for event logging
+            event_logger: Optional event logger for emitting note events
 
         Returns:
             Dictionary containing:
@@ -387,7 +417,7 @@ class FeatureCommitOrchestrator:
             }
 
         # Step 1: Run tests
-        test_result = self.run_tests()
+        test_result = self.run_tests(workflow_id=workflow_id, event_logger=event_logger)
         if not test_result["can_commit"]:
             # Use error handler to provide enhanced error message
             error_info = CommitErrorHandler.handle_test_failure(test_result)

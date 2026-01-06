@@ -5,6 +5,10 @@
 
 import asyncio
 import json
+import logging
+import sqlite3
+import uuid
+from collections import deque
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -16,10 +20,48 @@ from sse_starlette.sse import EventSourceResponse
 from jean_claude.core.state import WorkflowState
 from jean_claude.core.workflow_utils import get_all_workflows as get_all_workflow_states
 
+# Configure logging for connection monitoring
+logger = logging.getLogger(__name__)
+
 
 def get_templates_dir() -> Path:
     """Get the path to the templates directory."""
     return Path(__file__).parent / "templates"
+
+
+def get_recent_events(events_file: Path, max_events: int = 1000) -> list[dict]:
+    """Get only the most recent events to limit memory usage.
+
+    Uses collections.deque with maxlen for memory-efficient loading of recent events.
+    This prevents loading entire large event files into memory.
+
+    Args:
+        events_file: Path to the events.jsonl file
+        max_events: Maximum number of recent events to load (default: 1000)
+
+    Returns:
+        List of most recent events, or empty list if file doesn't exist/has errors
+    """
+    if not events_file.exists():
+        return []
+
+    events = []
+    try:
+        with open(events_file) as f:
+            # Use deque with maxlen for memory efficiency - automatically discards old items
+            recent_lines = deque(f, maxlen=max_events)
+
+        for line in recent_lines:
+            line = line.strip()
+            if line:
+                try:
+                    events.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+    except IOError:
+        return []
+
+    return events
 
 
 def create_app(project_root: Path | None = None) -> FastAPI:
@@ -45,6 +87,10 @@ def create_app(project_root: Path | None = None) -> FastAPI:
     # Store project_root in app state
     app.state.project_root = project_root
 
+    # Track active SSE connections per workflow to prevent memory leaks
+    # Format: {workflow_id: connection_count}
+    app.state.active_connections: dict[str, int] = {}
+
     def get_all_workflows() -> list[dict]:
         """Get all workflows from agents directory."""
         workflow_states = get_all_workflow_states(project_root)
@@ -63,26 +109,23 @@ def create_app(project_root: Path | None = None) -> FastAPI:
         except (json.JSONDecodeError, IOError):
             return None
 
-    def get_workflow_events(workflow_id: str) -> list[dict] | None:
-        """Get events for a workflow."""
+    def get_workflow_events(workflow_id: str, max_events: int = 1000) -> list[dict] | None:
+        """Get recent events for a workflow (memory-efficient).
+
+        Args:
+            workflow_id: Workflow ID to get events for
+            max_events: Maximum number of recent events to load (default: 1000)
+
+        Returns:
+            List of recent events, or None if workflow not found
+        """
         events_file = project_root / "agents" / workflow_id / "events.jsonl"
         if not events_file.exists():
             return None
 
-        events = []
-        try:
-            with open(events_file) as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        try:
-                            events.append(json.loads(line))
-                        except json.JSONDecodeError:
-                            continue
-        except IOError:
-            return None
-
-        return events
+        # Use memory-efficient loading to prevent loading huge files into memory
+        events = get_recent_events(events_file, max_events)
+        return events if events else None
 
     @app.get("/", response_class=HTMLResponse)
     async def dashboard(request: Request, workflow: str | None = None):
@@ -134,58 +177,135 @@ def create_app(project_root: Path | None = None) -> FastAPI:
         return events
 
     @app.get("/api/events/{workflow_id}/stream")
-    async def api_events_stream(workflow_id: str):
-        """SSE stream for real-time events."""
+    async def api_events_stream(workflow_id: str, request: Request):
+        """SSE stream for real-time events with memory leak protection.
+
+        Features:
+        - Connection timeout (1 hour max)
+        - Connection limits (max 5 per workflow)
+        - Memory-efficient event loading (recent 1000 events only)
+        - Proper lifecycle logging and cleanup
+        """
         events_file = project_root / "agents" / workflow_id / "events.jsonl"
 
         if not events_file.exists():
             raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
 
+        # Enforce connection limit to prevent memory exhaustion
+        MAX_CONNECTIONS_PER_WORKFLOW = 5
+        current_connections = app.state.active_connections.get(workflow_id, 0)
+
+        if current_connections >= MAX_CONNECTIONS_PER_WORKFLOW:
+            logger.warning(
+                f"SSE connection limit reached for workflow {workflow_id}: "
+                f"{current_connections}/{MAX_CONNECTIONS_PER_WORKFLOW}"
+            )
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many active connections for workflow {workflow_id}. "
+                       f"Maximum {MAX_CONNECTIONS_PER_WORKFLOW} concurrent streams allowed."
+            )
+
+        # Increment connection counter
+        app.state.active_connections[workflow_id] = current_connections + 1
+        connection_id = str(uuid.uuid4())[:8]
+
+        logger.info(
+            f"SSE connection opened: {connection_id} for workflow {workflow_id} "
+            f"(active: {app.state.active_connections[workflow_id]}/{MAX_CONNECTIONS_PER_WORKFLOW})"
+        )
+
         async def event_generator() -> AsyncGenerator[dict, None]:
-            """Generate SSE events from events.jsonl file."""
-            last_position = 0
-
-            # First, send existing events
+            """Generate SSE events with timeout and memory protection."""
             try:
-                with open(events_file) as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
-                            try:
-                                event = json.loads(line)
-                                yield {
-                                    "event": "log",
-                                    "data": json.dumps(event)
-                                }
-                            except json.JSONDecodeError:
-                                continue
-                    last_position = f.tell()
-            except IOError:
-                return
+                start_time = asyncio.get_event_loop().time()
+                max_duration = 3600  # 1 hour maximum connection duration
+                last_position = 0
 
-            # Then, watch for new events
-            while True:
+                # First, send only recent events (not entire history) to limit memory usage
+                # Load max 1000 recent events instead of entire file
+                recent_events = get_recent_events(events_file, max_events=1000)
+
+                for event in recent_events:
+                    yield {
+                        "event": "log",
+                        "data": json.dumps(event)
+                    }
+
+                # Get file position after loading recent events
                 try:
                     with open(events_file) as f:
-                        f.seek(last_position)
-                        for line in f:
-                            line = line.strip()
-                            if line:
-                                try:
-                                    event = json.loads(line)
-                                    yield {
-                                        "event": "log",
-                                        "data": json.dumps(event)
-                                    }
-                                except json.JSONDecodeError:
-                                    continue
+                        f.seek(0, 2)  # Seek to end of file
                         last_position = f.tell()
                 except IOError:
-                    break
+                    logger.warning(f"Could not seek to end of {events_file}")
+                    return
 
-                await asyncio.sleep(0.5)
+                # Then, watch for new events with timeout protection
+                while True:
+                    # Check connection timeout to prevent infinite loops
+                    elapsed = asyncio.get_event_loop().time() - start_time
+                    if elapsed > max_duration:
+                        logger.info(
+                            f"SSE connection timeout: {connection_id} after {elapsed:.0f}s "
+                            f"(max: {max_duration}s)"
+                        )
+                        yield {
+                            "event": "close",
+                            "data": json.dumps({
+                                "reason": "max_duration_exceeded",
+                                "message": "Connection closed after 1 hour. Please refresh to reconnect."
+                            })
+                        }
+                        break
 
-        return EventSourceResponse(event_generator())
+                    # Check if client disconnected
+                    if await request.is_disconnected():
+                        logger.info(f"SSE client disconnected: {connection_id}")
+                        break
+
+                    # Poll for new events
+                    try:
+                        with open(events_file) as f:
+                            f.seek(last_position)
+                            for line in f:
+                                line = line.strip()
+                                if line:
+                                    try:
+                                        event = json.loads(line)
+                                        yield {
+                                            "event": "log",
+                                            "data": json.dumps(event)
+                                        }
+                                    except json.JSONDecodeError:
+                                        logger.warning(f"Invalid JSON in events file: {line[:100]}")
+                                        continue
+                            last_position = f.tell()
+                    except IOError as e:
+                        logger.error(f"Error reading events file: {e}")
+                        break
+
+                    # Sleep between polls (500ms)
+                    await asyncio.sleep(0.5)
+
+            finally:
+                # CRITICAL: Always decrement connection counter, even on error/disconnect
+                current = app.state.active_connections.get(workflow_id, 0)
+                app.state.active_connections[workflow_id] = max(0, current - 1)
+
+                logger.info(
+                    f"SSE connection closed: {connection_id} for workflow {workflow_id} "
+                    f"(remaining: {app.state.active_connections[workflow_id]})"
+                )
+
+        # Return SSE response with proper HTTP headers
+        headers = {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+            "Connection": "keep-alive",
+        }
+
+        return EventSourceResponse(event_generator(), headers=headers)
 
     # HTMX partial endpoints for polling updates
     @app.get("/partials/progress/{workflow_id}", response_class=HTMLResponse)
@@ -224,4 +344,115 @@ def create_app(project_root: Path | None = None) -> FastAPI:
             {"request": request, "events": events[-30:]}
         )
 
+    @app.get("/api/notes/{workflow_id}")
+    async def api_notes(workflow_id: str, category: str | None = None):
+        """Get notes with optional category filter from event store.
+
+        Args:
+            workflow_id: Workflow identifier
+            category: Optional category filter (observation, warning, etc.)
+
+        Returns:
+            List of note dictionaries from event data
+        """
+        events_db = project_root / ".jc" / "events.db"
+
+        if not events_db.exists():
+            return []
+
+        conn = sqlite3.connect(events_db)
+        cursor = conn.cursor()
+
+        # Build query with optional category filter
+        query = """
+            SELECT data, timestamp
+            FROM events
+            WHERE workflow_id = ?
+              AND event_type LIKE 'agent.note.%'
+        """
+        params = [workflow_id]
+
+        if category and category != "all":
+            query += " AND event_type = ?"
+            params.append(f"agent.note.{category}")
+
+        query += " ORDER BY timestamp DESC LIMIT 50"
+
+        cursor.execute(query, params)
+
+        notes = []
+        for row in cursor.fetchall():
+            note_data = json.loads(row[0])
+            note_data['timestamp'] = row[1]
+            notes.append(note_data)
+
+        conn.close()
+        return notes
+
+    @app.get("/partials/notes/{workflow_id}", response_class=HTMLResponse)
+    async def partial_notes(request: Request, workflow_id: str, category: str = "all"):
+        """HTMX partial for notes panel querying event store.
+
+        Args:
+            request: FastAPI request object
+            workflow_id: Workflow identifier
+            category: Category filter (default: "all")
+
+        Returns:
+            HTML response with notes panel
+        """
+        events_db = project_root / ".jc" / "events.db"
+
+        if not events_db.exists():
+            return HTMLResponse("<div class='text-gray-500'>No notes yet</div>")
+
+        conn = sqlite3.connect(events_db)
+        cursor = conn.cursor()
+
+        # Query all notes for grouping
+        cursor.execute("""
+            SELECT data, timestamp
+            FROM events
+            WHERE workflow_id = ?
+              AND event_type LIKE 'agent.note.%'
+            ORDER BY timestamp DESC
+            LIMIT 100
+        """, (workflow_id,))
+
+        notes = []
+        for row in cursor.fetchall():
+            note_data = json.loads(row[0])
+            note_data['timestamp'] = row[1]
+            notes.append(note_data)
+
+        conn.close()
+
+        if not notes:
+            return HTMLResponse("<div class='text-gray-500'>No notes yet</div>")
+
+        # Filter by category if specified
+        if category != "all":
+            notes = [n for n in notes if n.get("category") == category]
+
+        # Group by category for tabs
+        by_category = {}
+        for note in notes:
+            cat = note.get("category", "other")
+            by_category.setdefault(cat, []).append(note)
+
+        return templates.TemplateResponse(
+            "partials/notes.html",
+            {
+                "request": request,
+                "workflow_id": workflow_id,
+                "notes": notes[:30],  # Display first 30
+                "by_category": by_category,
+                "selected_category": category
+            }
+        )
+
     return app
+
+
+# Default app instance for uvicorn
+app = create_app()

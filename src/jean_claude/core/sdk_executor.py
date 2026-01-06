@@ -153,6 +153,7 @@ async def _execute_prompt_async(
         agents=agents,  # Subagent definitions for Task tool delegation
         mcp_servers=request.mcp_servers,  # Agent SDK MCP servers (like mailbox tools)
         allowed_tools=request.allowed_tools,  # Allowed tool names
+        setting_sources=[],  # Don't load filesystem settings (prevents ~/.claude/hooks from loading)
     )
 
     messages: list[dict[str, Any]] = []
@@ -480,6 +481,7 @@ async def execute_prompt_streaming(
         agents=agents,  # Subagent definitions for Task tool delegation
         mcp_servers=request.mcp_servers,  # Agent SDK MCP servers (like mailbox tools)
         allowed_tools=request.allowed_tools,  # Allowed tool names
+        setting_sources=[],  # Don't load filesystem settings (prevents ~/.claude/hooks from loading)
     )
 
     # Use async generator prompt when MCP servers present (SDK bug workaround)

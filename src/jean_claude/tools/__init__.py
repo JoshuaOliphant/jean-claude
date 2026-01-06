@@ -10,8 +10,17 @@ Tools are exposed to agents with the format: mcp__{server-name}__{tool-name}
 
 Available tool servers:
 - mailbox_tools: Communication tools for agent-user interaction
+- notes_tools: Shared note-taking tools for knowledge sharing between agents
 """
 
 from jean_claude.tools.mailbox_tools import jean_claude_mailbox_tools
+from jean_claude.tools.notes_tools import (
+    jean_claude_notes_tools,
+    set_notes_context,
+)
 
-__all__ = ["jean_claude_mailbox_tools"]
+__all__ = [
+    "jean_claude_mailbox_tools",
+    "jean_claude_notes_tools",
+    "set_notes_context",
+]

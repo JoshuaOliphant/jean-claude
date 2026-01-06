@@ -43,7 +43,13 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 import anyio
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+# Import event schemas for convenience
+from .event_schemas import AgentMessageSentData
+
+# Alias for backward compatibility
+AgentMessageSentSchema = AgentMessageSentData
 
 
 class EventType(str, Enum):
@@ -73,6 +79,23 @@ class EventType(str, Enum):
     AGENT_TEST_RESULT = "agent.test_result"
     AGENT_ERROR = "agent.error"
 
+    # Agent messaging events
+    AGENT_MESSAGE_SENT = "agent.message.sent"
+    AGENT_MESSAGE_ACKNOWLEDGED = "agent.message.acknowledged"
+    AGENT_MESSAGE_COMPLETED = "agent.message.completed"
+
+    # Agent note events
+    AGENT_NOTE_OBSERVATION = "agent.note.observation"
+    AGENT_NOTE_QUESTION = "agent.note.question"
+    AGENT_NOTE_IDEA = "agent.note.idea"
+    AGENT_NOTE_LEARNING = "agent.note.learning"
+    AGENT_NOTE_DECISION = "agent.note.decision"
+    AGENT_NOTE_REFLECTION = "agent.note.reflection"
+    AGENT_NOTE_WARNING = "agent.note.warning"
+    AGENT_NOTE_ACCOMPLISHMENT = "agent.note.accomplishment"
+    AGENT_NOTE_CONTEXT = "agent.note.context"
+    AGENT_NOTE_TODO = "agent.note.todo"
+
 
 class Event(BaseModel):
     """Base event model for all workflow and agent events.
@@ -93,6 +116,113 @@ class Event(BaseModel):
     workflow_id: str
     event_type: EventType
     data: dict
+
+
+class AgentNoteEventData(BaseModel):
+    """Structured data model for agent note events.
+
+    This Pydantic model provides a standardized schema for the data field
+    when creating agent note events. It ensures consistent structure and
+    validation for all note-related event data.
+
+    Attributes:
+        agent_id: Identifier of the agent creating the note (required)
+        title: Brief title/summary of the note (required)
+        content: Full content/body of the note (required)
+        tags: List of tags for categorizing the note (required, can be empty)
+        related_file: Optional path to file related to this note
+        related_feature: Optional identifier of feature/task related to this note
+
+    Example:
+        >>> note_data = AgentNoteEventData(
+        ...     agent_id="agent-123",
+        ...     title="Implementation Complete",
+        ...     content="Successfully implemented user authentication",
+        ...     tags=["feature", "auth", "completed"],
+        ...     related_file="src/auth/login.py",
+        ...     related_feature="user-authentication"
+        ... )
+        >>> event = Event(
+        ...     workflow_id="my-workflow",
+        ...     event_type=EventType.AGENT_NOTE_ACCOMPLISHMENT,
+        ...     data=note_data.model_dump()
+        ... )
+    """
+
+    agent_id: str = Field(..., description="Identifier of the agent creating the note")
+    title: str = Field(..., description="Title or summary of the note")
+    content: str = Field(..., description="Detailed content/body of the note")
+    tags: list[str] = Field(..., description="List of tags for categorizing the note")
+    related_file: str | None = Field(None, description="Optional path to related file")
+    related_feature: str | None = Field(None, description="Optional related feature identifier")
+
+    @field_validator('agent_id', 'title', 'content')
+    @classmethod
+    def validate_required_strings(cls, v: str, info) -> str:
+        """Validate that required string fields are not empty or whitespace-only.
+
+        Args:
+            v: The field value to validate
+            info: Validation info containing field name
+
+        Returns:
+            The validated field value
+
+        Raises:
+            ValueError: If the field is empty or only whitespace
+        """
+        if not v or not v.strip():
+            raise ValueError(f"{info.field_name} cannot be empty")
+        return v.strip()
+
+    @field_validator('tags')
+    @classmethod
+    def validate_tags(cls, v: list[str]) -> list[str]:
+        """Validate that tags list contains only non-empty strings.
+
+        Args:
+            v: The tags list to validate
+
+        Returns:
+            The validated tags list
+
+        Raises:
+            ValueError: If any tag is empty or not a string
+        """
+        if not isinstance(v, list):
+            raise ValueError("tags must be a list")
+
+        validated_tags = []
+        for i, tag in enumerate(v):
+            if not isinstance(tag, str):
+                raise ValueError(f"tags[{i}] must be a string, got {type(tag).__name__}")
+            if not tag or not tag.strip():
+                raise ValueError(f"tags[{i}] cannot be empty")
+            validated_tags.append(tag.strip())
+
+        return validated_tags
+
+    @field_validator('related_file', 'related_feature')
+    @classmethod
+    def validate_optional_strings(cls, v: str | None) -> str | None:
+        """Validate optional string fields are either None or non-empty strings.
+
+        Args:
+            v: The field value to validate
+
+        Returns:
+            The validated field value (None or trimmed string)
+
+        Raises:
+            ValueError: If the field is empty string (should be None instead)
+        """
+        if v is None:
+            return None
+        if not isinstance(v, str):
+            raise ValueError("Field must be a string or None")
+        if not v.strip():
+            raise ValueError("Optional string fields cannot be empty (use None instead)")
+        return v.strip()
 
 
 class SQLiteEventWriter:
@@ -133,6 +263,14 @@ class SQLiteEventWriter:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # Enable WAL mode for better concurrency and crash recovery
+        # WAL (Write-Ahead Logging) provides:
+        # - Atomic commits with durability
+        # - Concurrent readers and writers
+        # - Automatic crash recovery
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")  # Good balance of safety and performance
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS events (
                 id TEXT PRIMARY KEY,
@@ -141,6 +279,23 @@ class SQLiteEventWriter:
                 event_type TEXT NOT NULL,
                 data TEXT NOT NULL
             )
+        """)
+
+        # Create indexes for efficient note queries (Phase 1: Event Sourcing)
+        # These indexes support O(log n) queries for agent note-taking context
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_notes_workflow_type
+            ON events(workflow_id, event_type)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_notes_timestamp
+            ON events(workflow_id, timestamp DESC)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_notes_composite
+            ON events(workflow_id, event_type, timestamp DESC)
         """)
 
         conn.commit()
@@ -442,79 +597,4 @@ class EventLogger:
 
         return events
 
-    def get_recent_events(
-        self,
-        limit: int = 100,
-        event_types: list[str] | None = None
-    ) -> list[Event]:
-        """Query the most recent events across all workflows from the SQLite database.
 
-        Returns events optionally filtered by event_type, ordered by timestamp
-        in descending (reverse chronological) order, limited to the most recent N events.
-
-        Args:
-            limit: Maximum number of events to return (default: 100)
-            event_types: Optional list of event type strings to filter by
-                        (e.g., ["workflow.started", "workflow.completed"])
-
-        Returns:
-            List of Event objects ordered by timestamp descending (newest first),
-            limited to the specified number of events
-
-        Example:
-            >>> logger = EventLogger(Path("/project"))
-            >>> # Get 50 most recent events
-            >>> events = logger.get_recent_events(limit=50)
-            >>> # Get 20 most recent feature events
-            >>> events = logger.get_recent_events(
-            ...     limit=20,
-            ...     event_types=["feature.started", "feature.completed"]
-            ... )
-        """
-        # Ensure schema exists
-        if not self.sqlite_writer._schema_initialized:
-            self.sqlite_writer._ensure_schema()
-
-        conn = sqlite3.connect(self.sqlite_writer.db_path)
-        cursor = conn.cursor()
-
-        # Build query based on whether we're filtering by event_type
-        if event_types is None:
-            # Get all recent events
-            cursor.execute(
-                """
-                SELECT id, timestamp, workflow_id, event_type, data
-                FROM events
-                ORDER BY timestamp DESC
-                LIMIT ?
-                """,
-                (limit,)
-            )
-        else:
-            # Get recent events filtered by event_type
-            placeholders = ",".join("?" * len(event_types))
-            query = f"""
-                SELECT id, timestamp, workflow_id, event_type, data
-                FROM events
-                WHERE event_type IN ({placeholders})
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """
-            cursor.execute(query, (*event_types, limit))
-
-        rows = cursor.fetchall()
-        conn.close()
-
-        # Convert rows to Event objects
-        events = []
-        for row in rows:
-            event = Event(
-                id=UUID(row[0]),
-                timestamp=datetime.fromisoformat(row[1]),
-                workflow_id=row[2],
-                event_type=row[3],
-                data=json.loads(row[4])
-            )
-            events.append(event)
-
-        return events

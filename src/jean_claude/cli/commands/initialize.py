@@ -78,7 +78,7 @@ def initialize(
     \b
     Output:
         Creates agents/{workflow-id}/state.json with feature list.
-        Use `jc implement {workflow-id}` to execute the features.
+        Use `jc resume {workflow-id}` to execute the features.
     """
     # Validate input: must have exactly one of description or spec_file
     if description and spec_file:
@@ -134,7 +134,7 @@ def initialize(
                 f"Workflow ID: [cyan]{state.workflow_id}[/cyan]\n"
                 f"State file: [cyan]agents/{state.workflow_id}/state.json[/cyan]\n\n"
                 "Next step:\n"
-                f"  [cyan]jc implement {state.workflow_id}[/cyan]",
+                f"  [cyan]jc resume {state.workflow_id}[/cyan]",
                 title="[bold green]Success[/bold green]",
                 border_style="green",
             )

@@ -94,6 +94,125 @@ WorkflowState (state.py):
 - `Message` model with priority levels and response tracking
 - Enables async agent-to-agent messaging
 
+## Agent Note-Taking System
+
+The agent note-taking system enables agents to share knowledge and coordinate through structured notes stored as events.
+
+### Architecture
+
+**Three-Layer System:**
+1. **Storage Layer** (`agents/{workflow_id}/notes.jsonl`): Write-ahead log for durability
+2. **Event Layer** (`.jc/events.db`): Single source of truth for event sourcing
+3. **Query Layer** (Projection builders): Rebuild state from events for dashboard/queries
+
+**10 Note Categories:**
+- `observation` - Facts discovered about the codebase
+- `question` - Open questions needing answers
+- `idea` - Potential solutions or approaches
+- `decision` - Decisions made with rationale
+- `learning` - Patterns and insights learned
+- `reflection` - Meta-observations about the process
+- `warning` - Potential issues or concerns
+- `accomplishment` - Completed milestones
+- `context` - Background information for other agents
+- `todo` - Work items for future attention
+
+### Using Notes in Agent Code
+
+**With Event Logging (Recommended)**:
+```python
+from jean_claude.core.notes_api import Notes
+from jean_claude.core.notes import NoteCategory
+from jean_claude.core.events import EventLogger
+
+# Initialize
+event_logger = EventLogger(project_root)
+notes = Notes(workflow_id="my-workflow", base_dir=project_root / "agents")
+
+# Add note (emits event for dashboard)
+notes.add_observation(
+    agent_id="coder-agent",
+    title="Found existing auth pattern",
+    content="All API routes use async_auth_middleware for JWT validation",
+    tags=["auth", "patterns"],
+    related_file="src/api/middleware.py",
+    event_logger=event_logger  # Key: enables event sourcing
+)
+```
+
+**Without Event Logging (Backward Compatible)**:
+```python
+# Note written to JSONL only, no events emitted (won't appear in dashboard)
+notes.add_learning(
+    agent_id="agent",
+    title="Database uses SQLAlchemy 2.0",
+    content="All models use async sessions"
+)
+```
+
+### MCP Tools Integration
+
+**Setting Up Notes Context**:
+```python
+from jean_claude.tools.notes_tools import set_notes_context
+
+# Configure notes for agent execution
+set_notes_context(
+    workflow_id=state.workflow_id,
+    project_root=project_root,
+    agent_id="coder-agent",
+    event_logger=event_logger  # Optional: enables event emission
+)
+```
+
+**MCP Tools Available**:
+- `mcp__jean-claude-notes__take_note` - Record a note
+- `mcp__jean-claude-notes__read_notes` - Read notes by category
+- `mcp__jean-claude-notes__search_notes` - Search notes by keywords
+- `mcp__jean-claude-notes__get_notes_summary` - Get overview of all notes
+
+### Querying Notes
+
+```python
+# Read all notes
+all_notes = notes.list()
+
+# Filter by category
+learnings = notes.list(category=NoteCategory.LEARNING)
+
+# Filter by agent
+agent_notes = notes.list(agent_id="coder-agent")
+
+# Search by content
+auth_notes = notes.search("authentication")
+
+# Get formatted summary
+summary = notes.get_summary()
+```
+
+### Event Sourcing Flow
+
+```
+1. Agent calls notes.add(..., event_logger=logger)
+   ↓
+2. Note written to JSONL (write-ahead log)
+   ↓
+3. Event emitted to .jc/events.db
+   ↓
+4. Dashboard rebuilds projection from events
+   ↓
+5. Notes queryable via projection state
+```
+
+**Key Files:**
+- `src/jean_claude/core/notes_api.py` - High-level Notes API
+- `src/jean_claude/core/notes.py` - Note model and NoteCategory enum
+- `src/jean_claude/core/notes_projection_builder.py` - Event handlers for projection rebuilding
+- `src/jean_claude/tools/notes_tools.py` - MCP tools for agent access
+- `tests/core/test_notes_integration.py` - Full integration tests
+
+**Documentation:** `knowledge/doc/implementation/agent-note-taking-completion.md`
+
 ## Context Management & Delegation
 
 **Role**: You are the coordinator, not the implementer. Preserve context for strategic oversight.
