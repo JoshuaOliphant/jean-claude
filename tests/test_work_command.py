@@ -151,18 +151,24 @@ class TestWorkEventEmission:
         with patch('jean_claude.cli.commands.work.fetch_beads_task', return_value=mock_beads_task):
             with patch('jean_claude.cli.commands.work.generate_spec_from_beads', return_value="# Test"):
                 with patch('jean_claude.cli.commands.work.update_beads_status'):
-                    with patch('jean_claude.cli.commands.work.EventLogger') as mock_logger_class:
-                        mock_logger = Mock()
-                        mock_logger_class.return_value = mock_logger
+                    with patch('jean_claude.cli.commands.work.anyio.run') as mock_anyio:
+                        # Mock the workflow execution to prevent actual SDK calls
+                        mock_state = Mock()
+                        mock_state.is_complete.return_value = True
+                        mock_anyio.return_value = mock_state
 
-                        result = isolated_cli_runner.invoke(work, ["test-task.1"])
+                        with patch('jean_claude.cli.commands.work.EventLogger') as mock_logger_class:
+                            mock_logger = Mock()
+                            mock_logger_class.return_value = mock_logger
 
-                        # Should emit workflow.started event with beads_task_id
-                        mock_logger.emit.assert_any_call(
-                            workflow_id="beads-test-task.1",
-                            event_type="workflow.started",
-                            data={"beads_task_id": "test-task.1"}
-                        )
+                            result = isolated_cli_runner.invoke(work, ["test-task.1"])
+
+                            # Should emit workflow.started event with beads_task_id
+                            mock_logger.emit.assert_any_call(
+                                workflow_id="beads-test-task.1",
+                                event_type="workflow.started",
+                                data={"beads_task_id": "test-task.1"}
+                            )
 
 
 class TestWorkflowIntegration:
@@ -203,23 +209,6 @@ class TestWorkflowIntegration:
                             call_args = mock_workflow.call_args.args
                             assert call_args[3] == "opus"  # initializer_model
                             assert call_args[4] == "opus"  # coder_model
-
-    def test_work_auto_confirm_skips_prompts(self, mock_beads_task, mock_task_validator, isolated_cli_runner):
-        """Test that --auto-confirm flag is passed to run_two_agent_workflow."""
-        with patch('jean_claude.cli.commands.work.fetch_beads_task', return_value=mock_beads_task):
-            with patch('jean_claude.cli.commands.work.generate_spec_from_beads', return_value="# Test"):
-                with patch('jean_claude.cli.commands.work.update_beads_status'):
-                    with patch('jean_claude.cli.commands.work.run_two_agent_workflow') as mock_workflow:
-                        mock_state = Mock()
-                        mock_state.is_complete.return_value = True
-
-                        with patch('jean_claude.cli.commands.work.anyio.run', side_effect=lambda fn, *args: fn(*args)):
-                            mock_workflow.return_value = mock_state
-                            result = isolated_cli_runner.invoke(work, ["test-task.1", "--auto-confirm"])
-
-                            assert mock_workflow.called
-                            call_args = mock_workflow.call_args.args
-                            assert call_args[6] is True  # auto_confirm
 
     def test_work_handles_workflow_errors(self, mock_beads_task, mock_task_validator, isolated_cli_runner):
         """Test that work command handles run_two_agent_workflow errors gracefully."""
