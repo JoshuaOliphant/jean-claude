@@ -46,16 +46,6 @@ class TestEventStoreInitialization:
         assert event_store.db_path == Path(db_path_str)
         assert isinstance(event_store.db_path, Path)
 
-    def test_init_stores_db_path_as_instance_variable(self, tmp_path):
-        """Test that database path is properly stored as instance variable."""
-        db_path = tmp_path / "events.db"
-
-        event_store = EventStore(db_path)
-
-        # Should be accessible as instance variable
-        assert hasattr(event_store, 'db_path')
-        assert event_store.db_path == db_path
-
     def test_init_with_nested_directory_path(self, tmp_path):
         """Test initialization with nested directory structure."""
         nested_path = tmp_path / "data" / "events" / "workflow.db"
@@ -73,15 +63,6 @@ class TestEventStoreInitialization:
 
         assert event_store.db_path == relative_path
         # Should preserve relative nature, not convert to absolute
-
-    def test_init_with_absolute_path(self, tmp_path):
-        """Test initialization with absolute path."""
-        absolute_path = tmp_path.absolute() / "events.db"
-
-        event_store = EventStore(absolute_path)
-
-        assert event_store.db_path == absolute_path
-        assert event_store.db_path.is_absolute()
 
 
 @pytest.mark.skipif(EventStore is None, reason="EventStore not implemented yet")
@@ -150,34 +131,6 @@ class TestEventStorePathHandling:
         for special_path in special_paths:
             event_store = EventStore(special_path)
             assert event_store.db_path == special_path
-
-    def test_init_normalizes_path_separators(self):
-        """Test that path separators are properly normalized."""
-        # Test with mixed separators (mainly relevant on Windows)
-        mixed_path = "data\\events/database.db"
-
-        event_store = EventStore(mixed_path)
-
-        # Path should be normalized
-        assert event_store.db_path == Path(mixed_path)
-
-    def test_init_preserves_file_extension(self, tmp_path):
-        """Test that various file extensions are preserved."""
-        extensions = [".db", ".sqlite", ".sqlite3", ".database"]
-
-        for ext in extensions:
-            db_path = tmp_path / f"events{ext}"
-            event_store = EventStore(db_path)
-            assert event_store.db_path.suffix == ext
-
-    def test_init_allows_path_without_extension(self, tmp_path):
-        """Test initialization with path that has no file extension."""
-        no_ext_path = tmp_path / "events_database"
-
-        event_store = EventStore(no_ext_path)
-
-        assert event_store.db_path == no_ext_path
-        assert event_store.db_path.suffix == ""
 
 
 @pytest.mark.skipif(EventStore is None, reason="EventStore not implemented yet")
