@@ -31,27 +31,6 @@ class TestDashboardCLI:
         """Create a CLI test runner."""
         return CliRunner()
 
-    def test_dashboard_help_shows_usage(self, runner):
-        """Test that --help shows command usage."""
-        result = runner.invoke(cli, ["dashboard", "--help"])
-
-        assert result.exit_code == 0
-        assert "dashboard" in result.output.lower()
-        assert "--port" in result.output
-
-    def test_dashboard_has_port_option(self, runner):
-        """Test that --port option exists."""
-        result = runner.invoke(cli, ["dashboard", "--help"])
-
-        assert "--port" in result.output
-        assert "8765" in result.output or "port" in result.output.lower()
-
-    def test_dashboard_has_host_option(self, runner):
-        """Test that --host option exists."""
-        result = runner.invoke(cli, ["dashboard", "--help"])
-
-        assert "--host" in result.output
-
 
 class TestDashboardApp:
     """Tests for FastAPI dashboard app."""

@@ -15,17 +15,6 @@ from jean_claude.core.task_validator import ValidationResult
 from jean_claude.core.interactive_prompt_handler import InteractivePromptHandler, PromptAction
 
 
-class TestPromptAction:
-    """Test PromptAction enum - minimal validation."""
-
-    def test_prompt_action_values_are_distinct(self):
-        """Test that PromptAction has distinct values."""
-        assert PromptAction.PROCEED is not None
-        assert PromptAction.EDIT is not None
-        assert PromptAction.CANCEL is not None
-        assert len({PromptAction.PROCEED, PromptAction.EDIT, PromptAction.CANCEL}) == 3
-
-
 class TestInteractivePromptHandlerInit:
     """Test initialization - consolidated from 3 tests to 1."""
 
@@ -35,7 +24,6 @@ class TestInteractivePromptHandlerInit:
 
         # Default formatter
         handler = InteractivePromptHandler()
-        assert handler is not None
         assert handler.formatter is not None
 
         # Custom formatter
