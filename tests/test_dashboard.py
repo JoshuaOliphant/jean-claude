@@ -108,8 +108,8 @@ class TestDashboardApp:
         assert response.status_code == 200
         html = response.text
 
-        # Should have key dashboard elements
-        assert "dashboard" in html.lower() or "workflow" in html.lower()
+        # Should have key dashboard elements (title or workflow list)
+        assert "dashboard" in html.lower() and ("workflow" in html.lower() or "jean claude" in html.lower())
 
     def test_api_workflows_returns_list(self, client):
         """Test that /api/workflows returns workflow list."""
@@ -217,16 +217,16 @@ class TestDashboardTemplates:
         response = client.get("/?workflow=template-test")
 
         assert response.status_code == 200
-        # Should contain workflow info
-        assert "template-test" in response.text.lower() or "Template Test" in response.text
+        # Should contain workflow name from fixture
+        assert "Template Test" in response.text, "Dashboard should show workflow_name from state.json"
 
     def test_dashboard_shows_features(self, client):
         """Test that dashboard shows feature list."""
         response = client.get("/?workflow=template-test")
 
         assert response.status_code == 200
-        # Should show features
-        assert "Feature A" in response.text or "feature" in response.text.lower()
+        # Should show actual feature names from fixture
+        assert "Feature A" in response.text or "Feature B" in response.text, "Dashboard should display features from state.json"
 
     def test_dashboard_includes_htmx(self, client):
         """Test that dashboard includes HTMX script."""
@@ -293,4 +293,5 @@ class TestDashboardWorkflowView:
         response = client.get("/?workflow=workflow-b")
 
         assert response.status_code == 200
-        assert "workflow-b" in response.text.lower() or "Workflow B" in response.text
+        # Workflow name should appear (from fixture: "Workflow WORKFLOW-B")
+        assert "Workflow B" in response.text or "workflow-b" in response.text.lower(), "Should display selected workflow name or ID"
