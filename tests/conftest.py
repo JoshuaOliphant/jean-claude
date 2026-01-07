@@ -439,3 +439,110 @@ def message_factory() -> Callable[..., Message]:
             kwargs["correlation_id"] = correlation_id
         return Message(**kwargs)
     return _create_message
+
+
+# =============================================================================
+# Integration Test Helpers
+# =============================================================================
+
+
+def query_events(project_root: Path, event_type: str = None, **filters):
+    """Helper to query events from .jc/events.db with optional filters.
+
+    Reduces 15-line boilerplate used in 15+ integration tests.
+
+    Args:
+        project_root: Project root directory
+        event_type: Filter by event type (optional)
+        **filters: Additional WHERE clause filters (e.g., workflow_id='abc')
+
+    Returns:
+        List[dict]: Query results as dicts
+
+    Example:
+        events = query_events(project_root, event_type="workflow.started")
+        events = query_events(project_root, workflow_id="test-123")
+    """
+    import sqlite3
+
+    db_path = project_root / ".jc" / "events.db"
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+
+    query = "SELECT * FROM events"
+    conditions = []
+    params = []
+
+    if event_type:
+        conditions.append("event_type = ?")
+        params.append(event_type)
+
+    for key, value in filters.items():
+        conditions.append(f"{key} = ?")
+        params.append(value)
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    cursor = conn.execute(query, params)
+    results = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return results
+
+
+@pytest.fixture
+def notes_api_with_logger(tmp_path):
+    """Fixture providing Notes API with EventLogger configured.
+
+    Used across 25+ notes integration tests.
+
+    Returns:
+        tuple: (Notes instance, EventLogger instance, workflow_id, project_root)
+
+    Example:
+        def test_notes(notes_api_with_logger):
+            notes, event_logger, workflow_id, project_root = notes_api_with_logger
+            notes.add_observation(..., event_logger=event_logger)
+    """
+    from jean_claude.core.notes_api import Notes
+    from jean_claude.core.events import EventLogger
+    import uuid
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+
+    workflow_id = str(uuid.uuid4())[:8]
+
+    event_logger = EventLogger(project_root)
+    notes = Notes(
+        workflow_id=workflow_id,
+        base_dir=project_root / "agents"
+    )
+
+    return notes, event_logger, workflow_id, project_root
+
+
+@pytest.fixture
+def event_store_with_logger(tmp_path):
+    """Fixture providing EventStore with initialized database.
+
+    Common pattern across event-related tests.
+
+    Returns:
+        tuple: (EventStore instance, project_root)
+
+    Example:
+        def test_events(event_store_with_logger):
+            event_store, project_root = event_store_with_logger
+            event_store.log_event(...)
+    """
+    from jean_claude.core.event_store import EventStore
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+
+    event_store = EventStore(project_root)
+    event_store.initialize()
+
+    return event_store, project_root
