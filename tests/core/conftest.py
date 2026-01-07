@@ -59,64 +59,9 @@ def minimal_beads_task() -> BeadsTask:
     )
 
 
-@pytest.fixture
-def beads_task_factory() -> Callable[..., BeadsTask]:
-    """Factory fixture for creating BeadsTask with custom values.
-
-    Usage:
-        def test_something(beads_task_factory):
-            task = beads_task_factory(id="custom-id", status="in_progress")
-    """
-    def _create_task(
-        id: str = "factory-task.1",
-        title: str = "Factory Task",
-        description: str = "Created by factory fixture",
-        acceptance_criteria: list[str] | None = None,
-        status: str | BeadsTaskStatus = BeadsTaskStatus.OPEN,
-        priority: str | BeadsTaskPriority | None = None,
-        task_type: str | BeadsTaskType | None = None,
-    ) -> BeadsTask:
-        if isinstance(status, str):
-            status = BeadsTaskStatus(status)
-        return BeadsTask(
-            id=id,
-            title=title,
-            description=description,
-            acceptance_criteria=acceptance_criteria or [],
-            status=status,
-            priority=priority,
-            task_type=task_type,
-        )
-    return _create_task
-
-
 # =============================================================================
 # Subprocess Mock Fixtures
 # =============================================================================
-
-
-@pytest.fixture
-def mock_subprocess_success():
-    """Mock subprocess.run to return successful JSON response."""
-    mock_result = Mock()
-    mock_result.returncode = 0
-    mock_result.stdout = '{"id": "test.1", "title": "Test", "description": "Desc", "acceptance_criteria": [], "status": "open"}'
-    mock_result.stderr = ""
-
-    with patch('jean_claude.core.beads.subprocess.run', return_value=mock_result) as mock:
-        yield mock
-
-
-@pytest.fixture
-def mock_subprocess_failure():
-    """Mock subprocess.run to return a failure."""
-    mock_result = Mock()
-    mock_result.returncode = 1
-    mock_result.stdout = ""
-    mock_result.stderr = "Command failed"
-
-    with patch('jean_claude.core.beads.subprocess.run', return_value=mock_result) as mock:
-        yield mock
 
 
 @pytest.fixture

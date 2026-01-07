@@ -199,9 +199,7 @@ Work on EXACTLY ONE feature this session. Do not proceed to the next feature.
     return prompt
 
 
-def _build_notes_context(
-    workflow_id: str, project_root: Path, feature: Feature
-) -> str:
+def _build_notes_context(workflow_id: str, project_root: Path, feature: Feature) -> str:
     """Build notes context section for agent prompt.
 
     Queries notes from event store and formats them for agent context.
@@ -221,8 +219,8 @@ def _build_notes_context(
     Returns:
         Formatted markdown notes context or empty string
     """
-    import sqlite3
     import json
+    import sqlite3
 
     # Query notes from event store
     events_db = project_root / ".jc" / "events.db"
@@ -233,18 +231,21 @@ def _build_notes_context(
     cursor = conn.cursor()
 
     # Get all note events for this workflow
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT data, timestamp
         FROM events
         WHERE workflow_id = ?
           AND event_type LIKE 'agent.note.%'
         ORDER BY timestamp DESC
-    """, (workflow_id,))
+    """,
+        (workflow_id,),
+    )
 
     all_notes = []
     for row in cursor.fetchall():
         note_data = json.loads(row[0])
-        note_data['timestamp'] = row[1]
+        note_data["timestamp"] = row[1]
         all_notes.append(note_data)
 
     conn.close()
@@ -284,7 +285,9 @@ def _build_notes_context(
             "accomplishment": "✅",
         }.get(note.get("category"), "📝")
 
-        lines.append(f"**{emoji} {note.get('category', 'unknown').upper()}**: {note['title']}")
+        lines.append(
+            f"**{emoji} {note.get('category', 'unknown').upper()}**: {note['title']}"
+        )
         if note.get("content"):
             content = note["content"][:200]
             if len(note["content"]) > 200:
@@ -506,14 +509,20 @@ async def run_auto_continue(
                 if event_logger and not verification_result.skipped:
                     event_logger.emit(
                         workflow_id=state.workflow_id,
-                        event_type="agent.note.observation" if verification_result.passed else "agent.note.warning",
+                        event_type="agent.note.observation"
+                        if verification_result.passed
+                        else "agent.note.warning",
                         data={
                             "agent_id": "verification-agent",
-                            "title": "Verification passed" if verification_result.passed else "Verification failed",
+                            "title": "Verification passed"
+                            if verification_result.passed
+                            else "Verification failed",
                             "content": f"{verification_result.tests_run} test files, {verification_result.duration_ms}ms",
                             "tags": ["verification", "tests"],
-                            "category": "observation" if verification_result.passed else "warning",
-                        }
+                            "category": "observation"
+                            if verification_result.passed
+                            else "warning",
+                        },
                     )
 
                 if not verification_result.passed:
@@ -659,10 +668,13 @@ Please investigate and fix the failing tests, then respond in the OUTBOX when re
                                 "agent_id": "coder-agent",
                                 "title": f"Completed: {feature.name}",
                                 "content": feature.description[:200],
-                                "tags": ["feature-complete", feature.name.lower().replace(" ", "-")],
+                                "tags": [
+                                    "feature-complete",
+                                    feature.name.lower().replace(" ", "-"),
+                                ],
                                 "category": "accomplishment",
                                 "related_feature": feature.name,
-                            }
+                            },
                         )
 
                     # Trigger commit workflow for completed feature
@@ -708,7 +720,7 @@ Please investigate and fix the failing tests, then respond in the OUTBOX when re
                                         "tags": ["commit", "git"],
                                         "category": "accomplishment",
                                         "related_feature": feature.name,
-                                    }
+                                    },
                                 )
                         else:
                             # Log commit failure but don't block workflow
@@ -755,11 +767,13 @@ Please investigate and fix the failing tests, then respond in the OUTBOX when re
                             data={
                                 "agent_id": "coder-agent",
                                 "title": f"Failed: {feature.name}",
-                                "content": result.output[:500] if result.output else "Unknown error",
+                                "content": result.output[:500]
+                                if result.output
+                                else "Unknown error",
                                 "tags": ["feature-failed", "error"],
                                 "category": "warning",
                                 "related_feature": feature.name,
-                            }
+                            },
                         )
 
                     # Emit feature.failed event

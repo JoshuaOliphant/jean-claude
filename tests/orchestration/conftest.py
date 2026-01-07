@@ -111,33 +111,6 @@ def minimal_workflow_state(mock_project_root: Path) -> WorkflowState:
     return state
 
 
-@pytest.fixture
-def workflow_state_factory(mock_project_root: Path) -> Callable[..., WorkflowState]:
-    """Factory fixture for creating WorkflowState with custom values.
-
-    Usage:
-        def test_something(workflow_state_factory):
-            state = workflow_state_factory(workflow_id="custom-id", max_iterations=5)
-    """
-    def _create_state(
-        workflow_id: str = "factory-workflow-1",
-        workflow_name: str = "Factory Workflow",
-        workflow_type: str = "feature",
-        max_iterations: int = 10,
-        save: bool = True,
-    ) -> WorkflowState:
-        state = WorkflowState(
-            workflow_id=workflow_id,
-            workflow_name=workflow_name,
-            workflow_type=workflow_type,
-            max_iterations=max_iterations,
-        )
-        if save:
-            state.save(mock_project_root)
-        return state
-    return _create_state
-
-
 # =============================================================================
 # Execution Result Fixtures
 # =============================================================================
