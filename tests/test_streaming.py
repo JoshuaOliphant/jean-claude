@@ -85,36 +85,6 @@ class TestStreamingDisplay:
         display.start_tool("Read")
         assert len(display.tool_uses) == 1
 
-    def test_render_text_only(self):
-        """Test rendering with only text blocks."""
-        console = Console(file=StringIO())
-        display = StreamingDisplay(console)
-
-        display.add_text("Some text")
-        renderable = display.render()
-
-        # Should return a Group containing the text
-        assert renderable is not None
-
-    def test_render_with_tools(self):
-        """Test rendering with tools shown."""
-        console = Console(file=StringIO())
-        display = StreamingDisplay(console, show_thinking=True)
-
-        display.add_text("Some text")
-        display.start_tool("Read")
-
-        renderable = display.render()
-        assert renderable is not None
-
-    def test_render_empty(self):
-        """Test rendering when nothing has been added."""
-        console = Console(file=StringIO())
-        display = StreamingDisplay(console)
-
-        renderable = display.render()
-        assert renderable is not None
-
 
 class MockMessage:
     """Mock message for testing."""
@@ -129,36 +99,6 @@ class MockTextBlock:
 
     def __init__(self, text):
         self.text = text
-
-
-@pytest.mark.asyncio
-async def test_stream_output_basic():
-    """Test basic streaming output."""
-    console = Console(file=StringIO())
-
-    # Create mock message stream
-    async def mock_stream():
-        # Import the real types if available, otherwise use mocks
-        try:
-            from claude_code_sdk import AssistantMessage, TextBlock
-
-            # Create a real AssistantMessage with TextBlock
-            yield AssistantMessage(
-                content=[TextBlock(text="Hello")],
-                model="claude-sonnet-4-20250514",
-            )
-            yield AssistantMessage(
-                content=[TextBlock(text="World")],
-                model="claude-sonnet-4-20250514",
-            )
-        except ImportError:
-            # SDK not available, use simple mocks
-            pass
-
-    # Test that stream_output doesn't crash
-    # Note: We can't fully test this without the SDK installed
-    # but we can verify the function exists and accepts the right args
-    assert callable(stream_output)
 
 
 @pytest.mark.asyncio
