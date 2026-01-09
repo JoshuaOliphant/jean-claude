@@ -12,8 +12,9 @@ This document explains event sourcing principles and how we use them in Jean Cla
 4. [How Jean Claude Uses Event Sourcing](#how-jean-claude-uses-event-sourcing)
 5. [Practical Examples](#practical-examples)
 6. [Common Patterns](#common-patterns)
-7. [When to Use Event Sourcing](#when-to-use-event-sourcing)
-8. [Further Reading](#further-reading)
+7. [Error Handling and Replay Scenarios](#error-handling-and-replay-scenarios)
+8. [When to Use Event Sourcing](#when-to-use-event-sourcing)
+9. [Further Reading](#further-reading)
 
 ---
 
@@ -91,7 +92,7 @@ Store every change as an immutable event:
 # Events (never modified, only appended)
 events = [
     {"type": "item_added", "product": "laptop", "quantity": 1, "price": 999, "time": "10:00"},
-    {"type": "item_removed", "product": "laptop", "quantity": 1, "time": "10:05"},
+    {"type": "item_removed", "product": "laptop", "quantity": 1, "price": 999, "time": "10:05"},
     {"type": "item_added", "product": "laptop", "quantity": 1, "price": 999, "time": "10:10"},
     {"type": "item_added", "product": "mouse", "quantity": 2, "price": 25, "time": "10:15"}
 ]
@@ -284,6 +285,33 @@ Jean Claude writes events to **two places** simultaneously:
 **Why two?**
 - **SQLite**: Fast queries, indexes, dashboard analytics
 - **JSONL**: Human-readable, easy debugging, real-time tailing
+
+**What if one write fails?**
+
+This is an important question! In our dual-persistence design:
+
+1. **SQLite is the source of truth** - If SQLite write fails, we don't proceed (the event didn't happen)
+2. **JSONL is best-effort** - If JSONL write fails after SQLite succeeds, we log the error but don't fail the operation
+3. **JSONL can be rebuilt** - Since SQLite has all events, we can regenerate JSONL files if needed
+
+```python
+# Simplified write logic
+def emit_event(event):
+    # 1. Write to SQLite first (source of truth)
+    try:
+        sqlite_writer.write(event)
+    except Exception as e:
+        raise EventWriteError(f"Failed to persist event: {e}")
+
+    # 2. Write to JSONL (best-effort for debugging)
+    try:
+        jsonl_writer.write(event)
+    except Exception as e:
+        logger.warning(f"JSONL write failed (non-fatal): {e}")
+        # Event is still in SQLite - operation succeeds
+```
+
+This design prioritizes **data integrity** (SQLite) while keeping **debugging convenience** (JSONL) as a non-blocking enhancement.
 
 ### Event Types in Jean Claude
 
@@ -532,19 +560,28 @@ Include enough context to rebuild state without external lookups:
 Projection handlers should be **idempotent** - applying the same event twice should have the same effect as applying it once:
 
 ```python
-# ❌ BAD - not idempotent
+# ❌ BAD - not idempotent AND mutates input
 def apply_feature_completed(state, event):
     state["completed_count"] += 1  # Duplicates cause wrong count!
-    return state
+    return state  # Mutating input is dangerous
 
-# ✅ GOOD - idempotent
+# ✅ GOOD - idempotent AND immutable
 def apply_feature_completed(state, event):
     feature_id = event.data["feature_id"]
-    if feature_id not in state["completed_features"]:
-        state["completed_features"].add(feature_id)
-        state["completed_count"] = len(state["completed_features"])
-    return state
+
+    # Check if already processed (idempotency)
+    if feature_id in state["completed_features"]:
+        return state  # No change needed
+
+    # Create new state instead of mutating
+    new_state = {
+        "completed_features": state["completed_features"] | {feature_id},
+        "completed_count": len(state["completed_features"]) + 1
+    }
+    return new_state
 ```
+
+**Why immutability matters:** If you mutate the input state, you can't safely cache intermediate states or run projections in parallel. Always return a new state object.
 
 ### Pattern 4: Correlation IDs for Tracing
 
@@ -574,6 +611,97 @@ emit_event(EventType.FEATURE_COMPLETED, data={
 # Now you can trace: "What happened during auth-system implementation?"
 events = [e for e in all_events if e.data.get("correlation_id") == correlation_id]
 ```
+
+---
+
+## Error Handling and Replay Scenarios
+
+In AI agent workflows, errors and retries are common. Event sourcing handles these gracefully.
+
+### Scenario 1: Agent Fails Mid-Feature
+
+```python
+# Events recorded before failure:
+{"type": "feature.started", "name": "auth-system", "time": "09:00"}
+{"type": "agent.tool_use", "tool": "edit_file", "file": "auth.py", "time": "09:05"}
+{"type": "agent.error", "error": "API rate limit exceeded", "time": "09:10"}
+
+# No feature.completed event - we know it failed!
+# On retry, we can see exactly where we left off
+```
+
+**Recovery strategy:** Query for features with `started` but no `completed` event:
+
+```python
+def get_incomplete_features(workflow_id: str) -> list[str]:
+    events = get_workflow_events(workflow_id)
+
+    started = {e.data["name"] for e in events if e.type == "feature.started"}
+    completed = {e.data["name"] for e in events if e.type == "feature.completed"}
+
+    return list(started - completed)  # Features that need retry
+```
+
+### Scenario 2: Duplicate Events (Network Retry)
+
+If a network issue causes a retry, you might emit the same event twice:
+
+```python
+# Oops - duplicate due to network retry
+{"type": "feature.completed", "feature_id": "abc", "time": "09:30"}
+{"type": "feature.completed", "feature_id": "abc", "time": "09:30"}  # duplicate!
+```
+
+**Solution:** Idempotent handlers (Pattern 3) ignore duplicates automatically. The projection builder checks if `feature_id` is already in `completed_features` before adding it.
+
+### Scenario 3: Projection Bug Fix
+
+You discover your projection builder has a bug - it wasn't counting failed features correctly.
+
+```python
+# Old (buggy) handler - ignored failures
+def apply_feature_failed(state, event):
+    return state  # Bug: didn't track failures!
+
+# New (fixed) handler
+def apply_feature_failed(state, event):
+    new_state = copy.copy(state)
+    new_state["failed_features"].append(event.data["name"])
+    return new_state
+```
+
+**Recovery:** Simply rebuild the projection! Events are immutable, so replaying with the fixed handler gives correct state:
+
+```python
+# Rebuild projection with fixed handler
+projection = event_store.rebuild_projection(
+    workflow_id="my-workflow",
+    builder=FixedProjectionBuilder()  # Use the corrected builder
+)
+# Now failed_features is accurate, derived from original events
+```
+
+This is one of event sourcing's superpowers: **fix bugs retroactively** by replaying events through corrected logic.
+
+### Scenario 4: Compensation Events
+
+Sometimes you need to "undo" something. Instead of deleting events (never do this!), emit a **compensation event**:
+
+```python
+# Original event
+{"type": "feature.completed", "name": "auth-system", "time": "09:30"}
+
+# Oops, it wasn't actually complete - emit compensation
+{"type": "feature.completion_reverted", "name": "auth-system", "reason": "tests were skipped", "time": "10:00"}
+
+# Handler removes it from completed set
+def apply_feature_completion_reverted(state, event):
+    new_state = copy.copy(state)
+    new_state["completed_features"].discard(event.data["name"])
+    return new_state
+```
+
+The audit trail shows: "auth-system was marked complete at 09:30, but reverted at 10:00 because tests were skipped."
 
 ---
 
