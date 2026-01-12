@@ -31,7 +31,7 @@ class EditTaskHandler:
     def edit_task(self, task_id: str) -> None:
         """Open a Beads task in editor for modification.
 
-        Runs 'bd edit <task_id>' subprocess to open the task in the user's
+        Runs 'bd --no-daemon edit <task_id>' subprocess to open the task in the user's
         default editor. This is a blocking call that waits for the editor
         to close before returning.
 
@@ -53,10 +53,10 @@ class EditTaskHandler:
             raise ValueError("task_id cannot be empty")
 
         try:
-            # Run the bd edit command
+            # Run the bd edit command with --no-daemon flag
             # This will open the task in the user's editor and wait for it to close
             subprocess.run(
-                [self.bd_path, 'edit', task_id],
+                [self.bd_path, '--no-daemon', 'edit', task_id],
                 capture_output=True,
                 text=True,
                 check=True

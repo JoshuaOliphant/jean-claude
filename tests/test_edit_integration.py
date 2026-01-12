@@ -25,7 +25,7 @@ class TestEditTaskHandler:
 
     @patch('subprocess.run')
     def test_edit_task_calls_bd_edit(self, mock_run):
-        """Test that edit_task invokes 'bd edit <task_id>'."""
+        """Test that edit_task invokes 'bd --no-daemon edit <task_id>'."""
         mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
 
         handler = EditTaskHandler()
@@ -34,7 +34,7 @@ class TestEditTaskHandler:
         # Verify subprocess.run was called with correct arguments
         mock_run.assert_called_once()
         call_args = mock_run.call_args[0][0]
-        assert call_args == ['bd', 'edit', 'test-task-1']
+        assert call_args == ['bd', '--no-daemon', 'edit', 'test-task-1']
 
     @patch('subprocess.run')
     def test_edit_task_with_empty_task_id_raises_error(self, mock_run):
@@ -300,5 +300,6 @@ class TestEditTaskHandlerCustomBdPath:
 
         call_args = mock_run.call_args[0][0]
         assert call_args[0] == "/usr/local/bin/bd"
-        assert call_args[1] == "edit"
-        assert call_args[2] == "test-1"
+        assert call_args[1] == "--no-daemon"
+        assert call_args[2] == "edit"
+        assert call_args[3] == "test-1"

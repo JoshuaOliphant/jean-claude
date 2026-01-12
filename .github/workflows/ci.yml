@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# Cancel outdated runs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Fast Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          version: "latest"
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Run fast tests
+        run: |
+          # Run fast tests if any are marked, otherwise run all tests
+          # This handles transition period before all tests are marked
+          if uv run pytest -m fast --collect-only -q 2>&1 | grep -q "no tests collected"; then
+            echo "No tests marked as 'fast' yet - running all tests"
+            uv run pytest --cov=jean_claude --cov-report=term-missing
+          else
+            echo "Running tests marked as 'fast'"
+            uv run pytest -m fast --cov=jean_claude --cov-report=term-missing
+          fi
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  lint:
+    name: Lint with Ruff
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          version: "latest"
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Run ruff check
+        run: uv run ruff check .
+
+      - name: Run ruff format check
+        run: uv run ruff format --check .
+
+  type-check:
+    name: Type Check with mypy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          version: "latest"
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Run mypy
+        run: uv run mypy src/
+        continue-on-error: true  # Don't fail CI yet while fixing type errors
+
+  security-scan:
+    name: Security Scan with Bandit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          version: "latest"
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Run Bandit security scan
+        run: |
+          # Only fail on HIGH or CRITICAL severity issues
+          # MEDIUM and LOW are documented in docs/security-linting.md
+          uv run bandit -r src/jean_claude --severity-level high
+        continue-on-error: false  # Fail CI on HIGH/CRITICAL issues
+
+      - name: Generate full security report
+        if: always()
+        run: uv run bandit -r src/jean_claude -f json -o bandit-report.json
+
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-security-report
+          path: bandit-report.json
+          retention-days: 30

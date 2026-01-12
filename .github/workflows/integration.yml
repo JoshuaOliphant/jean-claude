@@ -1,0 +1,56 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'src/jean_claude/core/**'
+      - 'src/jean_claude/orchestration/**'
+      - 'tests/**'
+  push:
+    branches: [main, master]
+    paths:
+      - 'src/jean_claude/core/**'
+      - 'src/jean_claude/orchestration/**'
+      - 'tests/**'
+
+# Cancel outdated runs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          version: "latest"
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Run integration tests
+        run: |
+          # Run integration tests if any are marked, otherwise skip
+          if uv run pytest -m integration --collect-only -q 2>&1 | grep -q "no tests collected"; then
+            echo "No tests marked as 'integration' yet - skipping"
+            exit 0
+          else
+            echo "Running tests marked as 'integration'"
+            uv run pytest -m integration --cov=jean_claude --cov-report=term-missing
+          fi
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

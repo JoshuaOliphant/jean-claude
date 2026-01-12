@@ -9,12 +9,19 @@ generate specifications from Beads tasks.
 """
 
 import json
+import re
 import subprocess
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator
+
+
+# Pattern for validating beads task IDs (e.g., beads-123, gt-abc, hq-x1y2)
+# Format: 2-5 letters (case insensitive), hyphen, one or more letters or digits
+# Note: Allowing up to 5 characters to support common prefixes like "beads"
+BEADS_ID_PATTERN = re.compile(r'^[a-zA-Z]{2,5}-[a-zA-Z0-9]+$')
 
 
 class BeadsTaskStatus(str, Enum):
@@ -304,10 +311,63 @@ class BeadsTask(BaseModel):
         return self.model_dump()
 
 
+def validate_beads_id(task_id: str) -> None:
+    """Validate beads task ID format to prevent command injection attacks.
+
+    Ensures the task ID matches the expected pattern: 2-5 letters (case insensitive),
+    followed by a hyphen, followed by one or more letters or digits.
+
+    Valid examples: beads-123, gt-abc, hq-x1y2
+    Invalid examples: ../etc/passwd, beads-123; rm -rf, beads_123
+
+    Args:
+        task_id: The task ID to validate
+
+    Raises:
+        ValueError: If the task ID format is invalid or potentially malicious
+    """
+    if not task_id or not task_id.strip():
+        raise ValueError("task_id cannot be empty")
+
+    if not BEADS_ID_PATTERN.match(task_id):
+        raise ValueError(
+            f"Invalid beads task ID format: '{task_id}'. "
+            f"Task IDs must match the pattern: <prefix>-<id> "
+            f"(e.g., beads-123, gt-abc, hq-x1y2). "
+            f"Prefix must be 2-5 letters, followed by a hyphen, "
+            f"followed by one or more letters or digits."
+        )
+
+
+def _run_bd_command(args: list[str], **kwargs) -> subprocess.CompletedProcess:
+    """Run a Beads CLI command with --no-daemon flag.
+
+    This helper ensures all Beads commands use --no-daemon to avoid IPC overhead
+    and prevent potential race conditions from daemon mode. The --no-daemon flag
+    forces each command to run independently without maintaining a background process.
+
+    Gastown pattern: Consistent flag usage prevents subtle timing issues and ensures
+    predictable behavior across different environments and concurrent executions.
+
+    Args:
+        args: Command arguments (e.g., ['show', '--json', 'task-id'])
+        **kwargs: Additional keyword arguments passed to subprocess.run
+
+    Returns:
+        subprocess.CompletedProcess instance
+
+    Raises:
+        subprocess.CalledProcessError: If the command fails and check=True
+    """
+    # Prepend 'bd --no-daemon' to the provided args
+    full_args = ['bd', '--no-daemon'] + args
+    return subprocess.run(full_args, **kwargs)
+
+
 def fetch_beads_task(task_id: str) -> BeadsTask:
     """Fetch a Beads task by ID.
 
-    Runs 'bd show --json <task_id>' subprocess to retrieve task details,
+    Runs 'bd --no-daemon show --json <task_id>' subprocess to retrieve task details,
     parses the JSON output, and returns a BeadsTask model instance.
 
     Args:
@@ -322,13 +382,13 @@ def fetch_beads_task(task_id: str) -> BeadsTask:
         json.JSONDecodeError: If the output is not valid JSON
         RuntimeError: If the subprocess fails with non-zero exit code
     """
-    if not task_id or not task_id.strip():
-        raise ValueError("task_id cannot be empty")
+    # Validate task ID format to prevent command injection
+    validate_beads_id(task_id)
 
     try:
         # Run the bd show command with JSON output
-        result = subprocess.run(
-            ['bd', 'show', '--json', task_id],
+        result = _run_bd_command(
+            ['show', '--json', task_id],
             capture_output=True,
             text=True,
             check=True
@@ -362,7 +422,7 @@ def fetch_beads_task(task_id: str) -> BeadsTask:
 def update_beads_status(task_id: str, status: str) -> None:
     """Update the status of a Beads task.
 
-    Runs 'bd update --status <status> <task_id>' subprocess to update the task status.
+    Runs 'bd --no-daemon update --status <status> <task_id>' subprocess to update the task status.
 
     Args:
         task_id: The ID of the task to update
@@ -372,9 +432,8 @@ def update_beads_status(task_id: str, status: str) -> None:
         ValueError: If task_id or status is empty, or if status is invalid
         RuntimeError: If the subprocess fails with non-zero exit code
     """
-    # Validate task_id
-    if not task_id or not task_id.strip():
-        raise ValueError("task_id cannot be empty")
+    # Validate task ID format to prevent command injection
+    validate_beads_id(task_id)
 
     # Validate status
     if not status or not status.strip():
@@ -389,8 +448,8 @@ def update_beads_status(task_id: str, status: str) -> None:
 
     try:
         # Run the bd update command
-        subprocess.run(
-            ['bd', 'update', '--status', status, task_id],
+        _run_bd_command(
+            ['update', '--status', status, task_id],
             capture_output=True,
             text=True,
             check=True
@@ -404,23 +463,22 @@ def update_beads_status(task_id: str, status: str) -> None:
 def close_beads_task(task_id: str) -> None:
     """Close a Beads task to mark it as completed.
 
-    Runs 'bd close <task_id>' subprocess to mark the task as completed.
+    Runs 'bd --no-daemon close <task_id>' subprocess to mark the task as completed.
 
     Args:
         task_id: The ID of the task to close
 
     Raises:
-        ValueError: If task_id is empty
+        ValueError: If task_id is empty or invalid format
         RuntimeError: If the subprocess fails with non-zero exit code
     """
-    # Validate task_id
-    if not task_id or not task_id.strip():
-        raise ValueError("task_id cannot be empty")
+    # Validate task ID format to prevent command injection
+    validate_beads_id(task_id)
 
     try:
         # Run the bd close command
-        subprocess.run(
-            ['bd', 'close', task_id],
+        _run_bd_command(
+            ['close', task_id],
             capture_output=True,
             text=True,
             check=True

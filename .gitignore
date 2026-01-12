@@ -23,6 +23,10 @@ htmlcov/
 .pytest_cache/
 .ruff_cache/
 
+# Security scanning reports
+bandit-report.json
+bandit-results.json
+
 # Knowledge management (sessions and personal context are private)
 knowledge/sessions/
 knowledge/context/TODO.md

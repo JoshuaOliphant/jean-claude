@@ -12,6 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Lint code | `uv run ruff check .` |
 | Format code | `uv run ruff format .` |
 | Type check | `uv run mypy src/` |
+| Security scan | `uv run bandit -r src/jean_claude --severity-level high` |
 | Run CLI locally | `uv run jc <command>` |
 | Initialize project | `jc init` |
 | Update existing project | `jc migrate` |
