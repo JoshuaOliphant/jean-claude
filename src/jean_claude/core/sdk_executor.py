@@ -148,6 +148,7 @@ async def _execute_prompt_async(
         model=model,
         cwd=str(request.working_dir) if request.working_dir else None,
         max_turns=100,
+        max_budget_usd=request.max_budget_usd,
         permission_mode="acceptEdits" if request.dangerously_skip_permissions else None,
         hooks=hooks,
         agents=agents,  # Subagent definitions for Task tool delegation
@@ -476,6 +477,7 @@ async def execute_prompt_streaming(
         model=model,
         cwd=str(request.working_dir) if request.working_dir else None,
         max_turns=100,
+        max_budget_usd=request.max_budget_usd,
         permission_mode="acceptEdits" if request.dangerously_skip_permissions else None,
         hooks=hooks,
         agents=agents,  # Subagent definitions for Task tool delegation

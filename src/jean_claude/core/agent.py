@@ -60,6 +60,7 @@ class PromptRequest(BaseModel):
     dangerously_skip_permissions: bool = False
     workflow_type: Literal["readonly", "development", "testing"] = "development"
     enable_security_hooks: bool = True
+    max_budget_usd: Optional[float] = None  # Maximum budget in USD for this execution
     mcp_servers: Optional[dict] = None  # MCP servers to provide to the agent
     allowed_tools: Optional[list[str]] = None  # List of allowed tool names
 

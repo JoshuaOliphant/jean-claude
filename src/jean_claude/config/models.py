@@ -33,6 +33,7 @@ class WorkflowsConfig(BaseModel):
 
     default_model: str = "sonnet"
     auto_commit: bool = True
+    max_budget_usd: Optional[float] = None
 
 
 class VCSConfig(BaseModel):
