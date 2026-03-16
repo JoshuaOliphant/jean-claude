@@ -20,6 +20,8 @@
 {"created_at":"2026-01-03T05:52:57Z","created_by":"joshuaoliphant","depends_on_id":"jean_claude-alv","issue_id":"jean_claude-3bs","type":"blocks"}
 {"created_at":"2026-01-03T05:52:57Z","created_by":"joshuaoliphant","depends_on_id":"jean_claude-dmm","issue_id":"jean_claude-3bs","type":"blocks"}
 {"created_at":"2025-12-21T23:18:28Z","created_by":"daemon","depends_on_id":"jean_claude-snq","issue_id":"jean_claude-3se","type":"blocks"}
+{"created_at":"2026-03-16T07:17:24Z","created_by":"Joshua Oliphant","depends_on_id":"jean_claude-v2u","issue_id":"jean_claude-4g7","type":"blocks"}
+{"created_at":"2026-03-16T07:17:24Z","created_by":"Joshua Oliphant","depends_on_id":"jean_claude-dfh","issue_id":"jean_claude-5xx","type":"blocks"}
 {"created_at":"2026-01-03T05:52:56Z","created_by":"joshuaoliphant","depends_on_id":"jean_claude-08x","issue_id":"jean_claude-5yd","type":"blocks"}
 {"created_at":"2026-01-03T05:52:56Z","created_by":"joshuaoliphant","depends_on_id":"jean_claude-di8","issue_id":"jean_claude-61z","type":"blocks"}
 {"created_at":"2026-01-20T00:15:37Z","created_by":"joshuaoliphant","depends_on_id":"jean_claude-vw3","issue_id":"jean_claude-7wr","type":"blocks"}
@@ -47,10 +49,14 @@
 {"created_at":"2025-12-21T23:18:26Z","created_by":"daemon","depends_on_id":"jean_claude-snq","issue_id":"jean_claude-ghy","type":"blocks"}
 {"created_at":"2026-01-20T00:15:17Z","created_by":"joshuaoliphant","depends_on_id":"jean_claude-1k9","issue_id":"jean_claude-grj","type":"blocks"}
 {"created_at":"2026-01-20T00:14:59Z","created_by":"joshuaoliphant","depends_on_id":"jean_claude-2oa","issue_id":"jean_claude-grj","type":"blocks"}
+{"created_at":"2026-03-16T07:17:24Z","created_by":"Joshua Oliphant","depends_on_id":"jean_claude-dfh","issue_id":"jean_claude-kmc","type":"blocks"}
+{"created_at":"2026-03-16T07:17:26Z","created_by":"Joshua Oliphant","depends_on_id":"jean_claude-2sk","issue_id":"jean_claude-mlf","type":"blocks"}
+{"created_at":"2026-03-16T07:17:25Z","created_by":"Joshua Oliphant","depends_on_id":"jean_claude-dfh","issue_id":"jean_claude-mlf","type":"blocks"}
 {"created_at":"2025-12-21T23:18:29Z","created_by":"daemon","depends_on_id":"jean_claude-0p1","issue_id":"jean_claude-n3g","type":"blocks"}
 {"created_at":"2026-01-03T05:52:56Z","created_by":"joshuaoliphant","depends_on_id":"jean_claude-81h","issue_id":"jean_claude-p6o","type":"blocks"}
 {"created_at":"2025-12-20T03:17:25Z","created_by":"daemon","depends_on_id":"jean_claude-um5","issue_id":"jean_claude-rb8","type":"blocks"}
 {"created_at":"2025-12-20T03:17:25Z","created_by":"daemon","depends_on_id":"jean_claude-xzc","issue_id":"jean_claude-rb8","type":"blocks"}
+{"created_at":"2026-03-16T07:17:24Z","created_by":"Joshua Oliphant","depends_on_id":"jean_claude-dfh","issue_id":"jean_claude-u4o","type":"blocks"}
 {"created_at":"2025-12-21T23:18:25Z","created_by":"daemon","depends_on_id":"jean_claude-0p1","issue_id":"jean_claude-v3h","type":"blocks"}
 {"created_at":"2026-01-20T00:15:37Z","created_by":"joshuaoliphant","depends_on_id":"jean_claude-2oa","issue_id":"jean_claude-vw3","type":"blocks"}
 {"created_at":"2026-01-20T00:15:37Z","created_by":"joshuaoliphant","depends_on_id":"jean_claude-bzd","issue_id":"jean_claude-vxv","type":"blocks"}
