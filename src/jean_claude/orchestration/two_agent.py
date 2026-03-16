@@ -49,6 +49,31 @@ from jean_claude.orchestration.auto_continue import run_auto_continue
 console = Console()
 
 
+# JSON schema for structured output enforcement via SDK output_format
+FEATURE_LIST_SCHEMA = {
+    "type": "json_schema",
+    "schema": {
+        "type": "object",
+        "properties": {
+            "features": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "description": {"type": "string"},
+                        "test_file": {"type": "string"},
+                    },
+                    "required": ["name", "description"],
+                },
+                "minItems": 1,
+            }
+        },
+        "required": ["features"],
+    },
+}
+
+
 # Initializer prompt template
 INITIALIZER_PROMPT = """You are an initializer agent for Jean Claude workflows.
 
@@ -138,8 +163,6 @@ Bad feature (too large):
 ## NOW ANALYZE THE TASK
 
 Analyze the task description above and create a feature breakdown.
-
-OUTPUT ONLY THE JSON. NO ADDITIONAL TEXT BEFORE OR AFTER THE JSON.
 """
 
 
@@ -195,6 +218,7 @@ async def run_initializer(
         model=model,
         working_dir=project_root,
         output_dir=output_dir,
+        output_format=FEATURE_LIST_SCHEMA,
         dangerously_skip_permissions=True,
     )
 
@@ -204,35 +228,16 @@ async def run_initializer(
     if not result.success:
         raise ValueError(f"Initializer failed: {result.output}")
 
-    # Parse JSON response
-    output = result.output.strip()
-
-    # Extract JSON from markdown code blocks if present
-    if "```json" in output:
-        start = output.find("```json") + 7
-        end = output.find("```", start)
-        output = output[start:end].strip()
-    elif "```" in output:
-        start = output.find("```") + 3
-        end = output.find("```", start)
-        output = output[start:end].strip()
-
+    # Parse JSON response — output_format guarantees valid JSON from the SDK
     try:
-        data = json.loads(output)
+        data = json.loads(result.output.strip())
     except json.JSONDecodeError as e:
-        console.print("[red]Failed to parse initializer output as JSON[/red]")
-        console.print("[yellow]Output:[/yellow]")
-        console.print(output)
         raise ValueError(f"Initializer output is not valid JSON: {e}") from e
 
-    # Validate structure
     if "features" not in data:
         raise ValueError("Initializer output missing 'features' key")
 
-    if not isinstance(data["features"], list):
-        raise ValueError("'features' must be a list")
-
-    if len(data["features"]) == 0:
+    if not isinstance(data["features"], list) or len(data["features"]) == 0:
         raise ValueError("Feature list is empty")
 
     # Load existing WorkflowState or create new one

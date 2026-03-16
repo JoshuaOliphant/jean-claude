@@ -75,35 +75,6 @@ async def test_run_initializer_success(
 
 
 @pytest.mark.asyncio
-async def test_run_initializer_with_markdown_code_block(
-    project_root: Path,
-) -> None:
-    """Test initializer handles JSON in markdown code blocks."""
-    result = ExecutionResult(
-        success=True,
-        output='```json\n{"features": [{"name": "test", "description": "Test", "test_file": "tests/test.py"}]}\n```',
-        session_id="test",
-        cost_usd=0.01,
-        duration_ms=1000,
-    )
-
-    with patch(
-        "jean_claude.orchestration.two_agent.execute_prompt_async",
-        new_callable=AsyncMock,
-    ) as mock_execute:
-        mock_execute.return_value = result
-
-        state = await run_initializer(
-            description="Test",
-            project_root=project_root,
-            workflow_id="test",
-        )
-
-        assert len(state.features) == 1
-        assert state.features[0].name == "test"
-
-
-@pytest.mark.asyncio
 async def test_run_initializer_invalid_json(project_root: Path) -> None:
     """Test initializer handles invalid JSON gracefully."""
     result = ExecutionResult(
