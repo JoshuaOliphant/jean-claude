@@ -49,6 +49,31 @@ from jean_claude.orchestration.auto_continue import run_auto_continue
 console = Console()
 
 
+# JSON schema for structured output enforcement via SDK output_format
+FEATURE_LIST_SCHEMA = {
+    "type": "json_schema",
+    "schema": {
+        "type": "object",
+        "properties": {
+            "features": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "description": {"type": "string"},
+                        "test_file": {"type": "string"},
+                    },
+                    "required": ["name", "description"],
+                },
+                "minItems": 1,
+            }
+        },
+        "required": ["features"],
+    },
+}
+
+
 # Initializer prompt template
 INITIALIZER_PROMPT = """You are an initializer agent for Jean Claude workflows.
 
@@ -195,6 +220,7 @@ async def run_initializer(
         model=model,
         working_dir=project_root,
         output_dir=output_dir,
+        output_format=FEATURE_LIST_SCHEMA,
         dangerously_skip_permissions=True,
     )
 
