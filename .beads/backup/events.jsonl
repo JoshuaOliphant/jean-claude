@@ -969,3 +969,5 @@
 {"actor":"joshuaoliphant","comment":"Added dependency: jean_claude-eb8 blocks jean_claude-vxv","created_at":"2026-01-20T00:16:02Z","event_type":"dependency_added","id":969,"issue_id":"jean_claude-eb8","new_value":null,"old_value":null}
 {"actor":"joshuaoliphant","comment":"Added dependency: jean_claude-eb8 blocks jean_claude-7wr","created_at":"2026-01-20T00:16:02Z","event_type":"dependency_added","id":970,"issue_id":"jean_claude-eb8","new_value":null,"old_value":null}
 {"actor":"joshuaoliphant","comment":"Closed","created_at":"2026-01-20T00:25:03Z","event_type":"closed","id":971,"issue_id":"jean_claude-eb8","new_value":null,"old_value":null}
+{"actor":"Joshua Oliphant","comment":null,"created_at":"2026-03-16T06:58:15Z","event_type":"created","id":972,"issue_id":"jean_claude-20y","new_value":"","old_value":""}
+{"actor":"Joshua Oliphant","comment":null,"created_at":"2026-03-16T07:13:39Z","event_type":"created","id":973,"issue_id":"jean_claude-xhy","new_value":"","old_value":""}
