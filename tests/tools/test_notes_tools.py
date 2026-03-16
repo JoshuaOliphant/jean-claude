@@ -8,8 +8,8 @@ through the note-taking system.
 """
 
 import pytest
-from pathlib import Path
 
+from jean_claude.core.events import EventLogger
 from jean_claude.tools.notes_tools import (
     set_notes_context,
     take_note,
@@ -19,7 +19,6 @@ from jean_claude.tools.notes_tools import (
     jean_claude_notes_tools,
     _notes_context,
 )
-from jean_claude.core.notes import NoteCategory
 
 
 @pytest.fixture
@@ -29,22 +28,28 @@ def notes_context(tmp_path):
     project_root = tmp_path
     agent_id = "test-agent"
 
-    # Create agents directory
+    # Create required directories
     (tmp_path / "agents" / workflow_id / "notes").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".jc").mkdir(parents=True, exist_ok=True)
 
-    # Set context
-    set_notes_context(workflow_id, project_root, agent_id)
+    # Create a real EventLogger (writes to tmp_path/.jc/events.db)
+    event_logger = EventLogger(project_root)
+
+    # Set context with event_logger so get_notes_api() returns a Notes instance
+    set_notes_context(workflow_id, project_root, agent_id, event_logger=event_logger)
 
     yield {
         "workflow_id": workflow_id,
         "project_root": project_root,
         "agent_id": agent_id,
+        "event_logger": event_logger,
     }
 
     # Clean up context
     _notes_context["workflow_id"] = None
     _notes_context["project_root"] = None
     _notes_context["agent_id"] = None
+    _notes_context["event_logger"] = None
 
 
 class TestSetNotesContext:

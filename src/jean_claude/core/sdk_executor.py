@@ -118,9 +118,9 @@ async def _execute_prompt_async(
 
     # Map model names to SDK format
     model_map = {
-        "sonnet": "claude-sonnet-4-20250514",
-        "opus": "claude-opus-4-20250514",
-        "haiku": "claude-haiku-3-5-20241022",
+        "sonnet": "claude-sonnet-4-6-20250627",
+        "opus": "claude-opus-4-6-20250627",
+        "haiku": "claude-haiku-4-5-20251001",
     }
     model = model_map.get(request.model, request.model)
 
@@ -446,9 +446,9 @@ async def execute_prompt_streaming(
 
     # Map model names to SDK format
     model_map = {
-        "sonnet": "claude-sonnet-4-20250514",
-        "opus": "claude-opus-4-20250514",
-        "haiku": "claude-haiku-3-5-20241022",
+        "sonnet": "claude-sonnet-4-6-20250627",
+        "opus": "claude-opus-4-6-20250627",
+        "haiku": "claude-haiku-4-5-20251001",
     }
     model = model_map.get(request.model, request.model)
 
