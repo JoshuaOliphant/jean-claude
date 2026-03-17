@@ -25,7 +25,6 @@ from claude_agent_sdk import (
     ClaudeSDKError,
     CLINotFoundError,
     ProcessError,
-    HookMatcher,
 )
 from claude_agent_sdk.types import Message
 
@@ -39,7 +38,7 @@ from jean_claude.core.agent import (
     FINAL_OBJECT_JSON,
     generate_workflow_id,
 )
-from jean_claude.core.security import bash_security_hook
+from jean_claude.core.sandbox import get_sandbox_settings
 
 
 async def _string_to_async_generator(prompt: str) -> AsyncIterator[dict[str, Any]]:
@@ -124,24 +123,8 @@ async def _execute_prompt_async(
     }
     model = model_map.get(request.model, request.model)
 
-    # Configure security hooks if enabled
-    hooks = None
-    if request.enable_security_hooks:
-        # Create a wrapper that injects workflow_type into context
-        async def security_hook_wrapper(
-            tool_input: dict[str, Any],
-            tool_use_id: str | None = None,
-            hook_context: Any = None,
-        ) -> dict[str, Any]:
-            # Inject workflow type into context for the security hook
-            context = {"workflow_type": request.workflow_type}
-            return await bash_security_hook(tool_input, tool_use_id, context)
-
-        hooks = {
-            "PreToolUse": [
-                HookMatcher(matcher="Bash", hooks=[security_hook_wrapper])
-            ]
-        }
+    # Configure sandbox for OS-level bash isolation
+    sandbox = get_sandbox_settings(request.workflow_type, request.sandbox_enabled)
 
     # Build SDK options
     options = ClaudeAgentOptions(
@@ -151,7 +134,7 @@ async def _execute_prompt_async(
         max_budget_usd=request.max_budget_usd,
         output_format=request.output_format,
         permission_mode="acceptEdits" if request.dangerously_skip_permissions else None,
-        hooks=hooks,
+        sandbox=sandbox,
         agents=agents,  # Subagent definitions for Task tool delegation
         mcp_servers=request.mcp_servers,  # Agent SDK MCP servers (like mailbox tools)
         allowed_tools=request.allowed_tools,  # Allowed tool names
@@ -454,24 +437,8 @@ async def execute_prompt_streaming(
     }
     model = model_map.get(request.model, request.model)
 
-    # Configure security hooks if enabled
-    hooks = None
-    if request.enable_security_hooks:
-        # Create a wrapper that injects workflow_type into context
-        async def security_hook_wrapper(
-            tool_input: dict[str, Any],
-            tool_use_id: str | None = None,
-            hook_context: Any = None,
-        ) -> dict[str, Any]:
-            # Inject workflow type into context for the security hook
-            context = {"workflow_type": request.workflow_type}
-            return await bash_security_hook(tool_input, tool_use_id, context)
-
-        hooks = {
-            "PreToolUse": [
-                HookMatcher(matcher="Bash", hooks=[security_hook_wrapper])
-            ]
-        }
+    # Configure sandbox for OS-level bash isolation
+    sandbox = get_sandbox_settings(request.workflow_type, request.sandbox_enabled)
 
     # Build SDK options
     options = ClaudeAgentOptions(
@@ -481,7 +448,7 @@ async def execute_prompt_streaming(
         max_budget_usd=request.max_budget_usd,
         output_format=request.output_format,
         permission_mode="acceptEdits" if request.dangerously_skip_permissions else None,
-        hooks=hooks,
+        sandbox=sandbox,
         agents=agents,  # Subagent definitions for Task tool delegation
         mcp_servers=request.mcp_servers,  # Agent SDK MCP servers (like mailbox tools)
         allowed_tools=request.allowed_tools,  # Allowed tool names

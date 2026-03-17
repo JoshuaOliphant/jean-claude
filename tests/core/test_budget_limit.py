@@ -71,7 +71,7 @@ class TestBudgetPassthrough:
         request = PromptRequest(
             prompt="test",
             max_budget_usd=5.0,
-            enable_security_hooks=False,
+            sandbox_enabled=False,
         )
 
         await _execute_prompt_async(request)
@@ -93,7 +93,7 @@ class TestBudgetPassthrough:
 
         request = PromptRequest(
             prompt="test",
-            enable_security_hooks=False,
+            sandbox_enabled=False,
         )
 
         await _execute_prompt_async(request)
