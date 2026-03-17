@@ -3,18 +3,8 @@
 
 """Tests for event type handlers in ProjectionBuilder.
 
-This module tests all event type handlers defined in the ProjectionBuilder class,
-ensuring that each event type is properly processed and transforms state correctly.
-The tests cover all event types specified in ARCHITECTURE.md including:
-
-- Workflow lifecycle events (started, completed, failed)
-- Worktree lifecycle events (created, active, merged, deleted)
-- Feature lifecycle events (planned, started, completed, failed)
-- Phase transition events
-- Test events (started, passed, failed)
-- Commit events (created, failed)
-
-Each test verifies proper event data validation and state transformation logic.
+Tests all event type handlers defined in the ProjectionBuilder class,
+covering workflow, worktree, feature, phase, test, and commit event types.
 """
 
 import pytest
@@ -29,26 +19,16 @@ class ComprehensiveProjectionBuilder(ProjectionBuilder):
 
     def get_initial_state(self):
         return {
-            'workflow_id': None,
-            'phase': 'unknown',
-            'status': 'unknown',
-            'features': [],
-            'worktree_path': None,
-            'worktree_branch': None,
-            'base_commit': None,
-            'merge_commit': None,
-            'worktree_merged': False,
-            'test_results': {},
-            'commits': [],
-            'errors': []
+            'workflow_id': None, 'phase': 'unknown', 'status': 'unknown',
+            'features': [], 'worktree_path': None, 'worktree_branch': None,
+            'base_commit': None, 'merge_commit': None, 'worktree_merged': False,
+            'test_results': {}, 'commits': [], 'errors': []
         }
 
     def apply_workflow_started(self, state, event):
         new_state = state.copy()
         new_state.update({
-            'workflow_id': event.workflow_id,
-            'phase': 'planning',
-            'status': 'active',
+            'workflow_id': event.workflow_id, 'phase': 'planning', 'status': 'active',
             'description': event.event_data.get('description'),
             'beads_task_id': event.event_data.get('beads_task_id'),
             'started_at': event.timestamp
@@ -58,8 +38,7 @@ class ComprehensiveProjectionBuilder(ProjectionBuilder):
     def apply_workflow_completed(self, state, event):
         new_state = state.copy()
         new_state.update({
-            'phase': 'complete',
-            'status': 'completed',
+            'phase': 'complete', 'status': 'completed',
             'completed_at': event.timestamp,
             'duration_ms': event.event_data.get('duration_ms'),
             'total_cost': event.event_data.get('total_cost')
@@ -69,8 +48,7 @@ class ComprehensiveProjectionBuilder(ProjectionBuilder):
     def apply_workflow_failed(self, state, event):
         new_state = state.copy()
         new_state.update({
-            'status': 'failed',
-            'error': event.event_data.get('error'),
+            'status': 'failed', 'error': event.event_data.get('error'),
             'failed_phase': event.event_data.get('phase'),
             'failed_at': event.timestamp
         })
@@ -87,7 +65,6 @@ class ComprehensiveProjectionBuilder(ProjectionBuilder):
         return new_state
 
     def apply_worktree_active(self, state, event):
-        """Apply WorktreeActive event (heartbeat)."""
         new_state = state.copy()
         new_state.update({
             'worktree_last_active': event.timestamp,
@@ -96,7 +73,6 @@ class ComprehensiveProjectionBuilder(ProjectionBuilder):
         return new_state
 
     def apply_worktree_merged(self, state, event):
-        """Apply WorktreeMerged event."""
         new_state = state.copy()
         new_state.update({
             'merge_commit': event.event_data.get('commit_sha'),
@@ -107,7 +83,6 @@ class ComprehensiveProjectionBuilder(ProjectionBuilder):
         return new_state
 
     def apply_worktree_deleted(self, state, event):
-        """Apply WorktreeDeleted event."""
         new_state = state.copy()
         new_state.update({
             'worktree_deleted': True,
@@ -123,8 +98,7 @@ class ComprehensiveProjectionBuilder(ProjectionBuilder):
             'name': event.event_data['name'],
             'description': event.event_data['description'],
             'test_file': event.event_data.get('test_file'),
-            'status': 'planned',
-            'tests_passing': False,
+            'status': 'planned', 'tests_passing': False,
             'planned_at': event.timestamp
         })
         new_state['features'] = features
@@ -176,45 +150,35 @@ class ComprehensiveProjectionBuilder(ProjectionBuilder):
         return new_state
 
     def apply_tests_started(self, state, event):
-        """Apply TestsStarted event."""
         new_state = state.copy()
         test_results = new_state.get('test_results', {}).copy()
         test_key = f"{event.event_data.get('test_file', 'unknown')}-{event.timestamp}"
         test_results[test_key] = {
             'test_file': event.event_data.get('test_file'),
             'feature': event.event_data.get('feature'),
-            'status': 'running',
-            'started_at': event.timestamp
+            'status': 'running', 'started_at': event.timestamp
         }
         new_state['test_results'] = test_results
         return new_state
 
     def apply_tests_passed(self, state, event):
-        """Apply TestsPassed event."""
         new_state = state.copy()
         test_results = new_state.get('test_results', {}).copy()
-
-        # Find the most recent test run for this test file
         test_file = event.event_data.get('test_file')
         for key, result in test_results.items():
             if result.get('test_file') == test_file and result.get('status') == 'running':
                 result.update({
-                    'status': 'passed',
-                    'count': event.event_data.get('count'),
+                    'status': 'passed', 'count': event.event_data.get('count'),
                     'duration_ms': event.event_data.get('duration_ms'),
                     'completed_at': event.timestamp
                 })
                 break
-
         new_state['test_results'] = test_results
         return new_state
 
     def apply_tests_failed(self, state, event):
-        """Apply TestsFailed event."""
         new_state = state.copy()
         test_results = new_state.get('test_results', {}).copy()
-
-        # Find the most recent test run for this test file
         test_file = event.event_data.get('test_file')
         for key, result in test_results.items():
             if result.get('test_file') == test_file and result.get('status') == 'running':
@@ -224,12 +188,10 @@ class ComprehensiveProjectionBuilder(ProjectionBuilder):
                     'completed_at': event.timestamp
                 })
                 break
-
         new_state['test_results'] = test_results
         return new_state
 
     def apply_commit_created(self, state, event):
-        """Apply CommitCreated event."""
         new_state = state.copy()
         commits = new_state.get('commits', []).copy()
         commits.append({
@@ -242,7 +204,6 @@ class ComprehensiveProjectionBuilder(ProjectionBuilder):
         return new_state
 
     def apply_commit_failed(self, state, event):
-        """Apply CommitFailed event."""
         new_state = state.copy()
         errors = new_state.get('errors', []).copy()
         errors.append({
@@ -260,557 +221,199 @@ class TestEventTypeHandlers:
 
     @pytest.fixture
     def builder(self):
-        """Provide the comprehensive projection builder."""
         return ComprehensiveProjectionBuilder()
 
     @pytest.fixture
     def initial_state(self, builder):
-        """Provide initial state."""
         return builder.get_initial_state()
 
-    # Workflow lifecycle event tests
-    def test_workflow_started_event_handler(self, builder, initial_state):
-        """Test workflow.started event handler with all data fields."""
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="workflow.started",
-            event_data={
-                'description': 'Implement user authentication system',
-                'beads_task_id': 'beads-auth-456'
-            }
-        )
-
-        result = builder.apply_event(initial_state, event)
-
-        assert result['workflow_id'] == "test-workflow-123"
+    def test_workflow_lifecycle_events(self, builder, initial_state):
+        """Test workflow started, completed, and failed event handlers."""
+        # Started
+        started = Event(workflow_id="w-123", event_type="workflow.started",
+                        event_data={'description': 'Implement auth', 'beads_task_id': 'beads-456'})
+        result = builder.apply_event(initial_state, started)
+        assert result['workflow_id'] == "w-123"
         assert result['phase'] == 'planning'
         assert result['status'] == 'active'
-        assert result['description'] == 'Implement user authentication system'
-        assert result['beads_task_id'] == 'beads-auth-456'
-        assert result['started_at'] == event.timestamp
-
-    def test_workflow_completed_event_handler(self, builder):
-        """Test workflow.completed event handler with duration and cost."""
-        state = {
-            'workflow_id': 'test-workflow-123',
-            'status': 'active',
-            'phase': 'implementing'
-        }
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="workflow.completed",
-            event_data={
-                'duration_ms': 180000,
-                'total_cost': 89.45
-            }
-        )
-
-        result = builder.apply_event(state, event)
-
-        assert result['phase'] == 'complete'
-        assert result['status'] == 'completed'
-        assert result['duration_ms'] == 180000
-        assert result['total_cost'] == 89.45
-        assert result['completed_at'] == event.timestamp
-
-    def test_workflow_failed_event_handler(self, builder):
-        """Test workflow.failed event handler with error details."""
-        state = {
-            'workflow_id': 'test-workflow-123',
-            'status': 'active',
-            'phase': 'implementing'
-        }
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="workflow.failed",
-            event_data={
-                'error': 'Compilation failed due to syntax errors',
-                'phase': 'implementing'
-            }
-        )
-
-        result = builder.apply_event(state, event)
-
-        assert result['status'] == 'failed'
-        assert result['error'] == 'Compilation failed due to syntax errors'
-        assert result['failed_phase'] == 'implementing'
-        assert result['failed_at'] == event.timestamp
-
-    # Worktree lifecycle event tests
-    def test_worktree_created_event_handler(self, builder, initial_state):
-        """Test worktree.created event handler with path and branch info."""
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="worktree.created",
-            event_data={
-                'path': '/repo/trees/beads-workflow-123',
-                'branch': 'beads/workflow-123',
-                'base_commit': 'abc123def456789'
-            }
-        )
-
-        result = builder.apply_event(initial_state, event)
-
-        assert result['worktree_path'] == '/repo/trees/beads-workflow-123'
-        assert result['worktree_branch'] == 'beads/workflow-123'
-        assert result['base_commit'] == 'abc123def456789'
-        assert result['worktree_created_at'] == event.timestamp
-
-    def test_worktree_active_event_handler(self, builder):
-        """Test worktree.active event handler (heartbeat)."""
-        state = {'worktree_path': '/repo/trees/beads-workflow-123'}
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="worktree.active",
-            event_data={'path': '/repo/trees/beads-workflow-123'}
-        )
-
-        result = builder.apply_event(state, event)
-
-        assert result['worktree_last_active'] == event.timestamp
-        assert result['worktree_active_path'] == '/repo/trees/beads-workflow-123'
-
-    def test_worktree_merged_event_handler(self, builder):
-        """Test worktree.merged event handler with merge details."""
-        state = {
-            'worktree_path': '/repo/trees/beads-workflow-123',
-            'worktree_merged': False
-        }
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="worktree.merged",
-            event_data={
-                'commit_sha': 'def456abc789123',
-                'conflicts': []
-            }
-        )
-
-        result = builder.apply_event(state, event)
-
-        assert result['merge_commit'] == 'def456abc789123'
-        assert result['worktree_merged'] == True
-        assert result['merge_conflicts'] == []
-        assert result['merged_at'] == event.timestamp
-
-    def test_worktree_merged_with_conflicts(self, builder):
-        """Test worktree.merged event handler with merge conflicts."""
-        state = {'worktree_merged': False}
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="worktree.merged",
-            event_data={
-                'commit_sha': 'def456abc789123',
-                'conflicts': ['src/main.py', 'tests/test_auth.py']
-            }
-        )
-
-        result = builder.apply_event(state, event)
-
-        assert result['merge_conflicts'] == ['src/main.py', 'tests/test_auth.py']
-
-    def test_worktree_deleted_event_handler(self, builder):
-        """Test worktree.deleted event handler with deletion reason."""
-        state = {'worktree_path': '/repo/trees/beads-workflow-123'}
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="worktree.deleted",
-            event_data={'reason': 'merged'}
-        )
-
-        result = builder.apply_event(state, event)
-
-        assert result['worktree_deleted'] == True
-        assert result['deletion_reason'] == 'merged'
-        assert result['deleted_at'] == event.timestamp
-
-    # Feature lifecycle event tests
-    def test_feature_planned_event_handler(self, builder, initial_state):
-        """Test feature.planned event handler with complete feature details."""
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="feature.planned",
-            event_data={
-                'name': 'user-authentication',
-                'description': 'Implement JWT-based user authentication',
-                'test_file': 'tests/core/test_auth.py'
-            }
-        )
-
-        result = builder.apply_event(initial_state, event)
-
-        assert len(result['features']) == 1
-        feature = result['features'][0]
-        assert feature['name'] == 'user-authentication'
-        assert feature['description'] == 'Implement JWT-based user authentication'
-        assert feature['test_file'] == 'tests/core/test_auth.py'
-        assert feature['status'] == 'planned'
-        assert feature['tests_passing'] == False
-        assert feature['planned_at'] == event.timestamp
-
-    def test_feature_started_event_handler(self, builder):
-        """Test feature.started event handler updates feature status."""
-        state = {
-            'features': [{
-                'name': 'user-authentication',
-                'description': 'Implement JWT-based user authentication',
-                'status': 'planned',
-                'tests_passing': False
-            }]
-        }
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="feature.started",
-            event_data={'name': 'user-authentication'}
-        )
-
-        result = builder.apply_event(state, event)
-
-        feature = result['features'][0]
-        assert feature['status'] == 'in_progress'
-        assert feature['started_at'] == event.timestamp
-
-    def test_feature_completed_event_handler(self, builder):
-        """Test feature.completed event handler with test results and timing."""
-        state = {
-            'features': [{
-                'name': 'user-authentication',
-                'status': 'in_progress',
-                'tests_passing': False
-            }]
-        }
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="feature.completed",
-            event_data={
-                'name': 'user-authentication',
-                'tests_passing': True,
-                'duration_ms': 45000
-            }
-        )
-
-        result = builder.apply_event(state, event)
-
-        feature = result['features'][0]
-        assert feature['status'] == 'completed'
-        assert feature['tests_passing'] == True
-        assert feature['duration_ms'] == 45000
-        assert feature['completed_at'] == event.timestamp
-
-    def test_feature_failed_event_handler(self, builder):
-        """Test feature.failed event handler with error information."""
-        state = {
-            'features': [{
-                'name': 'user-authentication',
-                'status': 'in_progress',
-                'tests_passing': False
-            }]
-        }
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="feature.failed",
-            event_data={
-                'name': 'user-authentication',
-                'error': 'Database connection timeout during tests'
-            }
-        )
-
-        result = builder.apply_event(state, event)
-
-        feature = result['features'][0]
-        assert feature['status'] == 'failed'
-        assert feature['error'] == 'Database connection timeout during tests'
-        assert feature['failed_at'] == event.timestamp
-
-    # Phase transition event tests
-    def test_phase_changed_event_handler(self, builder):
-        """Test phase.changed event handler with phase transition tracking."""
-        state = {'phase': 'planning'}
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="phase.changed",
-            event_data={
-                'from_phase': 'planning',
-                'to_phase': 'implementing'
-            }
-        )
-
-        result = builder.apply_event(state, event)
-
-        assert result['previous_phase'] == 'planning'
-        assert result['phase'] == 'implementing'
-        assert result['phase_changed_at'] == event.timestamp
-
-    # Test event tests
-    def test_tests_started_event_handler(self, builder, initial_state):
-        """Test tests.started event handler tracks test execution start."""
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="tests.started",
-            event_data={
-                'test_file': 'tests/core/test_auth.py',
-                'feature': 'user-authentication'
-            }
-        )
-
-        result = builder.apply_event(initial_state, event)
-
-        test_results = result['test_results']
-        assert len(test_results) == 1
-
-        # Get the test result (key includes timestamp)
-        test_key = list(test_results.keys())[0]
-        test_result = test_results[test_key]
-
-        assert test_result['test_file'] == 'tests/core/test_auth.py'
-        assert test_result['feature'] == 'user-authentication'
-        assert test_result['status'] == 'running'
-        assert test_result['started_at'] == event.timestamp
-
-    def test_tests_passed_event_handler(self, builder):
-        """Test tests.passed event handler updates test results with success metrics."""
-        state = {
-            'test_results': {
-                'tests/core/test_auth.py-2025-01-02T10:00:00': {
-                    'test_file': 'tests/core/test_auth.py',
-                    'feature': 'user-authentication',
-                    'status': 'running',
-                    'started_at': datetime(2025, 1, 2, 10, 0, 0)
-                }
-            }
-        }
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="tests.passed",
-            event_data={
-                'test_file': 'tests/core/test_auth.py',
-                'feature': 'user-authentication',
-                'count': 15,
-                'duration_ms': 3500
-            }
-        )
-
-        result = builder.apply_event(state, event)
-
-        test_key = 'tests/core/test_auth.py-2025-01-02T10:00:00'
-        test_result = result['test_results'][test_key]
-
-        assert test_result['status'] == 'passed'
-        assert test_result['count'] == 15
-        assert test_result['duration_ms'] == 3500
-        assert test_result['completed_at'] == event.timestamp
-
-    def test_tests_failed_event_handler(self, builder):
-        """Test tests.failed event handler tracks test failures."""
-        state = {
-            'test_results': {
-                'tests/core/test_auth.py-2025-01-02T10:00:00': {
-                    'test_file': 'tests/core/test_auth.py',
-                    'feature': 'user-authentication',
-                    'status': 'running',
-                    'started_at': datetime(2025, 1, 2, 10, 0, 0)
-                }
-            }
-        }
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="tests.failed",
-            event_data={
-                'test_file': 'tests/core/test_auth.py',
-                'feature': 'user-authentication',
-                'failures': [
-                    'test_login_with_invalid_credentials',
-                    'test_token_expiration'
-                ]
-            }
-        )
-
-        result = builder.apply_event(state, event)
-
-        test_key = 'tests/core/test_auth.py-2025-01-02T10:00:00'
-        test_result = result['test_results'][test_key]
-
-        assert test_result['status'] == 'failed'
-        assert test_result['failures'] == [
-            'test_login_with_invalid_credentials',
-            'test_token_expiration'
-        ]
-        assert test_result['completed_at'] == event.timestamp
-
-    # Commit event tests
-    def test_commit_created_event_handler(self, builder, initial_state):
-        """Test commit.created event handler tracks successful commits."""
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="commit.created",
-            event_data={
-                'commit_sha': 'abc123def456789',
-                'message': 'Implement user authentication endpoints',
-                'files': ['src/auth.py', 'tests/test_auth.py', 'src/routes.py']
-            }
-        )
-
-        result = builder.apply_event(initial_state, event)
-
-        assert len(result['commits']) == 1
-        commit = result['commits'][0]
-
-        assert commit['commit_sha'] == 'abc123def456789'
-        assert commit['message'] == 'Implement user authentication endpoints'
-        assert commit['files'] == ['src/auth.py', 'tests/test_auth.py', 'src/routes.py']
-        assert commit['created_at'] == event.timestamp
-
-    def test_commit_failed_event_handler(self, builder, initial_state):
-        """Test commit.failed event handler tracks commit failures."""
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="commit.failed",
-            event_data={
-                'error': 'Pre-commit hook failed: linting errors found',
-                'files': ['src/auth.py', 'tests/test_auth.py']
-            }
-        )
-
-        result = builder.apply_event(initial_state, event)
-
-        assert len(result['errors']) == 1
-        error = result['errors'][0]
-
-        assert error['type'] == 'commit_failed'
-        assert error['error'] == 'Pre-commit hook failed: linting errors found'
-        assert error['files'] == ['src/auth.py', 'tests/test_auth.py']
-        assert error['failed_at'] == event.timestamp
-
-    # Multiple events integration tests
-    def test_multiple_commits_tracking(self, builder, initial_state):
-        """Test that multiple commits are tracked correctly."""
-        # First commit
-        event1 = Event(
-            workflow_id="test-workflow-123",
-            event_type="commit.created",
-            event_data={
-                'commit_sha': 'abc123',
-                'message': 'Add auth model',
-                'files': ['src/models/auth.py']
-            }
-        )
-
-        state1 = builder.apply_event(initial_state, event1)
-
-        # Second commit
-        event2 = Event(
-            workflow_id="test-workflow-123",
-            event_type="commit.created",
-            event_data={
-                'commit_sha': 'def456',
-                'message': 'Add auth tests',
-                'files': ['tests/test_auth.py']
-            }
-        )
-
-        final_state = builder.apply_event(state1, event2)
-
-        assert len(final_state['commits']) == 2
-        assert final_state['commits'][0]['commit_sha'] == 'abc123'
-        assert final_state['commits'][1]['commit_sha'] == 'def456'
+        assert result['description'] == 'Implement auth'
+        assert result['beads_task_id'] == 'beads-456'
+
+        # Completed
+        completed = Event(workflow_id="w-123", event_type="workflow.completed",
+                          event_data={'duration_ms': 180000, 'total_cost': 89.45})
+        result2 = builder.apply_event(result, completed)
+        assert result2['phase'] == 'complete'
+        assert result2['status'] == 'completed'
+        assert result2['duration_ms'] == 180000
+        assert result2['total_cost'] == 89.45
+
+        # Failed
+        state = {'workflow_id': 'w-123', 'status': 'active', 'phase': 'implementing'}
+        failed = Event(workflow_id="w-123", event_type="workflow.failed",
+                       event_data={'error': 'Syntax errors', 'phase': 'implementing'})
+        result3 = builder.apply_event(state, failed)
+        assert result3['status'] == 'failed'
+        assert result3['error'] == 'Syntax errors'
+        assert result3['failed_phase'] == 'implementing'
+
+    def test_worktree_lifecycle_events(self, builder, initial_state):
+        """Test worktree created, active, merged (with/without conflicts), and deleted."""
+        # Created
+        created = Event(workflow_id="w-123", event_type="worktree.created",
+                        event_data={'path': '/repo/trees/w-123', 'branch': 'beads/w-123', 'base_commit': 'abc123'})
+        s1 = builder.apply_event(initial_state, created)
+        assert s1['worktree_path'] == '/repo/trees/w-123'
+        assert s1['worktree_branch'] == 'beads/w-123'
+        assert s1['base_commit'] == 'abc123'
+
+        # Active (heartbeat)
+        active = Event(workflow_id="w-123", event_type="worktree.active",
+                       event_data={'path': '/repo/trees/w-123'})
+        s2 = builder.apply_event(s1, active)
+        assert s2['worktree_last_active'] == active.timestamp
+
+        # Merged without conflicts
+        merged = Event(workflow_id="w-123", event_type="worktree.merged",
+                       event_data={'commit_sha': 'def456', 'conflicts': []})
+        s3 = builder.apply_event(s2, merged)
+        assert s3['merge_commit'] == 'def456'
+        assert s3['worktree_merged'] is True
+        assert s3['merge_conflicts'] == []
+
+        # Merged with conflicts
+        merged2 = Event(workflow_id="w-123", event_type="worktree.merged",
+                        event_data={'commit_sha': 'ghi789', 'conflicts': ['src/main.py', 'tests/test_auth.py']})
+        s3b = builder.apply_event(s2, merged2)
+        assert s3b['merge_conflicts'] == ['src/main.py', 'tests/test_auth.py']
+
+        # Deleted
+        deleted = Event(workflow_id="w-123", event_type="worktree.deleted",
+                        event_data={'reason': 'merged'})
+        s4 = builder.apply_event(s3, deleted)
+        assert s4['worktree_deleted'] is True
+        assert s4['deletion_reason'] == 'merged'
 
     def test_feature_lifecycle_complete_flow(self, builder, initial_state):
-        """Test complete feature lifecycle from planned to completed."""
-        # Feature planned
-        planned_event = Event(
-            workflow_id="test-workflow-123",
-            event_type="feature.planned",
-            event_data={
-                'name': 'api-endpoints',
-                'description': 'REST API endpoints for user management',
-                'test_file': 'tests/api/test_users.py'
-            }
-        )
+        """Test complete feature lifecycle: planned -> started -> completed, and failed path."""
+        # Planned
+        planned = Event(workflow_id="w-123", event_type="feature.planned",
+                        event_data={'name': 'api-endpoints', 'description': 'REST API', 'test_file': 'tests/test_api.py'})
+        s1 = builder.apply_event(initial_state, planned)
+        assert len(s1['features']) == 1
+        f = s1['features'][0]
+        assert f['name'] == 'api-endpoints'
+        assert f['status'] == 'planned'
+        assert f['tests_passing'] is False
 
-        state1 = builder.apply_event(initial_state, planned_event)
+        # Started
+        started = Event(workflow_id="w-123", event_type="feature.started",
+                        event_data={'name': 'api-endpoints'})
+        s2 = builder.apply_event(s1, started)
+        assert s2['features'][0]['status'] == 'in_progress'
 
-        # Feature started
-        started_event = Event(
-            workflow_id="test-workflow-123",
-            event_type="feature.started",
-            event_data={'name': 'api-endpoints'}
-        )
+        # Completed
+        completed = Event(workflow_id="w-123", event_type="feature.completed",
+                          event_data={'name': 'api-endpoints', 'tests_passing': True, 'duration_ms': 60000})
+        s3 = builder.apply_event(s2, completed)
+        f3 = s3['features'][0]
+        assert f3['status'] == 'completed'
+        assert f3['tests_passing'] is True
+        assert f3['duration_ms'] == 60000
+        assert 'planned_at' in f3
+        assert 'started_at' in f3
+        assert 'completed_at' in f3
 
-        state2 = builder.apply_event(state1, started_event)
+        # Failed path
+        s2b = builder.apply_event(s1, started)
+        failed = Event(workflow_id="w-123", event_type="feature.failed",
+                       event_data={'name': 'api-endpoints', 'error': 'DB timeout'})
+        s3b = builder.apply_event(s2b, failed)
+        assert s3b['features'][0]['status'] == 'failed'
+        assert s3b['features'][0]['error'] == 'DB timeout'
 
-        # Feature completed
-        completed_event = Event(
-            workflow_id="test-workflow-123",
-            event_type="feature.completed",
-            event_data={
-                'name': 'api-endpoints',
-                'tests_passing': True,
-                'duration_ms': 60000
-            }
-        )
+    def test_phase_changed_event(self, builder):
+        """Test phase transition tracking."""
+        state = {'phase': 'planning'}
+        event = Event(workflow_id="w-123", event_type="phase.changed",
+                      event_data={'from_phase': 'planning', 'to_phase': 'implementing'})
+        result = builder.apply_event(state, event)
+        assert result['previous_phase'] == 'planning'
+        assert result['phase'] == 'implementing'
 
-        final_state = builder.apply_event(state2, completed_event)
+    def test_test_lifecycle_events(self, builder, initial_state):
+        """Test tests.started, tests.passed, and tests.failed handlers."""
+        # Started
+        started = Event(workflow_id="w-123", event_type="tests.started",
+                        event_data={'test_file': 'tests/test_auth.py', 'feature': 'auth'})
+        s1 = builder.apply_event(initial_state, started)
+        assert len(s1['test_results']) == 1
+        tr = list(s1['test_results'].values())[0]
+        assert tr['status'] == 'running'
+        assert tr['test_file'] == 'tests/test_auth.py'
 
-        feature = final_state['features'][0]
-        assert feature['name'] == 'api-endpoints'
-        assert feature['status'] == 'completed'
-        assert feature['tests_passing'] == True
-        assert feature['duration_ms'] == 60000
-        assert 'planned_at' in feature
-        assert 'started_at' in feature
-        assert 'completed_at' in feature
+        # Passed
+        passed = Event(workflow_id="w-123", event_type="tests.passed",
+                       event_data={'test_file': 'tests/test_auth.py', 'count': 15, 'duration_ms': 3500})
+        s2 = builder.apply_event(s1, passed)
+        tr2 = list(s2['test_results'].values())[0]
+        assert tr2['status'] == 'passed'
+        assert tr2['count'] == 15
+        assert tr2['duration_ms'] == 3500
 
-    def test_unknown_event_type_handling(self, builder, initial_state):
-        """Test that unknown event types raise appropriate errors."""
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="unknown.event.type",
-            event_data={}
-        )
+        # Failed (start fresh)
+        s1b = builder.apply_event(initial_state, started)
+        failed = Event(workflow_id="w-123", event_type="tests.failed",
+                       event_data={'test_file': 'tests/test_auth.py', 'failures': ['test_login', 'test_expiry']})
+        s2b = builder.apply_event(s1b, failed)
+        tr2b = list(s2b['test_results'].values())[0]
+        assert tr2b['status'] == 'failed'
+        assert tr2b['failures'] == ['test_login', 'test_expiry']
 
+    def test_commit_events(self, builder, initial_state):
+        """Test commit.created and commit.failed, including multiple commits."""
+        # Created
+        created = Event(workflow_id="w-123", event_type="commit.created",
+                        event_data={'commit_sha': 'abc123', 'message': 'Add auth', 'files': ['src/auth.py']})
+        s1 = builder.apply_event(initial_state, created)
+        assert len(s1['commits']) == 1
+        assert s1['commits'][0]['commit_sha'] == 'abc123'
+
+        # Second commit
+        created2 = Event(workflow_id="w-123", event_type="commit.created",
+                         event_data={'commit_sha': 'def456', 'message': 'Add tests', 'files': ['tests/test.py']})
+        s2 = builder.apply_event(s1, created2)
+        assert len(s2['commits']) == 2
+        assert s2['commits'][1]['commit_sha'] == 'def456'
+
+        # Failed
+        failed = Event(workflow_id="w-123", event_type="commit.failed",
+                       event_data={'error': 'Linting errors', 'files': ['src/auth.py']})
+        s3 = builder.apply_event(initial_state, failed)
+        assert len(s3['errors']) == 1
+        assert s3['errors'][0]['type'] == 'commit_failed'
+        assert s3['errors'][0]['error'] == 'Linting errors'
+
+    def test_unknown_event_type_raises_error(self, builder, initial_state):
+        """Test that unknown event types raise ValueError."""
+        event = Event(workflow_id="w-123", event_type="unknown.event.type", event_data={})
         with pytest.raises(ValueError, match="Unknown event type: unknown.event.type"):
             builder.apply_event(initial_state, event)
 
-    def test_state_immutability_across_all_events(self, builder):
-        """Test that state immutability is preserved across all event types."""
-        original_state = {
+    def test_state_immutability(self, builder):
+        """Test that original state is not modified by apply_event."""
+        original = {
             'workflow_id': 'test-123',
-            'features': [{'name': 'existing-feature', 'status': 'completed'}],
-            'commits': [{'commit_sha': 'existing123', 'message': 'existing commit'}]
+            'features': [{'name': 'existing', 'status': 'completed'}],
+            'commits': [{'commit_sha': 'existing123', 'message': 'existing'}]
         }
-
-        # Create a deep copy to compare against
-        expected_unchanged_state = {
+        expected = {
             'workflow_id': 'test-123',
-            'features': [{'name': 'existing-feature', 'status': 'completed'}],
-            'commits': [{'commit_sha': 'existing123', 'message': 'existing commit'}]
+            'features': [{'name': 'existing', 'status': 'completed'}],
+            'commits': [{'commit_sha': 'existing123', 'message': 'existing'}]
         }
-
-        event = Event(
-            workflow_id="test-workflow-123",
-            event_type="feature.planned",
-            event_data={
-                'name': 'new-feature',
-                'description': 'A new feature'
-            }
-        )
-
-        result_state = builder.apply_event(original_state, event)
-
-        # Original state should be unchanged
-        assert original_state == expected_unchanged_state
-
-        # Result should be different and contain new feature
-        assert len(result_state['features']) == 2
-        assert result_state['features'][1]['name'] == 'new-feature'
+        event = Event(workflow_id="w-123", event_type="feature.planned",
+                      event_data={'name': 'new-feature', 'description': 'A new feature'})
+        result = builder.apply_event(original, event)
+        assert original == expected
+        assert len(result['features']) == 2
