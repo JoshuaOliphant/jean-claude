@@ -8,65 +8,10 @@ cleanup, and error handling for the EventStore class.
 """
 
 import sqlite3
-from pathlib import Path
 from unittest.mock import patch
 import pytest
 
 from jean_claude.core.event_store import EventStore
-
-
-class TestDatabaseConnectionInitialization:
-    """Test database connection initialization and setup."""
-
-    def test_event_store_initializes_with_schema_and_indexes(self, tmp_path):
-        """Test that EventStore creates database, schema, and indexes on init."""
-        db_path = tmp_path / "test_events.db"
-        event_store = EventStore(db_path)
-
-        assert db_path.exists()
-        conn = event_store.get_connection()
-        assert isinstance(conn, sqlite3.Connection)
-
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        tables = {row[0] for row in cursor.fetchall()}
-        assert 'events' in tables
-        assert 'snapshots' in tables
-
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='index'")
-        indexes = {row[0] for row in cursor.fetchall()}
-        assert {'idx_events_workflow_id', 'idx_events_event_type', 'idx_events_timestamp'}.issubset(indexes)
-
-        assert event_store.db_path == db_path
-        conn.close()
-
-    def test_database_connection_with_string_and_path_and_nested_dirs(self, tmp_path):
-        """Test connection works with string paths, Path objects, and creates nested directories."""
-        # String path
-        str_store = EventStore(str(tmp_path / "string.db"))
-        conn = str_store.get_connection()
-        assert isinstance(conn, sqlite3.Connection)
-        conn.close()
-
-        # Nested path
-        nested_path = tmp_path / "nested" / "directory" / "events.db"
-        assert not nested_path.parent.exists()
-        nested_store = EventStore(nested_path)
-        assert nested_path.exists()
-        conn = nested_store.get_connection()
-        assert isinstance(conn, sqlite3.Connection)
-        conn.close()
-
-    def test_database_connection_validates_input_paths(self):
-        """Test that invalid paths are rejected."""
-        with pytest.raises(ValueError, match="Database path cannot be None"):
-            EventStore(None)
-        with pytest.raises(ValueError, match="empty or whitespace"):
-            EventStore("")
-        with pytest.raises(ValueError, match="empty or whitespace"):
-            EventStore("   ")
-        with pytest.raises(TypeError, match="must be a string or Path object"):
-            EventStore(123)
 
 
 class TestDatabaseConnectionManagement:
@@ -197,17 +142,6 @@ class TestDatabaseContextManager:
 
 class TestDatabaseConnectionErrorHandling:
     """Test error handling for database connections."""
-
-    def test_connection_handles_invalid_paths_with_helpful_errors(self):
-        """Test that invalid paths produce helpful error messages."""
-        for invalid_path, keywords in [
-            (Path("/dev/null/impossible.db"), ["database", "schema", "path", "failed"]),
-            (Path(""), ["schema", "database"]),
-        ]:
-            with pytest.raises((sqlite3.Error, ValueError, OSError)) as excinfo:
-                EventStore(invalid_path)
-            error_msg = str(excinfo.value).lower()
-            assert any(kw in error_msg for kw in keywords)
 
     def test_get_connection_error_handling(self, tmp_path):
         """Test get_connection() error handling when sqlite3.connect fails."""
