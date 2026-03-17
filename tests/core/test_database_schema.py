@@ -190,6 +190,46 @@ class TestDatabaseSchemaCompatibility:
             assert "snapshots" in tables
 
 
+class TestDatabaseSchemaIdempotency:
+    """Test that schema creation is idempotent and preserves data."""
+
+    def test_schema_creation_is_idempotent(self, tmp_path):
+        """Test that creating EventStore multiple times preserves existing data."""
+        db_path = tmp_path / "test.db"
+
+        # Create first EventStore and insert data
+        store1 = EventStore(db_path)
+        with store1 as conn:
+            conn.cursor().execute("""
+                INSERT INTO events (workflow_id, event_id, event_type, timestamp, data)
+                VALUES (?, ?, ?, ?, ?)
+            """, ("w-1", "e-1", "test.event", "2023-01-01T12:00:00", "{}"))
+
+        # Create another EventStore on same db - should not destroy data
+        store2 = EventStore(db_path)
+        with store2 as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM events")
+            assert cursor.fetchone()[0] == 1
+
+    def test_events_autoincrement_primary_key(self, tmp_path):
+        """Test that events sequence_number auto-increments."""
+        event_store = EventStore(tmp_path / "test.db")
+
+        with event_store as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO events (workflow_id, event_id, event_type, timestamp, data)
+                VALUES (?, ?, ?, ?, ?)
+            """, ("w-1", "e-1", "type1", "2023-01-01T12:00:00", "{}"))
+            cursor.execute("""
+                INSERT INTO events (workflow_id, event_id, event_type, timestamp, data)
+                VALUES (?, ?, ?, ?, ?)
+            """, ("w-1", "e-2", "type2", "2023-01-01T12:01:00", "{}"))
+            cursor.execute("SELECT sequence_number FROM events ORDER BY sequence_number")
+            assert [row[0] for row in cursor.fetchall()] == [1, 2]
+
+
 class TestDatabaseSchemaErrorHandling:
     """Test database schema error handling and edge cases."""
 
