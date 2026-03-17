@@ -230,6 +230,27 @@ class TestDatabaseSchemaIdempotency:
             assert [row[0] for row in cursor.fetchall()] == [1, 2]
 
 
+class TestEventStoreInitialization:
+    """Test EventStore initialization and path handling."""
+
+    def test_init_handles_special_characters_in_path(self, tmp_path):
+        """Test paths with dashes, underscores, spaces, dots."""
+        for name in ["events-with-dashes.db", "events_underscores.db",
+                      "events with spaces.db", "events.prod.2023.db"]:
+            store = EventStore(tmp_path / name)
+            assert store.db_path.name == name
+
+    def test_connection_works_after_initialization(self, tmp_path):
+        """Test that connection management works after automatic initialization."""
+        store = EventStore(tmp_path / "connection_test.db")
+        conn = store.get_connection()
+        assert conn is not None
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM events")
+        assert cursor.fetchone()[0] == 0
+        store.close_connection(conn)
+
+
 class TestDatabaseSchemaErrorHandling:
     """Test database schema error handling and edge cases."""
 
