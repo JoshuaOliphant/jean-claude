@@ -246,6 +246,41 @@ class TestReadMessagesValidation:
             read_messages(MessageBox.INBOX, None)
 
 
+class TestReadMessagesIOErrors:
+    """Tests for IO error handling."""
+
+    def test_handles_io_errors_gracefully(self, tmp_path):
+        """Test that IO errors are handled gracefully by returning empty list."""
+        paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
+        paths.ensure_mailbox_dir()
+        paths.inbox_path.touch()
+        paths.inbox_path.chmod(0o000)
+        try:
+            messages = read_messages(MessageBox.INBOX, paths)
+            assert messages == []
+        finally:
+            paths.inbox_path.chmod(0o644)
+
+    def test_uses_resolve_mailbox_path(self, tmp_path, monkeypatch):
+        """Test that read_messages uses resolve_mailbox_path utility."""
+        from jean_claude.core import message_reader
+
+        paths = MailboxPaths(workflow_id="test-workflow", base_dir=tmp_path)
+        paths.ensure_mailbox_dir()
+
+        resolve_called = []
+        original_resolve = message_reader.resolve_mailbox_path
+
+        def mock_resolve(mailbox, paths):
+            resolve_called.append((mailbox, paths))
+            return original_resolve(mailbox, paths)
+
+        monkeypatch.setattr(message_reader, "resolve_mailbox_path", mock_resolve)
+        read_messages(MessageBox.INBOX, paths)
+        assert len(resolve_called) == 1
+        assert resolve_called[0][0] == MessageBox.INBOX
+
+
 class TestReadMessagesIntegration:
     """Integration tests - consolidated from 2 tests to 1."""
 
