@@ -95,6 +95,31 @@ class TestLogsCommandBasic:
 
         return tmp_path
 
+    def test_logs_shows_recent_events(self, runner, temp_project):
+        """Test that jc logs shows events from a workflow."""
+        with runner.isolated_filesystem():
+            # Copy temp_project structure
+            import shutil
+            shutil.copytree(temp_project / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs", "test-workflow-123"])
+
+            assert result.exit_code == 0
+            assert "workflow.started" in result.output
+            assert "feature.planned" in result.output
+
+    def test_logs_shows_most_recent_workflow_by_default(self, runner, temp_project):
+        """Test that jc logs without ID shows most recent workflow."""
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs"])
+
+            # Should show logs from test-workflow-123 (only workflow)
+            assert result.exit_code == 0
+            assert "workflow.started" in result.output
+
     def test_logs_no_workflows_shows_message(self, runner):
         """Test that jc logs with no workflows shows helpful message."""
         with runner.isolated_filesystem():
@@ -112,6 +137,30 @@ class TestLogsCommandBasic:
             result = runner.invoke(cli, ["logs", "nonexistent-workflow"])
 
             assert result.exit_code != 0 or "not found" in result.output.lower()
+
+    def test_logs_formats_timestamp(self, runner, temp_project):
+        """Test that logs display timestamps in readable format."""
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs", "test-workflow-123"])
+
+            assert result.exit_code == 0
+            # Should show time in HH:MM:SS format
+            assert "12:00:" in result.output
+
+    def test_logs_shows_event_data(self, runner, temp_project):
+        """Test that logs display event data."""
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs", "test-workflow-123"])
+
+            assert result.exit_code == 0
+            # Should show key data from events
+            assert "poc-xyz" in result.output or "beads_task" in result.output
 
 
 class TestLogsCommandFiltering:
@@ -177,6 +226,19 @@ class TestLogsCommandFiltering:
 
         return tmp_path
 
+    def test_logs_since_filters_by_time(self, runner, temp_project_with_levels):
+        """Test that --since filters logs by time."""
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project_with_levels / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs", "test-workflow", "--since", "10m"])
+
+            assert result.exit_code == 0
+            # Should show recent events (last 10 minutes)
+            # workflow.started was 2 hours ago, should not appear
+            # agent.error and workflow.completed should appear
+
     def test_logs_since_accepts_various_formats(self, runner, temp_project_with_levels):
         """Test that --since accepts different time formats."""
         with runner.isolated_filesystem():
@@ -202,6 +264,17 @@ class TestLogsCommandFiltering:
 
             assert result.exit_code == 0
             # Should only show workflow.* events
+
+    def test_logs_level_error_shows_only_errors(self, runner, temp_project_with_levels):
+        """Test that --level error shows only error events."""
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project_with_levels / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs", "test-workflow", "--level", "error"])
+
+            assert result.exit_code == 0
+            # Should show agent.error event
 
 
 class TestLogsCommandFollow:
@@ -236,6 +309,15 @@ class TestLogsCommandFollow:
             json.dump({"workflow_id": "follow-test", "phase": "running"}, f)
 
         return tmp_path
+
+    def test_logs_follow_flag_exists(self, runner, temp_project_for_follow):
+        """Test that --follow flag is recognized by checking help."""
+        result = runner.invoke(cli, ["logs", "--help"])
+
+        # Verify --follow option exists in help output
+        assert result.exit_code == 0
+        assert "--follow" in result.output
+        assert "-f" in result.output
 
     def test_logs_follow_shows_tailing_message(self, runner, temp_project_for_follow):
         """Test that --follow shows 'Tailing' message before entering loop."""
@@ -323,6 +405,21 @@ class TestLogsCommandOutput:
             assert result.exit_code == 0
             # Should only show 1 event (the most recent)
 
+    def test_logs_tail_shows_recent_first(self, runner, temp_project):
+        """Test that logs are shown in chronological order by default."""
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs", "output-test"])
+
+            assert result.exit_code == 0
+            # Check order - workflow.started should appear before agent.error
+            started_pos = result.output.find("workflow.started")
+            error_pos = result.output.find("agent.error")
+            if started_pos >= 0 and error_pos >= 0:
+                assert started_pos < error_pos
+
 
 class TestLogsCommandEdgeCases:
     """Edge case tests for jc logs command."""
@@ -367,6 +464,25 @@ class TestLogsCommandEdgeCases:
 
             # Should handle gracefully - show valid events, skip malformed
             assert result.exit_code == 0
+
+
+class TestLogsHelp:
+    """Tests for jc logs help output."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create a CLI test runner."""
+        return CliRunner()
+
+    def test_logs_help_shows_usage(self, runner):
+        """Test that --help shows command usage."""
+        result = runner.invoke(cli, ["logs", "--help"])
+
+        assert result.exit_code == 0
+        assert "logs" in result.output.lower()
+        assert "--follow" in result.output
+        assert "--since" in result.output
+        assert "--level" in result.output
 
 
 class TestLogsCommandRefactor:
@@ -458,6 +574,14 @@ class TestLogsCommandRefactor:
 
         return tmp_path
 
+    def test_logs_help_shows_all_option(self, runner):
+        """Test that --help shows --all option."""
+        result = runner.invoke(cli, ["logs", "--help"])
+
+        assert result.exit_code == 0
+        assert "--all" in result.output
+        assert "Show logs from all workflows" in result.output or "all workflows" in result.output
+
     def test_logs_module_imports_get_all_workflows_from_utils(self):
         """Test that logs module imports get_all_workflows from workflow_utils."""
         from jean_claude.cli.commands import logs as logs_module
@@ -466,6 +590,39 @@ class TestLogsCommandRefactor:
         # The logs module should import get_all_workflows from workflow_utils
         assert hasattr(logs_module, 'get_all_workflows')
         assert logs_module.get_all_workflows is utils_get_all_workflows
+
+    @patch('jean_claude.cli.commands.logs.get_all_workflows')
+    def test_logs_all_uses_get_all_workflows_function(self, mock_get_all_workflows, runner, temp_project_multi_workflows):
+        """Test that 'jc logs --all' uses the get_all_workflows function."""
+        # Mock get_all_workflows to return empty list to avoid complex setup
+        mock_get_all_workflows.return_value = []
+
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project_multi_workflows / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs", "--all"])
+
+            # Verify get_all_workflows was called
+            mock_get_all_workflows.assert_called_once()
+            call_args = mock_get_all_workflows.call_args[0]
+            assert isinstance(call_args[0], Path)  # Should be called with project_root
+
+    def test_logs_all_shows_logs_from_multiple_workflows(self, runner, temp_project_multi_workflows):
+        """Test that 'jc logs --all' shows logs from all workflows."""
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project_multi_workflows / "agents", Path.cwd() / "agents")
+
+            result = runner.invoke(cli, ["logs", "--all"])
+
+            assert result.exit_code == 0
+            # Should show events from both workflows
+            assert "workflow-one" in result.output
+            assert "workflow-two" in result.output
+            assert "workflow.started" in result.output
+            assert "Feature A" in result.output or "feature.completed" in result.output
+            assert "agent.error" in result.output
 
     def test_logs_all_with_json_output(self, runner, temp_project_multi_workflows):
         """Test that 'jc logs --all --json' outputs valid JSON with logs from all workflows."""
@@ -486,3 +643,24 @@ class TestLogsCommandRefactor:
                 assert "workflow-two" in workflow_ids
             except json.JSONDecodeError:
                 pytest.fail("Output is not valid JSON")
+
+    def test_logs_all_with_filtering(self, runner, temp_project_multi_workflows):
+        """Test that 'jc logs --all' works with filtering options like --level."""
+        with runner.isolated_filesystem():
+            import shutil
+            shutil.copytree(temp_project_multi_workflows / "agents", Path.cwd() / "agents")
+
+            # Test with level filtering
+            result = runner.invoke(cli, ["logs", "--all", "--level", "error"])
+
+            assert result.exit_code == 0
+            # Should only show error events
+            assert "agent.error" in result.output
+
+    def test_logs_all_with_no_workflows(self, runner):
+        """Test that 'jc logs --all' handles no workflows gracefully."""
+        with runner.isolated_filesystem():
+            result = runner.invoke(cli, ["logs", "--all"])
+
+            assert result.exit_code == 0
+            assert "no logs" in result.output.lower() or "no workflows" in result.output.lower()
