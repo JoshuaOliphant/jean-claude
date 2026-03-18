@@ -53,3 +53,9 @@ OUTBOX/
 /VALIDATION_*.md
 /VALIDATION_*.txt
 /QUICK_REFERENCE.md
+
+# Autoloop artifacts
+results.tsv
+run.log
+run_tests.log
+run_cov.log
