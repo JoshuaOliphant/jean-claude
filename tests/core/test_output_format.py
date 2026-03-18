@@ -66,7 +66,7 @@ class TestOutputFormatPassthrough:
         request = PromptRequest(
             prompt="test",
             output_format=schema,
-            enable_security_hooks=False,
+            sandbox_enabled=False,
         )
 
         await _execute_prompt_async(request)
@@ -85,7 +85,7 @@ class TestOutputFormatPassthrough:
         mock_query.return_value = AsyncMock()
         mock_query.return_value.__aiter__ = AsyncMock(return_value=iter([]))
 
-        request = PromptRequest(prompt="test", enable_security_hooks=False)
+        request = PromptRequest(prompt="test", sandbox_enabled=False)
         await _execute_prompt_async(request)
 
         mock_query.assert_called_once()

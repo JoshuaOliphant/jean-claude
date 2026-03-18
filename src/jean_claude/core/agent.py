@@ -59,7 +59,7 @@ class PromptRequest(BaseModel):
     output_dir: Optional[Path] = None
     dangerously_skip_permissions: bool = False
     workflow_type: Literal["readonly", "development", "testing"] = "development"
-    enable_security_hooks: bool = True
+    sandbox_enabled: bool = True
     max_budget_usd: Optional[float] = None  # Maximum budget in USD for this execution
     output_format: Optional[dict] = None  # JSON schema for structured output enforcement
     mcp_servers: Optional[dict] = None  # MCP servers to provide to the agent
